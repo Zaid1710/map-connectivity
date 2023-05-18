@@ -38,7 +38,7 @@ class MainActivity : AppCompatActivity() {
             recorder.maxAmplitude
             recorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP)
             recorder.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB)
-            recorder.setOutputFile("/data/user/0/com.example.mapconnectivity/files/file.3gpp")
+            recorder.setOutputFile("${externalCacheDir?.absolutePath}/temp.3gp")
             recorder.prepare()
             recorder.start()   // Recording is now started
             microphoneText.text = "BELLO"
