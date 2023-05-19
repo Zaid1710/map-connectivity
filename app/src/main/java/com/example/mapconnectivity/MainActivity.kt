@@ -1,7 +1,5 @@
 package com.example.mapconnectivity
 
-import android.annotation.SuppressLint
-import android.content.Context
 import android.content.pm.PackageManager
 import android.media.MediaRecorder
 import android.os.Build
@@ -13,18 +11,17 @@ import android.widget.TextView
 import androidx.annotation.RequiresApi
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import java.util.Arrays
 import kotlin.math.log10
 
 class MainActivity : AppCompatActivity() {
-    lateinit var microphoneText: TextView
+    private lateinit var microphoneText: TextView
 
     @RequiresApi(Build.VERSION_CODES.S)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         val fetchBtn = findViewById<Button>(R.id.fetchBtn)
-        microphoneText = findViewById<TextView>(R.id.microphoneText)
+        microphoneText = findViewById(R.id.microphoneText)
 
         if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, arrayOf(android.Manifest.permission.RECORD_AUDIO), 0)
