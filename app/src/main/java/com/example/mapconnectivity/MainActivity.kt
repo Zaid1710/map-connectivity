@@ -13,54 +13,70 @@ import android.widget.TextView
 import androidx.annotation.RequiresApi
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import java.util.Arrays
 import kotlin.math.log10
 
 class MainActivity : AppCompatActivity() {
-    @SuppressLint("SetTextI18n")
+    lateinit var microphoneText: TextView
+
     @RequiresApi(Build.VERSION_CODES.S)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         val fetchBtn = findViewById<Button>(R.id.fetchBtn)
-        val stopBtn = findViewById<Button>(R.id.stopBtn)
-        val amplitudeBtn = findViewById<Button>(R.id.amplitudeBtn)
-        val microphoneText = findViewById<TextView>(R.id.microphoneText)
-        val recorder = MediaRecorder(applicationContext)
-
-
+        microphoneText = findViewById<TextView>(R.id.microphoneText)
 
         if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, arrayOf(android.Manifest.permission.RECORD_AUDIO), 0)
         }
 
-        fetchBtn.setOnClickListener {
+        fetchBtn.setOnClickListener { fetchMicrophone() }
+    }
+
+
+    /* Registra 5 secondi l'audio ambientale dal microfono e calcola la media dei dB recepiti */
+    @RequiresApi(Build.VERSION_CODES.S)
+    fun fetchMicrophone() {
+        Thread {
+            var amplitudes = arrayOf<Double>()
+            val recorder = MediaRecorder(applicationContext)
             recorder.setAudioSource(MediaRecorder.AudioSource.MIC)
-            recorder.maxAmplitude
             recorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP)
             recorder.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB)
             recorder.setOutputFile("${externalCacheDir?.absolutePath}/temp.3gp")
             recorder.prepare()
-            recorder.start()   // Recording is now started
-            microphoneText.text = "BELLO"
+            recorder.start()
             Log.d("MediaRecorder", "Started")
-        }
-
-        stopBtn.setOnClickListener {
-            recorder.stop()
-            microphoneText.text = "BRUTTO"
-            Log.d("MediaRecorder", "Stopped")
-            recorder.reset()   // You can reuse the object by going back to setAudioSource() step
-            // recorder.release() // Now the object cannot be reused
-        }
-
-        amplitudeBtn.setOnClickListener {
-            // var maxAmplitude = recorder.maxAmplitude.toString()
-            val amplitude = recorder.maxAmplitude
-            if (amplitude != 0) {
-                val db = (20 * log10(amplitude.toDouble())).toString()
-                microphoneText.text = "$db dB"
-                Log.d("MediaRecorder", db)
+            repeat(6) {
+                val fetchedAmplitude = fetchAmplitude(recorder)
+                amplitudes += fetchedAmplitude
+                Thread.sleep(1000)
             }
+            var avgAmplitude = 0.0
+            for (amplitude in amplitudes) {
+                avgAmplitude += amplitude
+            }
+            avgAmplitude /= 5
+            recorder.stop()
+            recorder.reset()
+
+            runOnUiThread {
+                microphoneText.text = avgAmplitude.toString()
+            }
+
+            Log.d("MediaRecorder", "Finished")
+        }.start()
+    }
+
+    /* Prende in input l'ampiezza e la converte in dB */
+    private fun fetchAmplitude(recorder: MediaRecorder): Double {
+        val amplitude = recorder.maxAmplitude
+        Log.d("MediaRecorder", "Amp $amplitude")
+        var db = 0.0
+        if (amplitude != 0) {
+            db = (20 * log10(amplitude.toDouble()))
         }
+        Log.d("MediaRecorder", "Db $db")
+        return db
     }
 }
