@@ -19,26 +19,14 @@ import androidx.core.content.ContextCompat
 import kotlin.math.log10
 
 class MainActivity : AppCompatActivity() {
-    private lateinit var microphoneText: TextView
-    private lateinit var wifiText: TextView
-
     @RequiresApi(Build.VERSION_CODES.S)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-        val microphoneBtn = findViewById<Button>(R.id.microphoneBtn)
-        val lteBtn = findViewById<Button>(R.id.lteBtn)
-        val wifiBtn = findViewById<Button>(R.id.wifiBtn)
-        microphoneText = findViewById(R.id.microphoneText)
-        wifiText = findViewById(R.id.wifiText)
 
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), 0)
         }
-
-        microphoneBtn.setOnClickListener { fetchMicrophone() }
-        lteBtn.setOnClickListener { fetchLTE() }
-        wifiBtn.setOnClickListener { fetchWifi() }
     }
 
     @RequiresApi(Build.VERSION_CODES.R)
@@ -56,10 +44,7 @@ class MainActivity : AppCompatActivity() {
                     maxLevel = scanResult.level
                 }
             }
-            runOnUiThread {
-                Log.d("WIFI", maxLevel.toString())
-                wifiText.text = maxLevel.toString()
-            }
+            Log.d("WIFI", maxLevel.toString())
         }.start()
     }
 
@@ -107,7 +92,7 @@ class MainActivity : AppCompatActivity() {
             recorder.setOutputFile("${externalCacheDir?.absolutePath}/temp.3gp")
             recorder.prepare()
             recorder.start()
-            Log.d("MediaRecorder", "Started")
+            // Log.d("MediaRecorder", "Started")
             repeat(6) {
                 val fetchedAmplitude = fetchAmplitude(recorder)
                 amplitudes += fetchedAmplitude
@@ -121,11 +106,7 @@ class MainActivity : AppCompatActivity() {
             recorder.stop()
             recorder.reset()
 
-            runOnUiThread {
-                microphoneText.text = avgAmplitude.toString()
-            }
-
-            Log.d("MediaRecorder", "Finished")
+            Log.d("MediaRecorder", avgAmplitude.toString())
         }.start()
     }
 
