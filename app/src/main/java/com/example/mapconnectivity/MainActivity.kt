@@ -1,6 +1,7 @@
 package com.example.mapconnectivity
 
 import android.Manifest
+import android.app.Activity
 import android.content.Context
 import android.content.pm.PackageManager
 import android.media.MediaRecorder
@@ -18,9 +19,15 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import kotlin.math.log10
 
+/* TODO:
+    - Unificare le richieste dei permessi
+    - Sensore di pressione atmosferica
+    - Sensore di umidità
+*/
 class MainActivity : AppCompatActivity() {
     private lateinit var microphoneText: TextView
     private lateinit var wifiText: TextView
+    private lateinit var lteText: TextView
 
     @RequiresApi(Build.VERSION_CODES.S)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -31,13 +38,12 @@ class MainActivity : AppCompatActivity() {
         val wifiBtn = findViewById<Button>(R.id.wifiBtn)
         microphoneText = findViewById(R.id.microphoneText)
         wifiText = findViewById(R.id.wifiText)
+        lteText = findViewById(R.id.lteText)
 
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), 0)
-        }
+        checkMicrophonePermission(this)
 
         microphoneBtn.setOnClickListener { fetchMicrophone() }
-        lteBtn.setOnClickListener { fetchLTE() }
+        lteBtn.setOnClickListener { lteText.text = getLteSignalStrength(this).toString() }
         wifiBtn.setOnClickListener { fetchWifi() }
     }
 
@@ -45,10 +51,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun fetchWifi() {
         Thread {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_WIFI_STATE) != PackageManager.PERMISSION_GRANTED) {
-                ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.ACCESS_WIFI_STATE), 7)
-
-            }
+            checkWifiPermission(this)
             val wfm2: WifiManager = applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
             var maxLevel = -200
             for(scanResult in wfm2.scanResults) {
@@ -63,35 +66,57 @@ class MainActivity : AppCompatActivity() {
         }.start()
     }
 
-    @RequiresApi(Build.VERSION_CODES.S)
-    private fun fetchLTE() {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.ACCESS_COARSE_LOCATION), 1)
-        }
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), 2)
-        }
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_BACKGROUND_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.ACCESS_BACKGROUND_LOCATION), 3)
-        }
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_PHONE_NUMBERS) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.READ_PHONE_NUMBERS), 4)
-        }
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.READ_PHONE_STATE), 5)
-        }
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_SMS) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.READ_SMS), 6)
-        }
+    // Verifica e richiedi il permesso RECORD_AUDIO
+    private fun checkMicrophonePermission(activity: Activity) {
+        val permission = Manifest.permission.RECORD_AUDIO
+        val requestCode = 0
 
-        try {
+        if (ContextCompat.checkSelfPermission(activity, permission) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(activity, arrayOf(permission), requestCode)
+        }
+    }
 
-            val tm: TelephonyManager = this.getSystemService(TELEPHONY_SERVICE) as TelephonyManager
-            val infoLte = tm.allCellInfo[2] as CellInfoLte
-            val lte = infoLte.cellSignalStrength.dbm
-            Log.d("LTE", "LTE: $lte")
-        } catch (e: Throwable) {
+    // Verifica e richiedi il permesso ACCESS_FINE_LOCATION
+    private fun checkLocationPermission(activity: Activity) {
+        val permission = Manifest.permission.ACCESS_FINE_LOCATION
+        val requestCode = 1
+
+        if (ContextCompat.checkSelfPermission(activity, permission) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(activity, arrayOf(permission), requestCode)
+        }
+    }
+
+    // Verifica e richiedi il permesso ACCESS_WIFI_STATE
+    private fun checkWifiPermission(activity: Activity) {
+        val permission = Manifest.permission.ACCESS_WIFI_STATE
+        val requestCode = 2
+
+        if (ContextCompat.checkSelfPermission(activity, permission) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(activity, arrayOf(permission), requestCode)
+        }
+    }
+
+    /* Ottiene la potenza del segnale LTE */
+    private fun getLteSignalStrength(context: Context): Int {
+        val telephonyManager = context.getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
+
+        checkLocationPermission(this)
+
+        return try {
+            val cellInfoList = telephonyManager.allCellInfo
+            Log.d("LTE", "cellInfoList $cellInfoList")
+            if (cellInfoList != null && cellInfoList.isNotEmpty()) {
+                for (info in cellInfoList) {
+                    if (info is CellInfoLte) {
+                        val cellSignalStrength = info.cellSignalStrength
+                        return cellSignalStrength.dbm
+                    }
+                }
+            }
+            -1 // Valore di default se non è possibile ottenere la potenza del segnale
+        } catch (e: SecurityException) {
             Log.wtf("LTE", e)
+            -1 // Gestisci l'eccezione, restituendo il valore di default
         }
     }
 
