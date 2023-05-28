@@ -4,6 +4,10 @@ import android.Manifest
 import android.app.Activity
 import android.content.Context
 import android.content.pm.PackageManager
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
 import android.media.MediaRecorder
 import android.net.wifi.WifiManager
 import android.os.Build
@@ -21,13 +25,14 @@ import kotlin.math.log10
 
 /* TODO:
     - Unificare le richieste dei permessi
-    - Sensore di pressione atmosferica
-    - Sensore di umidità
 */
 class MainActivity : AppCompatActivity() {
     private lateinit var microphoneText: TextView
     private lateinit var wifiText: TextView
     private lateinit var lteText: TextView
+    private lateinit var pressureText: TextView
+
+    private lateinit var pressureSensorListener: PressureSensorListener
 
     @RequiresApi(Build.VERSION_CODES.S)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -36,25 +41,39 @@ class MainActivity : AppCompatActivity() {
         val microphoneBtn = findViewById<Button>(R.id.microphoneBtn)
         val lteBtn = findViewById<Button>(R.id.lteBtn)
         val wifiBtn = findViewById<Button>(R.id.wifiBtn)
+        val pressureBtn = findViewById<Button>(R.id.pressureBtn)
         microphoneText = findViewById(R.id.microphoneText)
         wifiText = findViewById(R.id.wifiText)
         lteText = findViewById(R.id.lteText)
+        pressureText = findViewById(R.id.pressureText)
 
         checkMicrophonePermission(this)
 
         microphoneBtn.setOnClickListener { fetchMicrophone() }
         lteBtn.setOnClickListener { lteText.text = getLteSignalStrength(this).toString() }
         wifiBtn.setOnClickListener { fetchWifi() }
+        pressureBtn.setOnClickListener { pressureText.text = getPressure().toString() }
+    }
+
+    override fun onResume() {
+        super.onResume()
+
+        checkInternetPermission(this)
+        val sensorManager = this.getSystemService(Context.SENSOR_SERVICE) as SensorManager
+        val pressureSensor = sensorManager.getDefaultSensor(Sensor.TYPE_PRESSURE)
+
+        pressureSensorListener = PressureSensorListener()
+        sensorManager.registerListener(pressureSensorListener, pressureSensor, SensorManager.SENSOR_DELAY_NORMAL)
     }
 
     @RequiresApi(Build.VERSION_CODES.R)
-
     private fun fetchWifi() {
         Thread {
             checkWifiPermission(this)
-            val wfm2: WifiManager = applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+            val wfm2: WifiManager =
+                applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
             var maxLevel = -200
-            for(scanResult in wfm2.scanResults) {
+            for (scanResult in wfm2.scanResults) {
                 if (scanResult.level > maxLevel) {
                     maxLevel = scanResult.level
                 }
@@ -71,7 +90,11 @@ class MainActivity : AppCompatActivity() {
         val permission = Manifest.permission.RECORD_AUDIO
         val requestCode = 0
 
-        if (ContextCompat.checkSelfPermission(activity, permission) != PackageManager.PERMISSION_GRANTED) {
+        if (ContextCompat.checkSelfPermission(
+                activity,
+                permission
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
             ActivityCompat.requestPermissions(activity, arrayOf(permission), requestCode)
         }
     }
@@ -81,7 +104,11 @@ class MainActivity : AppCompatActivity() {
         val permission = Manifest.permission.ACCESS_FINE_LOCATION
         val requestCode = 1
 
-        if (ContextCompat.checkSelfPermission(activity, permission) != PackageManager.PERMISSION_GRANTED) {
+        if (ContextCompat.checkSelfPermission(
+                activity,
+                permission
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
             ActivityCompat.requestPermissions(activity, arrayOf(permission), requestCode)
         }
     }
@@ -91,14 +118,33 @@ class MainActivity : AppCompatActivity() {
         val permission = Manifest.permission.ACCESS_WIFI_STATE
         val requestCode = 2
 
-        if (ContextCompat.checkSelfPermission(activity, permission) != PackageManager.PERMISSION_GRANTED) {
+        if (ContextCompat.checkSelfPermission(
+                activity,
+                permission
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            ActivityCompat.requestPermissions(activity, arrayOf(permission), requestCode)
+        }
+    }
+
+    // Verifica e richiedi il permesso INTERNET
+    private fun checkInternetPermission(activity: Activity) {
+        val permission = Manifest.permission.INTERNET
+        val requestCode = 3
+
+        if (ContextCompat.checkSelfPermission(
+                activity,
+                permission
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
             ActivityCompat.requestPermissions(activity, arrayOf(permission), requestCode)
         }
     }
 
     /* Ottiene la potenza del segnale LTE */
     private fun getLteSignalStrength(context: Context): Int {
-        val telephonyManager = context.getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
+        val telephonyManager =
+            context.getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
 
         checkLocationPermission(this)
 
@@ -164,5 +210,22 @@ class MainActivity : AppCompatActivity() {
         }
         Log.d("MediaRecorder", "Db $db")
         return db
+    }
+
+    // Classe listener per ottenere i valori del sensore di umidità
+    private class PressureSensorListener : SensorEventListener {
+        var currentPressure: Float = 0f
+
+        override fun onSensorChanged(event: SensorEvent) {
+            if (event.sensor.type == Sensor.TYPE_PRESSURE) {
+                currentPressure = event.values[0]
+            }
+        }
+
+        override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
+    }
+
+    private fun getPressure(): Float {
+        return pressureSensorListener.currentPressure
     }
 }
