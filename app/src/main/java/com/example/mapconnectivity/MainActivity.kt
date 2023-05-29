@@ -23,9 +23,6 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import kotlin.math.log10
 
-/* TODO:
-    - Unificare le richieste dei permessi
-*/
 class MainActivity : AppCompatActivity() {
     private lateinit var microphoneText: TextView
     private lateinit var wifiText: TextView
