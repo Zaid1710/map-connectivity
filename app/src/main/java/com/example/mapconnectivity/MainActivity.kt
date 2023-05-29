@@ -47,7 +47,7 @@ class MainActivity : AppCompatActivity() {
         lteText = findViewById(R.id.lteText)
         pressureText = findViewById(R.id.pressureText)
 
-        checkMicrophonePermission(this)
+        checkPermission(this, Manifest.permission.RECORD_AUDIO, 0)
 
         microphoneBtn.setOnClickListener { fetchMicrophone() }
         lteBtn.setOnClickListener { lteText.text = getLteSignalStrength(this).toString() }
@@ -58,7 +58,7 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
 
-        checkInternetPermission(this)
+        checkPermission(this, Manifest.permission.INTERNET, 3)
         val sensorManager = this.getSystemService(Context.SENSOR_SERVICE) as SensorManager
         val pressureSensor = sensorManager.getDefaultSensor(Sensor.TYPE_PRESSURE)
 
@@ -66,10 +66,11 @@ class MainActivity : AppCompatActivity() {
         sensorManager.registerListener(pressureSensorListener, pressureSensor, SensorManager.SENSOR_DELAY_NORMAL)
     }
 
+    /* Restituisce la potenza del segnale Wifi */
     @RequiresApi(Build.VERSION_CODES.R)
     private fun fetchWifi() {
         Thread {
-            checkWifiPermission(this)
+            checkPermission(this, Manifest.permission.ACCESS_WIFI_STATE, 2)
             val wfm2: WifiManager =
                 applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
             var maxLevel = -200
@@ -85,53 +86,8 @@ class MainActivity : AppCompatActivity() {
         }.start()
     }
 
-    // Verifica e richiedi il permesso RECORD_AUDIO
-    private fun checkMicrophonePermission(activity: Activity) {
-        val permission = Manifest.permission.RECORD_AUDIO
-        val requestCode = 0
-
-        if (ContextCompat.checkSelfPermission(
-                activity,
-                permission
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
-            ActivityCompat.requestPermissions(activity, arrayOf(permission), requestCode)
-        }
-    }
-
-    // Verifica e richiedi il permesso ACCESS_FINE_LOCATION
-    private fun checkLocationPermission(activity: Activity) {
-        val permission = Manifest.permission.ACCESS_FINE_LOCATION
-        val requestCode = 1
-
-        if (ContextCompat.checkSelfPermission(
-                activity,
-                permission
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
-            ActivityCompat.requestPermissions(activity, arrayOf(permission), requestCode)
-        }
-    }
-
-    // Verifica e richiedi il permesso ACCESS_WIFI_STATE
-    private fun checkWifiPermission(activity: Activity) {
-        val permission = Manifest.permission.ACCESS_WIFI_STATE
-        val requestCode = 2
-
-        if (ContextCompat.checkSelfPermission(
-                activity,
-                permission
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
-            ActivityCompat.requestPermissions(activity, arrayOf(permission), requestCode)
-        }
-    }
-
-    // Verifica e richiedi il permesso INTERNET
-    private fun checkInternetPermission(activity: Activity) {
-        val permission = Manifest.permission.INTERNET
-        val requestCode = 3
-
+    /* Verifica e richiedi un permesso */
+    private fun checkPermission(activity: Activity, permission: String, requestCode: Int) {
         if (ContextCompat.checkSelfPermission(
                 activity,
                 permission
@@ -146,7 +102,7 @@ class MainActivity : AppCompatActivity() {
         val telephonyManager =
             context.getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
 
-        checkLocationPermission(this)
+        checkPermission(this, Manifest.permission.ACCESS_FINE_LOCATION, 1)
 
         return try {
             val cellInfoList = telephonyManager.allCellInfo
@@ -159,7 +115,7 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
             }
-            -1 // Valore di default se non è possibile ottenere la potenza del segnale
+            -1 // Valore di default se non � possibile ottenere la potenza del segnale
         } catch (e: SecurityException) {
             Log.wtf("LTE", e)
             -1 // Gestisci l'eccezione, restituendo il valore di default
@@ -212,7 +168,7 @@ class MainActivity : AppCompatActivity() {
         return db
     }
 
-    // Classe listener per ottenere i valori del sensore di umidità
+    /* Classe listener per ottenere i valori del sensore di umidita */
     private class PressureSensorListener : SensorEventListener {
         var currentPressure: Float = 0f
 
@@ -225,6 +181,7 @@ class MainActivity : AppCompatActivity() {
         override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
     }
 
+    /* Restituisce il livello di pressione atmosferica */
     private fun getPressure(): Float {
         return pressureSensorListener.currentPressure
     }
