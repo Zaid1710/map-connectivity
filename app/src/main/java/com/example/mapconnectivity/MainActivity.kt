@@ -4,6 +4,7 @@ import android.Manifest
 import android.app.Activity
 import android.content.Context
 import android.content.pm.PackageManager
+import android.graphics.Color
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
@@ -31,6 +32,16 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var pressureSensorListener: PressureSensorListener
 
+    private val PRESSURE_BAD_LOW = 500.0
+//    private val PRESSURE_BAD_HIGH = 500.0
+    private val PRESSURE_OPT = 1000.0
+    private val WIFI_BAD = -75.0
+    private val WIFI_OPT = -55.0
+    private val LTE_BAD = -95.0
+    private val LTE_OPT = -80.0
+    private val DB_BAD = -80.0
+    private val DB_OPT = -60.0
+
     @RequiresApi(Build.VERSION_CODES.S)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -47,9 +58,9 @@ class MainActivity : AppCompatActivity() {
         checkPermission(this, Manifest.permission.RECORD_AUDIO, 0)
 
         microphoneBtn.setOnClickListener { fetchMicrophone() }
-        lteBtn.setOnClickListener { lteText.text = getLteSignalStrength(this).toString() }
+        lteBtn.setOnClickListener { getLteSignalStrength() }
         wifiBtn.setOnClickListener { fetchWifi() }
-        pressureBtn.setOnClickListener { pressureText.text = getPressure().toString() }
+        pressureBtn.setOnClickListener { getPressure() }
     }
 
     override fun onResume() {
@@ -68,6 +79,7 @@ class MainActivity : AppCompatActivity() {
     private fun fetchWifi() {
         Thread {
             checkPermission(this, Manifest.permission.ACCESS_WIFI_STATE, 2)
+            checkPermission(this, Manifest.permission.ACCESS_FINE_LOCATION, 1)
             val wfm2: WifiManager =
                 applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
             var maxLevel = -200
@@ -79,6 +91,7 @@ class MainActivity : AppCompatActivity() {
             runOnUiThread {
                 Log.d("WIFI", maxLevel.toString())
                 wifiText.text = maxLevel.toString()
+                wifiText.setBackgroundColor(getQuality(maxLevel.toDouble(), WIFI_BAD, WIFI_OPT))
             }
         }.start()
     }
@@ -95,28 +108,31 @@ class MainActivity : AppCompatActivity() {
     }
 
     /* Ottiene la potenza del segnale LTE */
-    private fun getLteSignalStrength(context: Context): Int {
-        val telephonyManager =
-            context.getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
+    private fun getLteSignalStrength() {
+        Thread {
+            val telephonyManager = this.getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
 
-        checkPermission(this, Manifest.permission.ACCESS_FINE_LOCATION, 1)
+            checkPermission(this, Manifest.permission.ACCESS_FINE_LOCATION, 1)
 
-        return try {
-            val cellInfoList = telephonyManager.allCellInfo
-            Log.d("LTE", "cellInfoList $cellInfoList")
-            if (cellInfoList != null && cellInfoList.isNotEmpty()) {
-                for (info in cellInfoList) {
-                    if (info is CellInfoLte) {
-                        val cellSignalStrength = info.cellSignalStrength
-                        return cellSignalStrength.dbm
+            try {
+                val cellInfoList = telephonyManager.allCellInfo
+                Log.d("LTE", "cellInfoList $cellInfoList")
+                if (cellInfoList != null && cellInfoList.isNotEmpty()) {
+                    for (info in cellInfoList) {
+                        if (info is CellInfoLte) {
+                            val cellSignalStrength = info.cellSignalStrength
+//                            return cellSignalStrength.dbm
+                            runOnUiThread {
+                                lteText.text = cellSignalStrength.dbm.toString()
+                                lteText.setBackgroundColor(getQuality(cellSignalStrength.dbm.toDouble(), LTE_BAD, LTE_OPT))
+                            }
+                        }
                     }
                 }
+            } catch (e: SecurityException) {
+                Log.wtf("LTE", e)
             }
-            -1 // Valore di default se non � possibile ottenere la potenza del segnale
-        } catch (e: SecurityException) {
-            Log.wtf("LTE", e)
-            -1 // Gestisci l'eccezione, restituendo il valore di default
-        }
+        }.start()
     }
 
     /* Registra 5 secondi l'audio ambientale dal microfono e calcola la media dei dB recepiti */
@@ -147,6 +163,7 @@ class MainActivity : AppCompatActivity() {
 
             runOnUiThread {
                 microphoneText.text = avgAmplitude.toString()
+                microphoneText.setBackgroundColor(getQuality(-avgAmplitude, DB_BAD, DB_OPT))
             }
 
             Log.d("MediaRecorder", "Finished")
@@ -179,7 +196,28 @@ class MainActivity : AppCompatActivity() {
     }
 
     /* Restituisce il livello di pressione atmosferica */
-    private fun getPressure(): Float {
-        return pressureSensorListener.currentPressure
+    private fun getPressure() {
+        pressureText.text = pressureSensorListener.currentPressure.toString()
+        pressureText.setBackgroundColor(getQuality(pressureSensorListener.currentPressure.toDouble(), PRESSURE_BAD_LOW, PRESSURE_OPT))
+    }
+
+    private fun getQuality(value: Double, bad: Double, optimal: Double): Int {
+//        if (bad_high == null) {
+//            return if (value <= bad_low) {
+//                Color.rgb(255, 0, 0)
+//            } else if (value >= optimal) {
+//                Color.rgb(0, 255, 0)
+//            } else {
+//                Color.rgb(128, 128, 0)
+//            }
+//        } else {
+        return if (value <= bad ) {
+            Color.rgb(255, 0, 0)    // Rosso
+        } else if (value >= optimal) {
+            Color.rgb(0, 255, 0)    // Verde
+        } else {
+            Color.rgb(255, 255, 20) // Giallo
+//            }
+        }
     }
 }
