@@ -17,8 +17,6 @@ import android.os.Bundle
 import android.telephony.CellInfoLte
 import android.telephony.TelephonyManager
 import android.util.Log
-import android.widget.Button
-import android.widget.TextView
 import androidx.annotation.RequiresApi
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -26,6 +24,7 @@ import kotlin.math.log10
 
 class MainActivity : AppCompatActivity() {
     private lateinit var pressureSensorListener: PressureSensorListener
+//    private lateinit var mapHandler: MapHandler
 
     private val PRESSURE_BAD_LOW = 500.0
     //    private val PRESSURE_BAD_HIGH = 500.0
@@ -43,6 +42,7 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         checkPermission(this, Manifest.permission.RECORD_AUDIO, 0)
+        checkPermission(this, Manifest.permission.ACCESS_FINE_LOCATION, 1)
     }
 
     override fun onResume() {
