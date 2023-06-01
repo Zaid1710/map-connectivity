@@ -1,8 +1,14 @@
 package com.example.mapconnectivity
 
 import android.Manifest
+import android.app.Activity
 import android.content.Context
 import android.content.pm.PackageManager
+import android.graphics.Color
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
 import android.media.MediaRecorder
 import android.net.wifi.WifiManager
 import android.os.Build
@@ -19,65 +25,96 @@ import androidx.core.content.ContextCompat
 import kotlin.math.log10
 
 class MainActivity : AppCompatActivity() {
+    private lateinit var pressureSensorListener: PressureSensorListener
+
+    private val PRESSURE_BAD_LOW = 500.0
+    //    private val PRESSURE_BAD_HIGH = 500.0
+    private val PRESSURE_OPT = 1000.0
+    private val WIFI_BAD = -75.0
+    private val WIFI_OPT = -55.0
+    private val LTE_BAD = -95.0
+    private val LTE_OPT = -80.0
+    private val DB_BAD = -80.0
+    private val DB_OPT = -60.0
+
     @RequiresApi(Build.VERSION_CODES.S)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), 0)
-        }
+        checkPermission(this, Manifest.permission.RECORD_AUDIO, 0)
     }
 
-    @RequiresApi(Build.VERSION_CODES.R)
+    override fun onResume() {
+        super.onResume()
 
+        checkPermission(this, Manifest.permission.INTERNET, 3)
+        val sensorManager = this.getSystemService(Context.SENSOR_SERVICE) as SensorManager
+        val pressureSensor = sensorManager.getDefaultSensor(Sensor.TYPE_PRESSURE)
+
+        pressureSensorListener = PressureSensorListener()
+        sensorManager.registerListener(pressureSensorListener, pressureSensor, SensorManager.SENSOR_DELAY_NORMAL)
+    }
+
+    /* Restituisce la potenza del segnale Wifi */
+    @RequiresApi(Build.VERSION_CODES.R)
     private fun fetchWifi() {
         Thread {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_WIFI_STATE) != PackageManager.PERMISSION_GRANTED) {
-                ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.ACCESS_WIFI_STATE), 7)
-
-            }
-            val wfm2: WifiManager = applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+            checkPermission(this, Manifest.permission.ACCESS_WIFI_STATE, 2)
+            checkPermission(this, Manifest.permission.ACCESS_FINE_LOCATION, 1)
+            val wfm2: WifiManager =
+                applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
             var maxLevel = -200
-            for(scanResult in wfm2.scanResults) {
+            for (scanResult in wfm2.scanResults) {
                 if (scanResult.level > maxLevel) {
                     maxLevel = scanResult.level
                 }
             }
-            Log.d("WIFI", maxLevel.toString())
+            runOnUiThread {
+                Log.d("WIFI", maxLevel.toString())
+//                wifiText.text = maxLevel.toString()
+//                wifiText.setBackgroundColor(getQuality(maxLevel.toDouble(), WIFI_BAD, WIFI_OPT))
+            }
         }.start()
     }
 
-    @RequiresApi(Build.VERSION_CODES.S)
-    private fun fetchLTE() {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.ACCESS_COARSE_LOCATION), 1)
+    /* Verifica e richiedi un permesso */
+    private fun checkPermission(activity: Activity, permission: String, requestCode: Int) {
+        if (ContextCompat.checkSelfPermission(
+                activity,
+                permission
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            ActivityCompat.requestPermissions(activity, arrayOf(permission), requestCode)
         }
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), 2)
-        }
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_BACKGROUND_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.ACCESS_BACKGROUND_LOCATION), 3)
-        }
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_PHONE_NUMBERS) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.READ_PHONE_NUMBERS), 4)
-        }
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.READ_PHONE_STATE), 5)
-        }
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_SMS) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.READ_SMS), 6)
-        }
+    }
 
-        try {
+    /* Ottiene la potenza del segnale LTE */
+    private fun getLteSignalStrength() {
+        Thread {
+            val telephonyManager = this.getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
 
-            val tm: TelephonyManager = this.getSystemService(TELEPHONY_SERVICE) as TelephonyManager
-            val infoLte = tm.allCellInfo[2] as CellInfoLte
-            val lte = infoLte.cellSignalStrength.dbm
-            Log.d("LTE", "LTE: $lte")
-        } catch (e: Throwable) {
-            Log.wtf("LTE", e)
-        }
+            checkPermission(this, Manifest.permission.ACCESS_FINE_LOCATION, 1)
+
+            try {
+                val cellInfoList = telephonyManager.allCellInfo
+                Log.d("LTE", "cellInfoList $cellInfoList")
+                if (cellInfoList != null && cellInfoList.isNotEmpty()) {
+                    for (info in cellInfoList) {
+                        if (info is CellInfoLte) {
+                            val cellSignalStrength = info.cellSignalStrength
+//                            return cellSignalStrength.dbm
+                            runOnUiThread {
+//                                lteText.text = cellSignalStrength.dbm.toString()
+//                                lteText.setBackgroundColor(getQuality(cellSignalStrength.dbm.toDouble(), LTE_BAD, LTE_OPT))
+                            }
+                        }
+                    }
+                }
+            } catch (e: SecurityException) {
+                Log.wtf("LTE", e)
+            }
+        }.start()
     }
 
     /* Registra 5 secondi l'audio ambientale dal microfono e calcola la media dei dB recepiti */
@@ -92,7 +129,7 @@ class MainActivity : AppCompatActivity() {
             recorder.setOutputFile("${externalCacheDir?.absolutePath}/temp.3gp")
             recorder.prepare()
             recorder.start()
-            // Log.d("MediaRecorder", "Started")
+            Log.d("MediaRecorder", "Started")
             repeat(6) {
                 val fetchedAmplitude = fetchAmplitude(recorder)
                 amplitudes += fetchedAmplitude
@@ -106,7 +143,12 @@ class MainActivity : AppCompatActivity() {
             recorder.stop()
             recorder.reset()
 
-            Log.d("MediaRecorder", avgAmplitude.toString())
+            runOnUiThread {
+//                microphoneText.text = avgAmplitude.toString()
+//                microphoneText.setBackgroundColor(getQuality(-avgAmplitude, DB_BAD, DB_OPT))
+            }
+
+            Log.d("MediaRecorder", "Finished")
         }.start()
     }
 
@@ -120,5 +162,44 @@ class MainActivity : AppCompatActivity() {
         }
         Log.d("MediaRecorder", "Db $db")
         return db
+    }
+
+    /* Classe listener per ottenere i valori del sensore di umidita */
+    private class PressureSensorListener : SensorEventListener {
+        var currentPressure: Float = 0f
+
+        override fun onSensorChanged(event: SensorEvent) {
+            if (event.sensor.type == Sensor.TYPE_PRESSURE) {
+                currentPressure = event.values[0]
+            }
+        }
+
+        override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
+    }
+
+    /* Restituisce il livello di pressione atmosferica */
+    private fun getPressure() {
+//        pressureText.text = pressureSensorListener.currentPressure.toString()
+//        pressureText.setBackgroundColor(getQuality(pressureSensorListener.currentPressure.toDouble(), PRESSURE_BAD_LOW, PRESSURE_OPT))
+    }
+
+    private fun getQuality(value: Double, bad: Double, optimal: Double): Int {
+//        if (bad_high == null) {
+//            return if (value <= bad_low) {
+//                Color.rgb(255, 0, 0)
+//            } else if (value >= optimal) {
+//                Color.rgb(0, 255, 0)
+//            } else {
+//                Color.rgb(128, 128, 0)
+//            }
+//        } else {
+        return if (value <= bad ) {
+            Color.rgb(255, 0, 0)    // Rosso
+        } else if (value >= optimal) {
+            Color.rgb(0, 255, 0)    // Verde
+        } else {
+            Color.rgb(255, 255, 20) // Giallo
+//            }
+        }
     }
 }
