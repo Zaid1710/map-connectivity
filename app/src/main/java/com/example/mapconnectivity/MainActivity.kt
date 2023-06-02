@@ -20,11 +20,18 @@ import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.fragment.app.FragmentManager
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.maps.CameraUpdateFactory
+import com.google.android.gms.maps.SupportMapFragment
+import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.maps.model.MarkerOptions
+
 import kotlin.math.log10
 
 class MainActivity : AppCompatActivity() {
     private lateinit var pressureSensorListener: PressureSensorListener
-//    private lateinit var mapHandler: MapHandler
 
     private val PRESSURE_BAD_LOW = 500.0
     //    private val PRESSURE_BAD_HIGH = 500.0
@@ -41,8 +48,37 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        val fm: FragmentManager = supportFragmentManager
+        val mapView = fm.findFragmentById(R.id.mapView) as? SupportMapFragment
+
         checkPermission(this, Manifest.permission.RECORD_AUDIO, 0)
         checkPermission(this, Manifest.permission.ACCESS_FINE_LOCATION, 1)
+
+        val mFusedLocationClient: FusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(this)
+
+        mFusedLocationClient.lastLocation
+            .addOnSuccessListener(this) { location ->
+                if (location != null) {
+                    Log.d("LOCATION", "LAT: ${location.latitude}, LONG: ${location.longitude}")
+                    mapView?.getMapAsync { googleMap ->
+                        googleMap.setOnMapLoadedCallback {
+                            val latlng = LatLng(location.latitude, location.longitude)
+                            googleMap.animateCamera(CameraUpdateFactory.newLatLngZoom(latlng, 16F))
+
+                            googleMap.addMarker(
+                                MarkerOptions()
+//                                    .title("Posizione rilevata")
+                                    .position(latlng)
+                            )
+                        }
+
+
+                    }
+
+                }
+            }
+
+
     }
 
     override fun onResume() {
