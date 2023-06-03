@@ -1,7 +1,7 @@
 package com.example.mapconnectivity
 
 import android.Manifest
-import android.app.Activity
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.Color
@@ -18,7 +18,6 @@ import android.telephony.CellInfoLte
 import android.telephony.TelephonyManager
 import android.util.Log
 import androidx.annotation.RequiresApi
-import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentManager
 import com.google.android.gms.location.FusedLocationProviderClient
@@ -30,8 +29,17 @@ import com.google.android.gms.maps.model.MarkerOptions
 
 import kotlin.math.log10
 
+/**
+ * TODO: FIX RICHIESTA PERMESSI (FARE PARTE 2)
+ *       PULIZIA CODICE
+ *       AGGIUNTA PULSANTE "LOCALIZZAMI"
+ *       SE C'E' TEMPO I CONTROLLI A SCHERMO
+ * */
+
 class MainActivity : AppCompatActivity() {
     private lateinit var pressureSensorListener: PressureSensorListener
+
+    private val PERMISSION_INIT = 0
 
     private val PRESSURE_BAD_LOW = 500.0
     //    private val PRESSURE_BAD_HIGH = 500.0
@@ -43,16 +51,40 @@ class MainActivity : AppCompatActivity() {
     private val DB_BAD = -80.0
     private val DB_OPT = -60.0
 
+    private lateinit var fm: FragmentManager
+    private lateinit var mapView: SupportMapFragment
+    private lateinit var map: Map
+
     @RequiresApi(Build.VERSION_CODES.S)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        val fm: FragmentManager = supportFragmentManager
-        val mapView = fm.findFragmentById(R.id.mapView) as? SupportMapFragment
+        fm = supportFragmentManager
+        mapView = fm.findFragmentById(R.id.mapView) as SupportMapFragment
+        map = Map(mapView, this)
 
-        checkPermission(this, Manifest.permission.RECORD_AUDIO, 0)
-        checkPermission(this, Manifest.permission.ACCESS_FINE_LOCATION, 1)
+
+//        checkPermission(this, Manifest.permission.RECORD_AUDIO, PERMISSION_AUDIO)
+//        checkPermission(this, Manifest.permission.ACCESS_FINE_LOCATION, PERMISSION_LOCATION)
+
+        val permissionsToRequest = mutableListOf<String>()
+//        if (!checkPermission(Manifest.permission.RECORD_AUDIO)) {
+//            permissionsToRequest.add(Manifest.permission.RECORD_AUDIO)
+//        }
+        if (!checkPermission(Manifest.permission.ACCESS_FINE_LOCATION)) {
+            permissionsToRequest.add(Manifest.permission.ACCESS_FINE_LOCATION)
+        }
+
+        if (permissionsToRequest.isNotEmpty()) {
+            Log.d("PERMISSIONS", "SOMETHING'S MISSING")
+            requestPermissions(permissionsToRequest.toTypedArray(), PERMISSION_INIT)
+        } else {
+            // Tutti i permessi sono stati già concessi
+            // Esegui il resto del programma qui
+            Log.d("PERMISSIONS", "ALL PERMISSIONS GRANTED")
+            map.loadMap()
+        }
 
         val mFusedLocationClient: FusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(this)
 
@@ -83,21 +115,46 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-
-        checkPermission(this, Manifest.permission.INTERNET, 3)
         val sensorManager = this.getSystemService(Context.SENSOR_SERVICE) as SensorManager
         val pressureSensor = sensorManager.getDefaultSensor(Sensor.TYPE_PRESSURE)
 
+//        checkPermission(this, Manifest.permission.INTERNET, 3)
         pressureSensorListener = PressureSensorListener()
         sensorManager.registerListener(pressureSensorListener, pressureSensor, SensorManager.SENSOR_DELAY_NORMAL)
     }
 
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == PERMISSION_INIT) {
+            var allPermissionsGranted = true
+            for (result in grantResults) {
+                if (result != PackageManager.PERMISSION_GRANTED) {
+                    allPermissionsGranted = false
+                    break
+                }
+            }
+
+            if (allPermissionsGranted) {
+                // Tutti i permessi sono stati concessi
+                // Esegui il resto del programma qui
+                Log.d("PERMISSIONS", "ALL OK")
+                map.loadMap()
+            } else {
+                // Almeno uno dei permessi è stato negato
+                // Gestisci di conseguenza, ad esempio mostrando un messaggio all'utente
+                Log.d("PERMISSIONS", "ONE OR MORE PERMISSIONS MISSING")
+//                showPermissionDeniedMessage()
+            }
+        }
+    }
+
     /* Restituisce la potenza del segnale Wifi */
+    @SuppressLint("MissingPermission")
     @RequiresApi(Build.VERSION_CODES.R)
     private fun fetchWifi() {
         Thread {
-            checkPermission(this, Manifest.permission.ACCESS_WIFI_STATE, 2)
-            checkPermission(this, Manifest.permission.ACCESS_FINE_LOCATION, 1)
+//            checkPermission(this, Manifest.permission.ACCESS_WIFI_STATE, 2)
+//            checkPermission(this, Manifest.permission.ACCESS_FINE_LOCATION, PERMISSION_LOCATION)
             val wfm2: WifiManager =
                 applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
             var maxLevel = -200
@@ -114,15 +171,24 @@ class MainActivity : AppCompatActivity() {
         }.start()
     }
 
-    /* Verifica e richiedi un permesso */
-    private fun checkPermission(activity: Activity, permission: String, requestCode: Int) {
-        if (ContextCompat.checkSelfPermission(
-                activity,
+//    /* Verifica e richiedi un permesso */
+//    private fun checkPermission(activity: Activity, permission: String, requestCode: Int) {
+//        if (ContextCompat.checkSelfPermission(
+//                activity,
+//                permission
+//            ) != PackageManager.PERMISSION_GRANTED
+//        ) {
+//            ActivityCompat.requestPermissions(activity, arrayOf(permission), requestCode)
+//        }
+//    }
+
+    /* Verifica un permesso */
+    private fun checkPermission(permission: String): Boolean {
+        return (ContextCompat.checkSelfPermission(
+                this,
                 permission
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
-            ActivityCompat.requestPermissions(activity, arrayOf(permission), requestCode)
-        }
+            ) == PackageManager.PERMISSION_GRANTED
+        )
     }
 
     /* Ottiene la potenza del segnale LTE */
@@ -130,7 +196,7 @@ class MainActivity : AppCompatActivity() {
         Thread {
             val telephonyManager = this.getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
 
-            checkPermission(this, Manifest.permission.ACCESS_FINE_LOCATION, 1)
+//            checkPermission(this, Manifest.permission.ACCESS_FINE_LOCATION, 1)
 
             try {
                 val cellInfoList = telephonyManager.allCellInfo
