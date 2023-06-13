@@ -10,9 +10,10 @@ import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.MarkerOptions
 
 class Map(mapView: SupportMapFragment?, activity: MainActivity) {
-    private lateinit var location: LatLng
     private var mapView: SupportMapFragment? = mapView
     private var activity: MainActivity = activity
+
+
 
     @SuppressLint("MissingPermission")
     fun loadMap() {
@@ -23,15 +24,19 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
                 if (location != null) {
                     Log.d("LOCATION", "LAT: ${location.latitude}, LONG: ${location.longitude}")
                     mapView?.getMapAsync { googleMap ->
+                        googleMap.uiSettings.isZoomControlsEnabled = true
+                        googleMap.uiSettings.isCompassEnabled = true
+                        googleMap.isMyLocationEnabled = true
+                        googleMap.uiSettings.isMyLocationButtonEnabled = true
                         googleMap.setOnMapLoadedCallback {
                             val latlng = LatLng(location.latitude, location.longitude)
                             googleMap.animateCamera(CameraUpdateFactory.newLatLngZoom(latlng, 16F))
 
-                            googleMap.addMarker(
-                                MarkerOptions()
-//                                    .title("Posizione rilevata")
-                                    .position(latlng)
-                            )
+//                            googleMap.addMarker(
+//                                MarkerOptions()
+////                                    .title("Posizione rilevata")
+//                                    .position(latlng)
+//                            )
                         }
 
 

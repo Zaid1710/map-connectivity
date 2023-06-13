@@ -13,18 +13,11 @@ import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentManager
-import com.google.android.gms.location.FusedLocationProviderClient
-import com.google.android.gms.location.LocationServices
-import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.SupportMapFragment
-import com.google.android.gms.maps.model.LatLng
-import com.google.android.gms.maps.model.MarkerOptions
 
 /**
- * TODO: FIX RICHIESTA PERMESSI (FARE PARTE 2)
- *       PULIZIA CODICE
- *       AGGIUNTA PULSANTE "LOCALIZZAMI"
- *       SE C'E' TEMPO I CONTROLLI A SCHERMO
+ * TODO: FIX RICHIESTA PERMESSI (riguardare)
+ *       PULIZIA CODICE (abbiamo spostato le funzioni relative ai sensori)
  * */
 
 class MainActivity : AppCompatActivity() {
@@ -32,15 +25,15 @@ class MainActivity : AppCompatActivity() {
     private val PERMISSION_INIT = 0
     private val PERMISSION_LOCATION = 1
 
-    private val PRESSURE_BAD_LOW = 500.0
-    //    private val PRESSURE_BAD_HIGH = 500.0
-    private val PRESSURE_OPT = 1000.0
-    private val WIFI_BAD = -75.0
-    private val WIFI_OPT = -55.0
-    private val LTE_BAD = -95.0
-    private val LTE_OPT = -80.0
-    private val DB_BAD = -80.0
-    private val DB_OPT = -60.0
+//    private val PRESSURE_BAD_LOW = 500.0
+//    private val PRESSURE_BAD_HIGH = 500.0
+//    private val PRESSURE_OPT = 1000.0
+//    private val WIFI_BAD = -75.0
+//    private val WIFI_OPT = -55.0
+//    private val LTE_BAD = -95.0
+//    private val LTE_OPT = -80.0
+//    private val DB_BAD = -80.0
+//    private val DB_OPT = -60.0
 
     private lateinit var fm: FragmentManager
     private lateinit var mapView: SupportMapFragment
@@ -57,14 +50,7 @@ class MainActivity : AppCompatActivity() {
         map = Map(mapView, this)
         sensors = Sensor(this)
 
-
-//        checkPermission(this, Manifest.permission.RECORD_AUDIO, PERMISSION_AUDIO)
-//        checkPermission(this, Manifest.permission.ACCESS_FINE_LOCATION, PERMISSION_LOCATION)
-
         val permissionsToRequest = mutableListOf<String>()
-//        if (!checkPermission(Manifest.permission.RECORD_AUDIO)) {
-//            permissionsToRequest.add(Manifest.permission.RECORD_AUDIO)
-//        }
         if (!checkPermission(Manifest.permission.ACCESS_FINE_LOCATION)) {
             permissionsToRequest.add(Manifest.permission.ACCESS_FINE_LOCATION)
         }
@@ -79,30 +65,6 @@ class MainActivity : AppCompatActivity() {
             map.loadMap()
         }
 
-        val mFusedLocationClient: FusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(this)
-
-        mFusedLocationClient.lastLocation
-            .addOnSuccessListener(this) { location ->
-                if (location != null) {
-                    Log.d("LOCATION", "LAT: ${location.latitude}, LONG: ${location.longitude}")
-                    mapView?.getMapAsync { googleMap ->
-                        googleMap.setOnMapLoadedCallback {
-                            val latlng = LatLng(location.latitude, location.longitude)
-                            googleMap.animateCamera(CameraUpdateFactory.newLatLngZoom(latlng, 16F))
-
-                            googleMap.addMarker(
-                                MarkerOptions()
-//                                    .title("Posizione rilevata")
-                                    .position(latlng)
-                            )
-                        }
-
-
-                    }
-
-                }
-            }
-
 
     }
 
@@ -112,7 +74,6 @@ class MainActivity : AppCompatActivity() {
 
         val sensorManager = this.getSystemService(Context.SENSOR_SERVICE) as SensorManager
         val pressureSensor = sensorManager.getDefaultSensor(Sensor.TYPE_PRESSURE)
-//        checkPermission(this, Manifest.permission.INTERNET, 3)
         var pressureSensorListener = sensors.PressureSensorListener()
         sensorManager.registerListener(pressureSensorListener, pressureSensor, SensorManager.SENSOR_DELAY_NORMAL)
     }
@@ -137,21 +98,10 @@ class MainActivity : AppCompatActivity() {
                 // Almeno uno dei permessi è stato negato
                 // Gestisci di conseguenza, ad esempio mostrando un messaggio all'utente
                 Log.d("PERMISSIONS", "ONE OR MORE PERMISSIONS MISSING")
-//                showPermissionDeniedMessage()
             }
         }
     }
 
-//    /* Verifica e richiedi un permesso */
-//    private fun checkPermission(activity: Activity, permission: String, requestCode: Int) {
-//        if (ContextCompat.checkSelfPermission(
-//                activity,
-//                permission
-//            ) != PackageManager.PERMISSION_GRANTED
-//        ) {
-//            ActivityCompat.requestPermissions(activity, arrayOf(permission), requestCode)
-//        }
-//    }
 
     /* Verifica un permesso */
     private fun checkPermission(permission: String): Boolean {
@@ -163,15 +113,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun getQuality(value: Double, bad: Double, optimal: Double): Int {
-        //        if (bad_high == null) {
-        //            return if (value <= bad_low) {
-        //                Color.rgb(255, 0, 0)
-        //            } else if (value >= optimal) {
-        //                Color.rgb(0, 255, 0)
-        //            } else {
-        //                Color.rgb(128, 128, 0)
-        //            }
-        //        } else {
         return if (value <= bad ) {
             Color.rgb(255, 0, 0)    // Rosso
         } else if (value >= optimal) {
