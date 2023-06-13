@@ -22,8 +22,6 @@ class Sensor(activity: MainActivity) {
     @SuppressLint("MissingPermission")
     @RequiresApi(Build.VERSION_CODES.R)
     fun fetchWifi(): Int {
-//            checkPermission(this, Manifest.permission.ACCESS_WIFI_STATE, 2)
-//            checkPermission(this, Manifest.permission.ACCESS_FINE_LOCATION, PERMISSION_LOCATION)
 //            if (!checkPermission(Manifest.permission.ACCESS_FINE_LOCATION)) {
 //                requestPermissions(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), PERMISSION_LOCATION)
 //            } else {
@@ -44,8 +42,6 @@ class Sensor(activity: MainActivity) {
     /* Ottiene la potenza del segnale LTE */
     fun getLteSignalStrength(): Int {
         val telephonyManager = activity.getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
-
-//            checkPermission(this, Manifest.permission.ACCESS_FINE_LOCATION, 1)
 
         try {
             val cellInfoList = telephonyManager.allCellInfo
