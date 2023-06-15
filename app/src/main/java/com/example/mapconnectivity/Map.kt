@@ -5,14 +5,18 @@ import android.util.Log
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.CameraUpdateFactory
+import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.SupportMapFragment
 import com.google.android.gms.maps.model.LatLng
-import com.google.android.gms.maps.model.MarkerOptions
+import com.google.android.gms.maps.model.Polyline
+import com.google.android.gms.maps.model.PolylineOptions
+import com.google.android.gms.maps.model.VisibleRegion
+
 
 class Map(mapView: SupportMapFragment?, activity: MainActivity) {
     private var mapView: SupportMapFragment? = mapView
     private var activity: MainActivity = activity
-
+    private val gridLines: MutableList<Polyline> = mutableListOf()
 
 
     @SuppressLint("MissingPermission")
@@ -31,18 +35,66 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
                         googleMap.setOnMapLoadedCallback {
                             val latlng = LatLng(location.latitude, location.longitude)
                             googleMap.animateCamera(CameraUpdateFactory.newLatLngZoom(latlng, 16F))
-
+//                            drawGridOnMap(googleMap)
 //                            googleMap.addMarker(
 //                                MarkerOptions()
-////                                    .title("Posizione rilevata")
+//                                    .title("Posizione rilevata")
 //                                    .position(latlng)
 //                            )
                         }
 
+                        googleMap.setOnCameraIdleListener {
+                            drawGridOnMap(googleMap)
+                        }
 
+                        googleMap.setOnCameraMoveListener {
+                            deleteGrid()
+                        }
                     }
-
                 }
             }
     }
+
+    private fun drawGridOnMap(googleMap: GoogleMap) {
+        val visibleRegion: VisibleRegion = googleMap.projection.visibleRegion
+        val topLeft: LatLng = visibleRegion.farLeft
+        val bottomRight: LatLng = visibleRegion.nearRight
+        val lineWidth = 3f
+
+        val zoom = googleMap.cameraPosition.zoom
+        val gridSize = calculateGridSize(zoom)
+
+        val cellWidth = (bottomRight.longitude - topLeft.longitude) / gridSize
+        val cellHeight = (topLeft.latitude - bottomRight.latitude) / gridSize
+
+        for (i in 0..gridSize) {
+            val lat = topLeft.latitude - i * cellHeight
+            val start = LatLng(lat, topLeft.longitude)
+            val end = LatLng(lat, bottomRight.longitude)
+            val line = googleMap.addPolyline(PolylineOptions().add(start, end).width(lineWidth))
+            gridLines.add(line)
+        }
+
+        for (i in 0..gridSize) {
+            val lng = topLeft.longitude + i * cellWidth * 2
+            val start = LatLng(topLeft.latitude, lng)
+            val end = LatLng(bottomRight.latitude, lng)
+            val line = googleMap.addPolyline(PolylineOptions().add(start, end).width(lineWidth))
+            gridLines.add(line)
+        }
+    }
+
+    private fun calculateGridSize(zoom: Float): Int {
+        return (zoom).toInt() // Aumenta la dimensione della griglia con l'aumento del livello di zoom
+    }
+
+    private fun deleteGrid() {
+        // Rimuovi le linee della griglia precedente dalla mappa, se presenti
+        for (line in gridLines) {
+            line.remove()
+        }
+        gridLines.clear()
+
+    }
+
 }
