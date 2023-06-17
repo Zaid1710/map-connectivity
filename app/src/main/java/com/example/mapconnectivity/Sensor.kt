@@ -12,6 +12,7 @@ import android.telephony.CellInfoLte
 import android.telephony.TelephonyManager
 import android.util.Log
 import androidx.annotation.RequiresApi
+import java.io.File
 import kotlin.math.log10
 
 class Sensor(activity: MainActivity) {
@@ -64,12 +65,16 @@ class Sensor(activity: MainActivity) {
     /* Registra 5 secondi l'audio ambientale dal microfono e calcola la media dei dB recepiti */
     @RequiresApi(Build.VERSION_CODES.S)
     fun fetchMicrophone(): Double {
+        var avgAmplitude = 0.0
         var amplitudes = arrayOf<Double>()
         val recorder = MediaRecorder(activity)
+        val outputFile = File(activity.filesDir, "temp.3gp")
+        outputFile.createNewFile()
+
         recorder.setAudioSource(MediaRecorder.AudioSource.MIC)
         recorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP)
         recorder.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB)
-        recorder.setOutputFile("temp.3gp")
+        recorder.setOutputFile(outputFile.absolutePath)
         recorder.prepare()
         recorder.start()
         Log.d("MediaRecorder", "Started")
@@ -78,7 +83,7 @@ class Sensor(activity: MainActivity) {
             amplitudes += fetchedAmplitude
             Thread.sleep(1000)
         }
-        var avgAmplitude = 0.0
+
         for (amplitude in amplitudes) {
             avgAmplitude += amplitude
         }

@@ -10,6 +10,7 @@ import android.os.Build
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.util.Log
+import android.widget.Button
 import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentManager
@@ -23,7 +24,7 @@ import com.google.android.gms.maps.SupportMapFragment
 class MainActivity : AppCompatActivity() {
 
     private val PERMISSION_INIT = 0
-    private val PERMISSION_LOCATION = 1
+    private val PERMISSION_MEASUREMENTS = 1
 
 //    private val PRESSURE_BAD_LOW = 500.0
 //    private val PRESSURE_BAD_HIGH = 500.0
@@ -39,6 +40,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var mapView: SupportMapFragment
     private lateinit var map: Map
     private lateinit var sensors: com.example.mapconnectivity.Sensor
+    private lateinit var measureBtn: Button
+
 
     @RequiresApi(Build.VERSION_CODES.S)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -49,6 +52,7 @@ class MainActivity : AppCompatActivity() {
         mapView = fm.findFragmentById(R.id.mapView) as SupportMapFragment
         map = Map(mapView, this)
         sensors = Sensor(this)
+        measureBtn  = findViewById(R.id.measureBtn)
 
         val permissionsToRequest = mutableListOf<String>()
         if (!checkPermission(Manifest.permission.ACCESS_FINE_LOCATION)) {
@@ -56,13 +60,40 @@ class MainActivity : AppCompatActivity() {
         }
 
         if (permissionsToRequest.isNotEmpty()) {
-            Log.d("PERMISSIONS", "SOMETHING'S MISSING")
+            Log.d("PERMISSIONS", "SOMETHING'S MISSING 1")
             requestPermissions(permissionsToRequest.toTypedArray(), PERMISSION_INIT)
         } else {
             // Tutti i permessi sono stati già concessi
             // Esegui il resto del programma qui
             Log.d("PERMISSIONS", "ALL PERMISSIONS GRANTED")
             map.loadMap()
+            measureBtn.setOnClickListener {
+                Log.d("MEASURE", "Sono entrato")
+                val permissionsToRequest = mutableListOf<String>()
+                if (!checkPermission(Manifest.permission.ACCESS_FINE_LOCATION)) {
+                    permissionsToRequest.add(Manifest.permission.ACCESS_FINE_LOCATION)
+                }
+                if (!checkPermission(Manifest.permission.RECORD_AUDIO)) {
+                    permissionsToRequest.add(Manifest.permission.RECORD_AUDIO)
+                }
+
+                if (permissionsToRequest.isNotEmpty()) {
+                    Log.d("PERMISSIONS", "SOMETHING'S MISSING 2")
+                    requestPermissions(permissionsToRequest.toTypedArray(), PERMISSION_MEASUREMENTS)
+                } else {
+                    Thread {
+                        var measurements = Measure(
+                            map.getPosition()?.latitude,
+                            map.getPosition()?.longitude,
+                            sensors.getLteSignalStrength(),
+                            sensors.fetchWifi(),
+                            sensors.fetchMicrophone()
+                        )
+                        Log.d("MEASURE", measurements.toString())
+                    }.start()
+                }
+
+            }
         }
 
 
@@ -71,16 +102,16 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
 
-
         val sensorManager = this.getSystemService(Context.SENSOR_SERVICE) as SensorManager
         val pressureSensor = sensorManager.getDefaultSensor(Sensor.TYPE_PRESSURE)
         var pressureSensorListener = sensors.PressureSensorListener()
         sensorManager.registerListener(pressureSensorListener, pressureSensor, SensorManager.SENSOR_DELAY_NORMAL)
     }
 
+    @RequiresApi(Build.VERSION_CODES.S)
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == PERMISSION_INIT) {
+
             var allPermissionsGranted = true
             for (result in grantResults) {
                 if (result != PackageManager.PERMISSION_GRANTED) {
@@ -93,13 +124,52 @@ class MainActivity : AppCompatActivity() {
                 // Tutti i permessi sono stati concessi
                 // Esegui il resto del programma qui
                 Log.d("PERMISSIONS", "ALL OK")
-                map.loadMap()
+                if (requestCode == PERMISSION_INIT) {
+                    map.loadMap()
+                    measureBtn.setOnClickListener {
+                        Log.d("MEASURE", "Sono entrato")
+                        val permissionsToRequest = mutableListOf<String>()
+                        if (!checkPermission(Manifest.permission.ACCESS_FINE_LOCATION)) {
+                            permissionsToRequest.add(Manifest.permission.ACCESS_FINE_LOCATION)
+                        }
+                        if (!checkPermission(Manifest.permission.RECORD_AUDIO)) {
+                            permissionsToRequest.add(Manifest.permission.RECORD_AUDIO)
+                        }
+
+                        if (permissionsToRequest.isNotEmpty()) {
+                            Log.d("PERMISSIONS", "SOMETHING'S MISSING 2")
+                            requestPermissions(permissionsToRequest.toTypedArray(), PERMISSION_MEASUREMENTS)
+                        } else {
+                            Thread {
+                                var measurements = Measure(
+                                    map.getPosition()?.latitude,
+                                    map.getPosition()?.longitude,
+                                    sensors.getLteSignalStrength(),
+                                    sensors.fetchWifi(),
+                                    sensors.fetchMicrophone()
+                                )
+                                Log.d("MEASURE", measurements.toString())
+                            }.start()
+                        }
+
+                    }
+                } else if (requestCode == PERMISSION_MEASUREMENTS) {
+                    Thread {
+                        var measurements = Measure(
+                            map.getPosition()?.latitude,
+                            map.getPosition()?.longitude,
+                            sensors.getLteSignalStrength(),
+                            sensors.fetchWifi(),
+                            sensors.fetchMicrophone()
+                        )
+                        Log.d("MEASURE", measurements.toString())
+                    }.start()
+                }
             } else {
                 // Almeno uno dei permessi è stato negato
                 // Gestisci di conseguenza, ad esempio mostrando un messaggio all'utente
                 Log.d("PERMISSIONS", "ONE OR MORE PERMISSIONS MISSING")
             }
-        }
     }
 
 

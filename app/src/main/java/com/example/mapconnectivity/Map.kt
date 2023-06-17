@@ -1,6 +1,9 @@
 package com.example.mapconnectivity
 
 import android.annotation.SuppressLint
+import android.content.Context
+import android.location.Location
+import android.location.LocationManager
 import android.util.Log
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
@@ -18,20 +21,19 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
     private var activity: MainActivity = activity
     private val gridLines: MutableList<Polyline> = mutableListOf()
 
+    private val mFusedLocationClient: FusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(activity)
 
     @SuppressLint("MissingPermission")
     fun loadMap() {
-        val mFusedLocationClient: FusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(activity)
-
         mFusedLocationClient.lastLocation
             .addOnSuccessListener(activity) { location ->
                 if (location != null) {
                     Log.d("LOCATION", "LAT: ${location.latitude}, LONG: ${location.longitude}")
                     mapView?.getMapAsync { googleMap ->
                         googleMap.uiSettings.isZoomControlsEnabled = true
-                        googleMap.uiSettings.isCompassEnabled = true
                         googleMap.isMyLocationEnabled = true
                         googleMap.uiSettings.isMyLocationButtonEnabled = true
+                        googleMap.uiSettings.isRotateGesturesEnabled = false
                         googleMap.setOnMapLoadedCallback {
                             val latlng = LatLng(location.latitude, location.longitude)
                             googleMap.animateCamera(CameraUpdateFactory.newLatLngZoom(latlng, 16F))
@@ -85,16 +87,30 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
     }
 
     private fun calculateGridSize(zoom: Float): Int {
-        return (zoom).toInt() // Aumenta la dimensione della griglia con l'aumento del livello di zoom
+        return (zoom).toInt()
     }
 
+    // Rimuove le linee della griglia precedente dalla mappa, se presenti
     private fun deleteGrid() {
-        // Rimuovi le linee della griglia precedente dalla mappa, se presenti
         for (line in gridLines) {
             line.remove()
         }
         gridLines.clear()
 
+    }
+
+    @SuppressLint("MissingPermission")
+    fun getPosition(): Location? {
+        val locationManager = activity.getSystemService(Context.LOCATION_SERVICE) as LocationManager
+        val networkLocation = locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
+        val gpsLocation = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER)
+
+        // Confronta le due posizioni e restituisci quella più recente
+        return if (networkLocation != null && gpsLocation != null) {
+            if (networkLocation.time > gpsLocation.time) networkLocation else gpsLocation
+        } else {
+            networkLocation ?: gpsLocation
+        }
     }
 
 }
