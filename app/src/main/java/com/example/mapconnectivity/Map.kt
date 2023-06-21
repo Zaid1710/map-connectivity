@@ -2,6 +2,7 @@ package com.example.mapconnectivity
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.graphics.Color
 import android.location.Location
 import android.location.LocationManager
 import android.util.Log
@@ -11,15 +12,14 @@ import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.SupportMapFragment
 import com.google.android.gms.maps.model.LatLng
-import com.google.android.gms.maps.model.Polyline
-import com.google.android.gms.maps.model.PolylineOptions
-import com.google.android.gms.maps.model.VisibleRegion
+import com.google.android.gms.maps.model.Polygon
+import com.google.android.gms.maps.model.PolygonOptions
 
 
 class Map(mapView: SupportMapFragment?, activity: MainActivity) {
     private var mapView: SupportMapFragment? = mapView
     private var activity: MainActivity = activity
-    private val gridLines: MutableList<Polyline> = mutableListOf()
+    private val gridPolygons: MutableList<Polygon> = mutableListOf()
 
     private val mFusedLocationClient: FusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(activity)
 
@@ -47,6 +47,11 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
 
                         googleMap.setOnCameraIdleListener {
                             drawGridOnMap(googleMap)
+                            Log.d("POLIGONOATTUALE", getCurrentPolygon(getPosition()).toString())
+                            val currpoly = getCurrentPolygon(getPosition())
+                            if (currpoly != null) {
+                                currpoly.fillColor = Color.RED
+                            }
                         }
 
                         googleMap.setOnCameraMoveListener {
@@ -58,31 +63,34 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
     }
 
     private fun drawGridOnMap(googleMap: GoogleMap) {
-        val visibleRegion: VisibleRegion = googleMap.projection.visibleRegion
-        val topLeft: LatLng = visibleRegion.farLeft
-        val bottomRight: LatLng = visibleRegion.nearRight
-        val lineWidth = 3f
-
-        val zoom = googleMap.cameraPosition.zoom
-        val gridSize = calculateGridSize(zoom)
+        val bounds = googleMap.projection.visibleRegion.latLngBounds
+        val topLeft = bounds.northeast
+        val bottomRight = bounds.southwest
+        val gridSize = 10
 
         val cellWidth = (bottomRight.longitude - topLeft.longitude) / gridSize
         val cellHeight = (topLeft.latitude - bottomRight.latitude) / gridSize
 
-        for (i in 0..gridSize) {
-            val lat = topLeft.latitude - i * cellHeight
-            val start = LatLng(lat, topLeft.longitude)
-            val end = LatLng(lat, bottomRight.longitude)
-            val line = googleMap.addPolyline(PolylineOptions().add(start, end).width(lineWidth))
-            gridLines.add(line)
-        }
+        for (i in 0 until gridSize) {
+            for (j in 0 until gridSize) {
+                val latLng1 = LatLng(topLeft.latitude - i * cellHeight, topLeft.longitude + j * cellWidth)
+                val latLng2 = LatLng(topLeft.latitude - (i + 1) * cellHeight, topLeft.longitude + j * cellWidth)
+                val latLng3 = LatLng(topLeft.latitude - (i + 1) * cellHeight, topLeft.longitude + (j + 1) * cellWidth)
+                val latLng4 = LatLng(topLeft.latitude - i * cellHeight, topLeft.longitude + (j + 1) * cellWidth)
 
-        for (i in 0..gridSize) {
-            val lng = topLeft.longitude + i * cellWidth * 2
-            val start = LatLng(topLeft.latitude, lng)
-            val end = LatLng(bottomRight.latitude, lng)
-            val line = googleMap.addPolyline(PolylineOptions().add(start, end).width(lineWidth))
-            gridLines.add(line)
+                val polygonOptions = PolygonOptions()
+                    .add(latLng1, latLng2, latLng3, latLng4)
+                    .strokeWidth(2f)
+                    .strokeColor(0xFF000000.toInt()) // Colore del bordo (nero)
+//                    .fillColor(0x80FF0000.toInt()) // Colore di riempimento (rosso con opacità del 50%)
+
+                val polygon: Polygon = googleMap.addPolygon(polygonOptions)
+
+                polygon.tag = "Polygon($i,$j)"
+
+                Log.d("Punticini", polygon.points[0].latitude.toString())
+                gridPolygons.add(polygon)
+            }
         }
     }
 
@@ -90,13 +98,12 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
         return (zoom).toInt()
     }
 
-    // Rimuove le linee della griglia precedente dalla mappa, se presenti
+    // Rimuove i poligoni della griglia precedente dalla mappa, se presenti
     private fun deleteGrid() {
-        for (line in gridLines) {
-            line.remove()
+        for (polygon in gridPolygons) {
+            polygon.remove()
         }
-        gridLines.clear()
-
+        gridPolygons.clear()
     }
 
     @SuppressLint("MissingPermission")
@@ -111,6 +118,17 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
         } else {
             networkLocation ?: gpsLocation
         }
+    }
+
+    private fun getCurrentPolygon(currentPos: Location?): Polygon? {
+        if (currentPos != null) {
+            for (polygon in gridPolygons) {
+                if (polygon.points[0].latitude >= currentPos.latitude && polygon.points[2].latitude <= currentPos.latitude && polygon.points[0].longitude >= currentPos.longitude && polygon.points[2].longitude <= currentPos.longitude) {
+                    return polygon
+                }
+            }
+        }
+        return null
     }
 
 }
