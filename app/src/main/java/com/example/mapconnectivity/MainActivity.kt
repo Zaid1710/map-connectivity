@@ -14,7 +14,11 @@ import android.widget.Button
 import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentManager
+import androidx.room.Room
 import com.google.android.gms.maps.SupportMapFragment
+import java.time.Instant
+import java.time.format.DateTimeFormatter
+import java.util.UUID
 
 /**
  * TODO: FIX RICHIESTA PERMESSI (riguardare)
@@ -41,12 +45,16 @@ class MainActivity : AppCompatActivity() {
     private lateinit var map: Map
     private lateinit var sensors: com.example.mapconnectivity.Sensor
     private lateinit var measureBtn: Button
+    private lateinit var database: MeasureDB
+    private lateinit var measureDao: MeasureDao
 
 
     @RequiresApi(Build.VERSION_CODES.S)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+        database = Room.databaseBuilder(this, MeasureDB::class.java, "measuredb").build()
+        measureDao = database.measureDao()
 
         fm = supportFragmentManager
         mapView = fm.findFragmentById(R.id.mapView) as SupportMapFragment
@@ -64,7 +72,6 @@ class MainActivity : AppCompatActivity() {
             requestPermissions(permissionsToRequest.toTypedArray(), PERMISSION_INIT)
         } else {
             // Tutti i permessi sono stati già concessi
-            // Esegui il resto del programma qui
             Log.d("PERMISSIONS", "ALL PERMISSIONS GRANTED")
             map.loadMap()
             measureBtn.setOnClickListener {
@@ -83,13 +90,17 @@ class MainActivity : AppCompatActivity() {
                 } else {
                     Thread {
                         var measurements = Measure(
+                            UUID.randomUUID().toString(),
+                            DateTimeFormatter.ISO_INSTANT.format(Instant.now()),
                             map.getPosition()?.latitude,
                             map.getPosition()?.longitude,
                             sensors.getLteSignalStrength(),
                             sensors.fetchWifi(),
                             sensors.fetchMicrophone()
                         )
+                        measureDao.insertMeasure(measurements)
                         Log.d("MEASURE", measurements.toString())
+                        Log.d("DB", measureDao.getAllMeasures().toString())
                     }.start()
                 }
 
@@ -122,7 +133,6 @@ class MainActivity : AppCompatActivity() {
 
             if (allPermissionsGranted) {
                 // Tutti i permessi sono stati concessi
-                // Esegui il resto del programma qui
                 Log.d("PERMISSIONS", "ALL OK")
                 if (requestCode == PERMISSION_INIT) {
                     map.loadMap()
@@ -142,13 +152,17 @@ class MainActivity : AppCompatActivity() {
                         } else {
                             Thread {
                                 var measurements = Measure(
+                                    UUID.randomUUID().toString(),
+                                    DateTimeFormatter.ISO_INSTANT.format(Instant.now()),
                                     map.getPosition()?.latitude,
                                     map.getPosition()?.longitude,
                                     sensors.getLteSignalStrength(),
                                     sensors.fetchWifi(),
                                     sensors.fetchMicrophone()
                                 )
+                                measureDao.insertMeasure(measurements)
                                 Log.d("MEASURE", measurements.toString())
+                                Log.d("DB", measureDao.getAllMeasures().toString())
                             }.start()
                         }
 
@@ -156,18 +170,21 @@ class MainActivity : AppCompatActivity() {
                 } else if (requestCode == PERMISSION_MEASUREMENTS) {
                     Thread {
                         var measurements = Measure(
+                            UUID.randomUUID().toString(),
+                            DateTimeFormatter.ISO_INSTANT.format(Instant.now()),
                             map.getPosition()?.latitude,
                             map.getPosition()?.longitude,
                             sensors.getLteSignalStrength(),
                             sensors.fetchWifi(),
                             sensors.fetchMicrophone()
                         )
+                        measureDao.insertMeasure(measurements)
                         Log.d("MEASURE", measurements.toString())
+                        Log.d("DB", measureDao.getAllMeasures().toString())
                     }.start()
                 }
             } else {
                 // Almeno uno dei permessi è stato negato
-                // Gestisci di conseguenza, ad esempio mostrando un messaggio all'utente
                 Log.d("PERMISSIONS", "ONE OR MORE PERMISSIONS MISSING")
             }
     }
