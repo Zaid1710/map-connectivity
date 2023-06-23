@@ -3,7 +3,6 @@ package com.example.mapconnectivity
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
-import android.graphics.Color
 import android.hardware.Sensor
 import android.hardware.SensorManager
 import android.os.Build
@@ -18,7 +17,6 @@ import androidx.room.Room
 import com.google.android.gms.maps.SupportMapFragment
 import java.time.Instant
 import java.time.format.DateTimeFormatter
-import java.util.UUID
 
 /**
  * TODO: FIX RICHIESTA PERMESSI (riguardare)
@@ -30,15 +28,6 @@ class MainActivity : AppCompatActivity() {
     private val PERMISSION_INIT = 0
     private val PERMISSION_MEASUREMENTS = 1
 
-//    private val PRESSURE_BAD_LOW = 500.0
-//    private val PRESSURE_BAD_HIGH = 500.0
-//    private val PRESSURE_OPT = 1000.0
-//    private val WIFI_BAD = -75.0
-//    private val WIFI_OPT = -55.0
-//    private val LTE_BAD = -95.0
-//    private val LTE_OPT = -80.0
-//    private val DB_BAD = -80.0
-//    private val DB_OPT = -60.0
 
     private lateinit var fm: FragmentManager
     private lateinit var mapView: SupportMapFragment
@@ -53,7 +42,7 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-        database = Room.databaseBuilder(this, MeasureDB::class.java, "measuredb").build()
+        database = Room.databaseBuilder(this, MeasureDB::class.java, "measuredb").fallbackToDestructiveMigration().build()
         measureDao = database.measureDao()
 
         fm = supportFragmentManager
@@ -90,13 +79,12 @@ class MainActivity : AppCompatActivity() {
                 } else {
                     Thread {
                         var measurements = Measure(
-                            UUID.randomUUID().toString(),
-                            DateTimeFormatter.ISO_INSTANT.format(Instant.now()),
-                            map.getPosition()?.latitude,
-                            map.getPosition()?.longitude,
-                            sensors.getLteSignalStrength(),
-                            sensors.fetchWifi(),
-                            sensors.fetchMicrophone()
+                            timestamp = DateTimeFormatter.ISO_INSTANT.format(Instant.now()),
+                            lat = map.getPosition()?.latitude,
+                            lon = map.getPosition()?.longitude,
+                            lte = sensors.getLteSignalStrength(),
+                            wifi = sensors.fetchWifi(),
+                            db = sensors.fetchMicrophone()
                         )
                         measureDao.insertMeasure(measurements)
                         Log.d("MEASURE", measurements.toString())
@@ -152,13 +140,12 @@ class MainActivity : AppCompatActivity() {
                         } else {
                             Thread {
                                 var measurements = Measure(
-                                    UUID.randomUUID().toString(),
-                                    DateTimeFormatter.ISO_INSTANT.format(Instant.now()),
-                                    map.getPosition()?.latitude,
-                                    map.getPosition()?.longitude,
-                                    sensors.getLteSignalStrength(),
-                                    sensors.fetchWifi(),
-                                    sensors.fetchMicrophone()
+                                    timestamp = DateTimeFormatter.ISO_INSTANT.format(Instant.now()),
+                                    lat = map.getPosition()?.latitude,
+                                    lon = map.getPosition()?.longitude,
+                                    lte = sensors.getLteSignalStrength(),
+                                    wifi = sensors.fetchWifi(),
+                                    db = sensors.fetchMicrophone()
                                 )
                                 measureDao.insertMeasure(measurements)
                                 Log.d("MEASURE", measurements.toString())
@@ -170,13 +157,12 @@ class MainActivity : AppCompatActivity() {
                 } else if (requestCode == PERMISSION_MEASUREMENTS) {
                     Thread {
                         var measurements = Measure(
-                            UUID.randomUUID().toString(),
-                            DateTimeFormatter.ISO_INSTANT.format(Instant.now()),
-                            map.getPosition()?.latitude,
-                            map.getPosition()?.longitude,
-                            sensors.getLteSignalStrength(),
-                            sensors.fetchWifi(),
-                            sensors.fetchMicrophone()
+                            timestamp = DateTimeFormatter.ISO_INSTANT.format(Instant.now()),
+                            lat = map.getPosition()?.latitude,
+                            lon = map.getPosition()?.longitude,
+                            lte = sensors.getLteSignalStrength(),
+                            wifi = sensors.fetchWifi(),
+                            db = sensors.fetchMicrophone()
                         )
                         measureDao.insertMeasure(measurements)
                         Log.d("MEASURE", measurements.toString())
@@ -197,17 +183,6 @@ class MainActivity : AppCompatActivity() {
                 permission
             ) == PackageManager.PERMISSION_GRANTED
         )
-    }
-
-    private fun getQuality(value: Double, bad: Double, optimal: Double): Int {
-        return if (value <= bad ) {
-            Color.rgb(255, 0, 0)    // Rosso
-        } else if (value >= optimal) {
-            Color.rgb(0, 255, 0)    // Verde
-        } else {
-            Color.rgb(255, 255, 20) // Giallo
-            //            }
-        }
     }
 
 }
