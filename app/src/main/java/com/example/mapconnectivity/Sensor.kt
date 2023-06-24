@@ -22,7 +22,7 @@ class Sensor(activity: MainActivity) {
     /* Restituisce la potenza del segnale Wifi */
     @SuppressLint("MissingPermission")
     @RequiresApi(Build.VERSION_CODES.R)
-    fun fetchWifi(): Int {
+    fun fetchWifi(): Double {
 //            if (!checkPermission(Manifest.permission.ACCESS_FINE_LOCATION)) {
 //                requestPermissions(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), PERMISSION_LOCATION)
 //            } else {
@@ -37,11 +37,11 @@ class Sensor(activity: MainActivity) {
             }
         }
 
-        return maxLevel
+        return maxLevel.toDouble()
     }
 
     /* Ottiene la potenza del segnale LTE */
-    fun getLteSignalStrength(): Int {
+    fun getLteSignalStrength(): Double {
         val telephonyManager = activity.getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
 
         try {
@@ -51,7 +51,7 @@ class Sensor(activity: MainActivity) {
                 for (info in cellInfoList) {
                     if (info is CellInfoLte) {
                         val cellSignalStrength = info.cellSignalStrength
-                        return cellSignalStrength.dbm
+                        return cellSignalStrength.dbm.toDouble()
                     }
                 }
             }
@@ -59,7 +59,7 @@ class Sensor(activity: MainActivity) {
         } catch (e: SecurityException) {
             Log.wtf("LTE", e)
         }
-        return 1
+        return 1.0
     }
 
     /* Registra 5 secondi l'audio ambientale dal microfono e calcola la media dei dB recepiti */

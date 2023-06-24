@@ -112,8 +112,7 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
                         topLeft.longitude + (j + 1) * cellWidth
                     )
 
-                    val color = Color.TRANSPARENT
-
+                    var color = Color.TRANSPARENT
 
                     val measurements = measureDao.getAvgMeasuresInPolygon(
                         latLng1.latitude,
@@ -122,13 +121,17 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
                         latLng3.longitude
                     )
                     Log.d("BABA", measurements.toString())
-//                if (measurements != null) {
-//                    when (mode) {
-//                        LTE -> getQuality(measurements[2], )
-//                        WIFI -> getQuality()
-//                        DB -> getQuality()
-//                    }
-//                }
+                    var avgModeMeasure: Double? = 0.0
+                    var lowerBound = 0.0
+                    var upperBound = 0.0
+                    when (mode) {
+                        LTE -> { avgModeMeasure = measurements.avgLte; lowerBound = LTE_BAD; upperBound = LTE_OPT }
+                        WIFI -> { avgModeMeasure = measurements.avgWifi; lowerBound = WIFI_BAD; upperBound = WIFI_OPT }
+                        DB -> { avgModeMeasure = measurements.avgDb?.times(-1); lowerBound = DB_BAD; upperBound = DB_OPT }
+                    }
+                    if (avgModeMeasure != null) {
+                        color = getQuality(avgModeMeasure, lowerBound, upperBound)
+                    }
 
                     val polygonOptions = PolygonOptions()
                         .add(latLng1, latLng2, latLng3, latLng4)
@@ -188,11 +191,11 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
 
     private fun getQuality(value: Double, bad: Double, optimal: Double): Int {
         return if (value <= bad ) {
-            Color.RED
+            Color.argb(90, 255, 0, 0)
         } else if (value >= optimal) {
-            Color.GREEN
+            Color.argb(90, 0, 255, 0)
         } else {
-            Color.YELLOW
+            Color.argb(90, 255, 255, 0)
         }
     }
 

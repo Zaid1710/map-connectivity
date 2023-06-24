@@ -20,6 +20,8 @@ import java.time.format.DateTimeFormatter
 
 /**
  * TODO: FIX RICHIESTA PERMESSI (riguardare)
+ *       AGGIORNARE IL COLORE DEL RETTANGOLO DIRETTAMENTE DOPO LA MISURA (SENZA NECESSITA' DI SPOSTARE LA GRIGLIA PER REFRESHARLA)
+ *       OSCURARE IL PULSANTE "MISURA" DURANTE UNA MISURAZIONE
  *       PULIZIA CODICE (abbiamo spostato le funzioni relative ai sensori)
  * */
 
