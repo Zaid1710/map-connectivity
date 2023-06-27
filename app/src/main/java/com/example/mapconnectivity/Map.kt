@@ -28,9 +28,9 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
 
     private lateinit var database: MeasureDB
 
-    private val LTE = 0
-    private val WIFI = 1
-    private val DB = 2
+    val LTE = 0
+    val WIFI = 1
+    val DB = 2
 
     private val WIFI_BAD = -75.0
     private val WIFI_OPT = -55.0
@@ -80,8 +80,9 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
             }
     }
 
-    private fun drawGridOnMap(googleMap: GoogleMap, mode: Int) {
+    fun drawGridOnMap(googleMap: GoogleMap, mode: Int) {
         CoroutineScope(Dispatchers.IO).launch {
+            withContext(Dispatchers.Main) { deleteGrid() }
             var bounds = withContext(Dispatchers.Main) { googleMap.projection.visibleRegion.latLngBounds }
 
             val topLeft = bounds.northeast

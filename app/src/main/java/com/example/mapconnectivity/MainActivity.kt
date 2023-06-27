@@ -9,19 +9,27 @@ import android.os.Build
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.util.Log
+import android.view.View
 import android.widget.Button
+import android.widget.ProgressBar
+import android.widget.Spinner
 import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentManager
 import androidx.room.Room
 import com.google.android.gms.maps.SupportMapFragment
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.time.Instant
 import java.time.format.DateTimeFormatter
 
 /**
- * TODO: FIX RICHIESTA PERMESSI (riguardare)
- *       AGGIORNARE IL COLORE DEL RETTANGOLO DIRETTAMENTE DOPO LA MISURA (SENZA NECESSITA' DI SPOSTARE LA GRIGLIA PER REFRESHARLA)
- *       OSCURARE IL PULSANTE "MISURA" DURANTE UNA MISURAZIONE
+ * TODO: !!!!!!!!!!!!!!!!!!!!!!!!!!!!VMMV MODEL VIEW ECC!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+ *       RENDERE LA MAPPA UNA FUNZIONE ANZICHE' CHIAMARLA 5840 VOLTE
+ *       SISTEMARE GRIGLIA (NON DEVE ESSERE UN FILTRO MA DEVE RESTARE ATTACCATA ALLA MAPPA)
+ *       FIX RICHIESTA PERMESSI (riguardare)
  *       PULIZIA CODICE (abbiamo spostato le funzioni relative ai sensori)
  * */
 
@@ -38,6 +46,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var measureBtn: Button
     private lateinit var database: MeasureDB
     private lateinit var measureDao: MeasureDao
+    private lateinit var measureProgressBar: ProgressBar
 
 
     @RequiresApi(Build.VERSION_CODES.S)
@@ -51,7 +60,9 @@ class MainActivity : AppCompatActivity() {
         mapView = fm.findFragmentById(R.id.mapView) as SupportMapFragment
         map = Map(mapView, this)
         sensors = Sensor(this)
-        measureBtn  = findViewById(R.id.measureBtn)
+        measureBtn = findViewById(R.id.measureBtn)
+        measureProgressBar = findViewById(R.id.measureProgressBar)
+
 
         val permissionsToRequest = mutableListOf<String>()
         if (!checkPermission(Manifest.permission.ACCESS_FINE_LOCATION)) {
@@ -79,7 +90,11 @@ class MainActivity : AppCompatActivity() {
                     Log.d("PERMISSIONS", "SOMETHING'S MISSING 2")
                     requestPermissions(permissionsToRequest.toTypedArray(), PERMISSION_MEASUREMENTS)
                 } else {
-                    Thread {
+                    CoroutineScope(Dispatchers.IO).launch {
+                        withContext(Dispatchers.Main) {
+                            measureBtn.visibility = View.GONE
+                            measureProgressBar.visibility = View.VISIBLE
+                        }
                         var measurements = Measure(
                             timestamp = DateTimeFormatter.ISO_INSTANT.format(Instant.now()),
                             lat = map.getPosition()?.latitude,
@@ -91,7 +106,14 @@ class MainActivity : AppCompatActivity() {
                         measureDao.insertMeasure(measurements)
                         Log.d("MEASURE", measurements.toString())
                         Log.d("DB", measureDao.getAllMeasures().toString())
-                    }.start()
+                        withContext(Dispatchers.Main) {
+                            measureBtn.visibility = View.VISIBLE
+                            measureProgressBar.visibility = View.GONE
+                            mapView?.getMapAsync { googleMap ->
+                                map.drawGridOnMap(googleMap, map.DB)
+                            }
+                        }
+                    }
                 }
 
             }
@@ -140,7 +162,11 @@ class MainActivity : AppCompatActivity() {
                             Log.d("PERMISSIONS", "SOMETHING'S MISSING 2")
                             requestPermissions(permissionsToRequest.toTypedArray(), PERMISSION_MEASUREMENTS)
                         } else {
-                            Thread {
+                            CoroutineScope(Dispatchers.IO).launch {
+                                withContext(Dispatchers.Main) {
+                                    measureBtn.visibility = View.GONE
+                                    measureProgressBar.visibility = View.VISIBLE
+                                }
                                 var measurements = Measure(
                                     timestamp = DateTimeFormatter.ISO_INSTANT.format(Instant.now()),
                                     lat = map.getPosition()?.latitude,
@@ -152,12 +178,22 @@ class MainActivity : AppCompatActivity() {
                                 measureDao.insertMeasure(measurements)
                                 Log.d("MEASURE", measurements.toString())
                                 Log.d("DB", measureDao.getAllMeasures().toString())
-                            }.start()
+                                withContext(Dispatchers.Main) {
+                                    measureBtn.visibility = View.VISIBLE
+                                    measureProgressBar.visibility = View.GONE
+                                    mapView?.getMapAsync { googleMap ->
+                                        map.drawGridOnMap(googleMap, map.DB)
+                                    }
+                                }
+                            }
                         }
-
                     }
                 } else if (requestCode == PERMISSION_MEASUREMENTS) {
-                    Thread {
+                    CoroutineScope(Dispatchers.IO).launch {
+                        withContext(Dispatchers.Main) {
+                            measureBtn.visibility = View.GONE
+                            measureProgressBar.visibility = View.VISIBLE
+                        }
                         var measurements = Measure(
                             timestamp = DateTimeFormatter.ISO_INSTANT.format(Instant.now()),
                             lat = map.getPosition()?.latitude,
@@ -169,7 +205,14 @@ class MainActivity : AppCompatActivity() {
                         measureDao.insertMeasure(measurements)
                         Log.d("MEASURE", measurements.toString())
                         Log.d("DB", measureDao.getAllMeasures().toString())
-                    }.start()
+                        withContext(Dispatchers.Main) {
+                            measureBtn.visibility = View.VISIBLE
+                            measureProgressBar.visibility = View.GONE
+                            mapView?.getMapAsync { googleMap ->
+                                map.drawGridOnMap(googleMap, map.DB)
+                            }
+                        }
+                    }
                 }
             } else {
                 // Almeno uno dei permessi è stato negato
