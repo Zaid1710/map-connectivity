@@ -2,15 +2,18 @@ package com.example.mapconnectivity
 
 import android.Manifest
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.hardware.Sensor
 import android.hardware.SensorManager
+import android.net.Uri
 import android.os.Build
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.util.Log
 import android.view.View
 import android.widget.Button
+import android.widget.ImageButton
 import android.widget.ProgressBar
 import android.widget.Spinner
 import androidx.annotation.RequiresApi
@@ -24,6 +27,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.Instant
 import java.time.format.DateTimeFormatter
+import androidx.lifecycle.Transformations.map
+import androidx.preference.PreferenceManager
+
 
 /**
  * TODO: !!!!!!!!!!!!!!!!!!!!!!!!!!!!VMMV MODEL VIEW ECC!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -31,10 +37,10 @@ import java.time.format.DateTimeFormatter
  *       SISTEMARE GRIGLIA (NON DEVE ESSERE UN FILTRO MA DEVE RESTARE ATTACCATA ALLA MAPPA)
  *       FIX RICHIESTA PERMESSI (riguardare)
  *       PULIZIA CODICE (abbiamo spostato le funzioni relative ai sensori)
+ *       SPOSTARE LA LOADMAP DALLA ONCREATE ALLA ONRESUME
  * */
 
 class MainActivity : AppCompatActivity() {
-
     private val PERMISSION_INIT = 0
     private val PERMISSION_MEASUREMENTS = 1
 
@@ -47,7 +53,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var database: MeasureDB
     private lateinit var measureDao: MeasureDao
     private lateinit var measureProgressBar: ProgressBar
-
+    private lateinit var settingsBtn: ImageButton
+    private var mode: Int = 0
 
     @RequiresApi(Build.VERSION_CODES.S)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -63,6 +70,9 @@ class MainActivity : AppCompatActivity() {
         measureBtn = findViewById(R.id.measureBtn)
         measureProgressBar = findViewById(R.id.measureProgressBar)
 
+        settingsBtn = findViewById(R.id.settingsBtn)
+
+
 
         val permissionsToRequest = mutableListOf<String>()
         if (!checkPermission(Manifest.permission.ACCESS_FINE_LOCATION)) {
@@ -75,7 +85,7 @@ class MainActivity : AppCompatActivity() {
         } else {
             // Tutti i permessi sono stati già concessi
             Log.d("PERMISSIONS", "ALL PERMISSIONS GRANTED")
-            map.loadMap()
+            map.loadMap(mode)
             measureBtn.setOnClickListener {
                 Log.d("MEASURE", "Sono entrato")
                 val permissionsToRequest = mutableListOf<String>()
@@ -119,16 +129,25 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-
+        settingsBtn.setOnClickListener {
+            val settings = Intent(this, SettingsActivity::class.java)
+//            val uri = "view:" + ""
+//            settings.data = Uri.parse(uri)
+            startActivity(settings)
+        }
     }
 
     override fun onResume() {
         super.onResume()
 
-        val sensorManager = this.getSystemService(Context.SENSOR_SERVICE) as SensorManager
-        val pressureSensor = sensorManager.getDefaultSensor(Sensor.TYPE_PRESSURE)
-        var pressureSensorListener = sensors.PressureSensorListener()
-        sensorManager.registerListener(pressureSensorListener, pressureSensor, SensorManager.SENSOR_DELAY_NORMAL)
+//        val sensorManager = this.getSystemService(Context.SENSOR_SERVICE) as SensorManager
+//        val pressureSensor = sensorManager.getDefaultSensor(Sensor.TYPE_PRESSURE)
+//        var pressureSensorListener = sensors.PressureSensorListener()
+//        sensorManager.registerListener(pressureSensorListener, pressureSensor, SensorManager.SENSOR_DELAY_NORMAL)
+
+        val prefs = PreferenceManager.getDefaultSharedPreferences(this)
+//        mode = prefs.getString("mode_preference", 0.toString())!!.toInt()
+        Log.d("PREFERENCES", prefs.getString("mode_preference", "0").toString())
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
@@ -147,7 +166,7 @@ class MainActivity : AppCompatActivity() {
                 // Tutti i permessi sono stati concessi
                 Log.d("PERMISSIONS", "ALL OK")
                 if (requestCode == PERMISSION_INIT) {
-                    map.loadMap()
+                    map.loadMap(mode)
                     measureBtn.setOnClickListener {
                         Log.d("MEASURE", "Sono entrato")
                         val permissionsToRequest = mutableListOf<String>()

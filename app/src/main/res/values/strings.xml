@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">MapConnectivity</string>
+    <string name="title_activity_settings">SettingsActivity</string>
 </resources>

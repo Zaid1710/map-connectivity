@@ -1,0 +1,13 @@
+<resources>
+    <string-array name="modes">
+        <item>LTE</item>
+        <item>Wi-Fi</item>
+        <item>Suono</item>
+    </string-array>
+
+    <string-array name="modes_number">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+    </string-array>
+</resources>

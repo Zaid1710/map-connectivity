@@ -1,0 +1,13 @@
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <PreferenceCategory android:title="Modalità">
+
+        <ListPreference
+            android:entries="@array/modes"
+            android:entryValues="@array/modes_number"
+            android:key="mode_preference"
+            android:title="Parametro di visualizzazione"
+            app:useSimpleSummaryProvider="true" />
+
+    </PreferenceCategory>
+</PreferenceScreen>

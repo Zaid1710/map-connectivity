@@ -42,7 +42,7 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
     private val mFusedLocationClient: FusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(activity)
 
     @SuppressLint("MissingPermission")
-    fun loadMap() {
+    fun loadMap(mode: Int) {
         mFusedLocationClient.lastLocation
             .addOnSuccessListener(activity) { location ->
                 if (location != null) {
@@ -52,6 +52,7 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
                         googleMap.isMyLocationEnabled = true
                         googleMap.uiSettings.isMyLocationButtonEnabled = true
                         googleMap.uiSettings.isRotateGesturesEnabled = false
+
                         googleMap.setOnMapLoadedCallback {
                             val latlng = LatLng(location.latitude, location.longitude)
                             googleMap.animateCamera(CameraUpdateFactory.newLatLngZoom(latlng, 16F))
@@ -64,7 +65,7 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
                         }
 
                         googleMap.setOnCameraIdleListener {
-                            drawGridOnMap(googleMap, DB)
+                            drawGridOnMap(googleMap, mode)
                             Log.d("POLIGONOATTUALE", getCurrentPolygon(getPosition()).toString())
                             val currpoly = getCurrentPolygon(getPosition())
                             if (currpoly != null) {
