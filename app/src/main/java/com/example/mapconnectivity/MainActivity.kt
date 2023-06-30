@@ -33,7 +33,6 @@ import androidx.preference.PreferenceManager
 
 /**
  * TODO: !!!!!!!!!!!!!!!!!!!!!!!!!!!!VMMV MODEL VIEW ECC!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
- *       RENDERE LA MAPPA UNA FUNZIONE ANZICHE' CHIAMARLA 5840 VOLTE
  *       SISTEMARE GRIGLIA (NON DEVE ESSERE UN FILTRO MA DEVE RESTARE ATTACCATA ALLA MAPPA)
  *       FIX RICHIESTA PERMESSI (riguardare)
  *       PULIZIA CODICE (abbiamo spostato le funzioni relative ai sensori)
@@ -84,62 +83,18 @@ class MainActivity : AppCompatActivity() {
         } else {
             // Tutti i permessi sono stati già concessi
             Log.d("PERMISSIONS", "ALL PERMISSIONS GRANTED")
-            measureBtn.setOnClickListener {
-                Log.d("MEASURE", "Sono entrato")
-                val permissionsToRequest = mutableListOf<String>()
-                if (!checkPermission(Manifest.permission.ACCESS_FINE_LOCATION)) {
-                    permissionsToRequest.add(Manifest.permission.ACCESS_FINE_LOCATION)
-                }
-                if (!checkPermission(Manifest.permission.RECORD_AUDIO)) {
-                    permissionsToRequest.add(Manifest.permission.RECORD_AUDIO)
-                }
+            initMeasureBtn()
 
-                if (permissionsToRequest.isNotEmpty()) {
-                    Log.d("PERMISSIONS", "SOMETHING'S MISSING 2")
-                    requestPermissions(permissionsToRequest.toTypedArray(), PERMISSION_MEASUREMENTS)
-                } else {
-                    CoroutineScope(Dispatchers.IO).launch {
-                        withContext(Dispatchers.Main) {
-                            measureBtn.visibility = View.GONE
-                            measureProgressBar.visibility = View.VISIBLE
-                        }
-                        var measurements = Measure(
-                            timestamp = DateTimeFormatter.ISO_INSTANT.format(Instant.now()),
-                            lat = map.getPosition()?.latitude,
-                            lon = map.getPosition()?.longitude,
-                            lte = sensors.getLteSignalStrength(),
-                            wifi = sensors.fetchWifi(),
-                            db = sensors.fetchMicrophone()
-                        )
-                        measureDao.insertMeasure(measurements)
-                        Log.d("MEASURE", measurements.toString())
-                        Log.d("DB", measureDao.getAllMeasures().toString())
-                        withContext(Dispatchers.Main) {
-                            measureBtn.visibility = View.VISIBLE
-                            measureProgressBar.visibility = View.GONE
-                            mapView?.getMapAsync { googleMap ->
-                                map.drawGridOnMap(googleMap, map.DB)
-                            }
-                        }
-                    }
-                }
-
-            }
         }
 
         settingsBtn.setOnClickListener {
             val settings = Intent(this, SettingsActivity::class.java)
-//            val uri = "view:" + ""
-//            settings.data = Uri.parse(uri)
             startActivity(settings)
         }
     }
 
     override fun onResume() {
         super.onResume()
-
-
-
 //        val sensorManager = this.getSystemService(Context.SENSOR_SERVICE) as SensorManager
 //        val pressureSensor = sensorManager.getDefaultSensor(Sensor.TYPE_PRESSURE)
 //        var pressureSensorListener = sensors.PressureSensorListener()
@@ -168,71 +123,9 @@ class MainActivity : AppCompatActivity() {
                 Log.d("PERMISSIONS", "ALL OK")
                 if (requestCode == PERMISSION_INIT) {
                     map.loadMap(mode)
-                    measureBtn.setOnClickListener {
-                        Log.d("MEASURE", "Sono entrato")
-                        val permissionsToRequest = mutableListOf<String>()
-                        if (!checkPermission(Manifest.permission.ACCESS_FINE_LOCATION)) {
-                            permissionsToRequest.add(Manifest.permission.ACCESS_FINE_LOCATION)
-                        }
-                        if (!checkPermission(Manifest.permission.RECORD_AUDIO)) {
-                            permissionsToRequest.add(Manifest.permission.RECORD_AUDIO)
-                        }
-
-                        if (permissionsToRequest.isNotEmpty()) {
-                            Log.d("PERMISSIONS", "SOMETHING'S MISSING 2")
-                            requestPermissions(permissionsToRequest.toTypedArray(), PERMISSION_MEASUREMENTS)
-                        } else {
-                            CoroutineScope(Dispatchers.IO).launch {
-                                withContext(Dispatchers.Main) {
-                                    measureBtn.visibility = View.GONE
-                                    measureProgressBar.visibility = View.VISIBLE
-                                }
-                                var measurements = Measure(
-                                    timestamp = DateTimeFormatter.ISO_INSTANT.format(Instant.now()),
-                                    lat = map.getPosition()?.latitude,
-                                    lon = map.getPosition()?.longitude,
-                                    lte = sensors.getLteSignalStrength(),
-                                    wifi = sensors.fetchWifi(),
-                                    db = sensors.fetchMicrophone()
-                                )
-                                measureDao.insertMeasure(measurements)
-                                Log.d("MEASURE", measurements.toString())
-                                Log.d("DB", measureDao.getAllMeasures().toString())
-                                withContext(Dispatchers.Main) {
-                                    measureBtn.visibility = View.VISIBLE
-                                    measureProgressBar.visibility = View.GONE
-                                    mapView?.getMapAsync { googleMap ->
-                                        map.drawGridOnMap(googleMap, map.DB)
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    initMeasureBtn()
                 } else if (requestCode == PERMISSION_MEASUREMENTS) {
-                    CoroutineScope(Dispatchers.IO).launch {
-                        withContext(Dispatchers.Main) {
-                            measureBtn.visibility = View.GONE
-                            measureProgressBar.visibility = View.VISIBLE
-                        }
-                        var measurements = Measure(
-                            timestamp = DateTimeFormatter.ISO_INSTANT.format(Instant.now()),
-                            lat = map.getPosition()?.latitude,
-                            lon = map.getPosition()?.longitude,
-                            lte = sensors.getLteSignalStrength(),
-                            wifi = sensors.fetchWifi(),
-                            db = sensors.fetchMicrophone()
-                        )
-                        measureDao.insertMeasure(measurements)
-                        Log.d("MEASURE", measurements.toString())
-                        Log.d("DB", measureDao.getAllMeasures().toString())
-                        withContext(Dispatchers.Main) {
-                            measureBtn.visibility = View.VISIBLE
-                            measureProgressBar.visibility = View.GONE
-                            mapView?.getMapAsync { googleMap ->
-                                map.drawGridOnMap(googleMap, map.DB)
-                            }
-                        }
-                    }
+                    getMeasurement()
                 }
             } else {
                 // Almeno uno dei permessi è stato negato
@@ -248,6 +141,56 @@ class MainActivity : AppCompatActivity() {
                 permission
             ) == PackageManager.PERMISSION_GRANTED
         )
+    }
+
+    @RequiresApi(Build.VERSION_CODES.S)
+    private fun initMeasureBtn() {
+        measureBtn.setOnClickListener {
+            Log.d("MEASURE", "Sono entrato")
+            val permissionsToRequest = mutableListOf<String>()
+            if (!checkPermission(Manifest.permission.ACCESS_FINE_LOCATION)) {
+                permissionsToRequest.add(Manifest.permission.ACCESS_FINE_LOCATION)
+            }
+            if (!checkPermission(Manifest.permission.RECORD_AUDIO)) {
+                permissionsToRequest.add(Manifest.permission.RECORD_AUDIO)
+            }
+
+            if (permissionsToRequest.isNotEmpty()) {
+                Log.d("PERMISSIONS", "SOMETHING'S MISSING 2")
+                requestPermissions(permissionsToRequest.toTypedArray(), PERMISSION_MEASUREMENTS)
+            } else {
+                getMeasurement()
+            }
+
+        }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.S)
+    private fun getMeasurement() {
+        CoroutineScope(Dispatchers.IO).launch {
+            withContext(Dispatchers.Main) {
+                measureBtn.visibility = View.GONE
+                measureProgressBar.visibility = View.VISIBLE
+            }
+            var measurements = Measure(
+                timestamp = DateTimeFormatter.ISO_INSTANT.format(Instant.now()),
+                lat = map.getPosition()?.latitude,
+                lon = map.getPosition()?.longitude,
+                lte = sensors.getLteSignalStrength(),
+                wifi = sensors.fetchWifi(),
+                db = sensors.fetchMicrophone()
+            )
+            measureDao.insertMeasure(measurements)
+            Log.d("MEASURE", measurements.toString())
+            Log.d("DB", measureDao.getAllMeasures().toString())
+            withContext(Dispatchers.Main) {
+                measureBtn.visibility = View.VISIBLE
+                measureProgressBar.visibility = View.GONE
+                mapView?.getMapAsync { googleMap ->
+                    map.drawGridOnMap(googleMap, map.DB)
+                }
+            }
+        }
     }
 
 }
