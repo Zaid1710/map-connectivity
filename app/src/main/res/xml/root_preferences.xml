@@ -7,6 +7,7 @@
             android:entryValues="@array/modes_number"
             android:key="mode_preference"
             android:title="Parametro di visualizzazione"
+            android:defaultValue="0"
             app:useSimpleSummaryProvider="true" />
 
     </PreferenceCategory>

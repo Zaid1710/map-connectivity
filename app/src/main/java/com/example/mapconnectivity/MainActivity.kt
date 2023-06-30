@@ -37,7 +37,6 @@ import androidx.preference.PreferenceManager
  *       SISTEMARE GRIGLIA (NON DEVE ESSERE UN FILTRO MA DEVE RESTARE ATTACCATA ALLA MAPPA)
  *       FIX RICHIESTA PERMESSI (riguardare)
  *       PULIZIA CODICE (abbiamo spostato le funzioni relative ai sensori)
- *       SPOSTARE LA LOADMAP DALLA ONCREATE ALLA ONRESUME
  * */
 
 class MainActivity : AppCompatActivity() {
@@ -85,7 +84,6 @@ class MainActivity : AppCompatActivity() {
         } else {
             // Tutti i permessi sono stati già concessi
             Log.d("PERMISSIONS", "ALL PERMISSIONS GRANTED")
-            map.loadMap(mode)
             measureBtn.setOnClickListener {
                 Log.d("MEASURE", "Sono entrato")
                 val permissionsToRequest = mutableListOf<String>()
@@ -140,14 +138,17 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
 
+
+
 //        val sensorManager = this.getSystemService(Context.SENSOR_SERVICE) as SensorManager
 //        val pressureSensor = sensorManager.getDefaultSensor(Sensor.TYPE_PRESSURE)
 //        var pressureSensorListener = sensors.PressureSensorListener()
 //        sensorManager.registerListener(pressureSensorListener, pressureSensor, SensorManager.SENSOR_DELAY_NORMAL)
 
         val prefs = PreferenceManager.getDefaultSharedPreferences(this)
-//        mode = prefs.getString("mode_preference", 0.toString())!!.toInt()
-        Log.d("PREFERENCES", prefs.getString("mode_preference", "0").toString())
+        mode = prefs.getString("mode_preference", 0.toString())!!.toInt()
+        map.loadMap(mode)
+        Log.d("PREFERENCES", mode.toString())
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
