@@ -18,6 +18,8 @@ import android.widget.ProgressBar
 import android.widget.Spinner
 import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
+import androidx.core.view.GravityCompat
+import androidx.drawerlayout.widget.DrawerLayout
 import androidx.fragment.app.FragmentManager
 import androidx.room.Room
 import com.google.android.gms.maps.SupportMapFragment
@@ -29,19 +31,22 @@ import java.time.Instant
 import java.time.format.DateTimeFormatter
 import androidx.lifecycle.Transformations.map
 import androidx.preference.PreferenceManager
-
+import androidx.preference.EditTextPreference
+import android.text.InputType
+import androidx.lifecycle.Transformations.map
 
 /**
  * TODO: !!!!!!!!!!!!!!!!!!!!!!!!!!!!VMMV MODEL VIEW ECC!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
  *       SISTEMARE GRIGLIA (NON DEVE ESSERE UN FILTRO MA DEVE RESTARE ATTACCATA ALLA MAPPA)
  *       FIX RICHIESTA PERMESSI (riguardare)
  *       PULIZIA CODICE (abbiamo spostato le funzioni relative ai sensori)
+ *       METTERE SWITCH NELLE IMPOSTAZIONI PER ABILITARE LA MODIFICA DELLE SOGLIE
+ *       VEDERE SE C'E' POSSIBILITA' DI USARE QUALCOS'ALTRO PER AVERE LA TASTIERA NUMERICA (NEI SETTINGS DELLE SOGLIE) (gericoppazzo)
  * */
 
 class MainActivity : AppCompatActivity() {
     private val PERMISSION_INIT = 0
     private val PERMISSION_MEASUREMENTS = 1
-
 
     private lateinit var fm: FragmentManager
     private lateinit var mapView: SupportMapFragment
@@ -58,6 +63,7 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+
         database = Room.databaseBuilder(this, MeasureDB::class.java, "measuredb").fallbackToDestructiveMigration().build()
         measureDao = database.measureDao()
 
@@ -69,8 +75,6 @@ class MainActivity : AppCompatActivity() {
         measureProgressBar = findViewById(R.id.measureProgressBar)
 
         settingsBtn = findViewById(R.id.settingsBtn)
-
-
 
         val permissionsToRequest = mutableListOf<String>()
         if (!checkPermission(Manifest.permission.ACCESS_FINE_LOCATION)) {

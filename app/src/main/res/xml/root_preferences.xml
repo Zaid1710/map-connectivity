@@ -3,11 +3,57 @@
     <PreferenceCategory android:title="Modalità">
 
         <ListPreference
+            android:defaultValue="0"
             android:entries="@array/modes"
             android:entryValues="@array/modes_number"
             android:key="mode_preference"
             android:title="Parametro di visualizzazione"
-            android:defaultValue="0"
+            app:useSimpleSummaryProvider="true" />
+
+    </PreferenceCategory>
+    <PreferenceCategory
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:title="Soglie">
+        <SwitchPreference
+            android:defaultValue="false"
+            android:key="switch_preference_bounds"
+            android:title="Imposta le soglie manualmente" />
+        <com.takisoft.preferencex.EditTextPreference
+            android:inputType="number"
+            android:dependency="switch_preference_bounds"
+            android:key="opt_audio"
+            android:title="Valore ottimale audio (dB)"
+            app:useSimpleSummaryProvider="true" />
+        <com.takisoft.preferencex.EditTextPreference
+            android:inputType="number"
+            android:dependency="switch_preference_bounds"
+            android:key="bad_audio"
+            android:title="Valore pessimo audio (dB)"
+            app:useSimpleSummaryProvider="true" />
+        <com.takisoft.preferencex.EditTextPreference
+            android:inputType="number"
+            android:dependency="switch_preference_bounds"
+            android:key="opt_lte"
+            android:title="Valore ottimale LTE"
+            app:useSimpleSummaryProvider="true" />
+        <com.takisoft.preferencex.EditTextPreference
+            android:inputType="number"
+            android:dependency="switch_preference_bounds"
+            android:key="bad_lte"
+            android:title="Valore pessimo LTE"
+            app:useSimpleSummaryProvider="true" />
+        <com.takisoft.preferencex.EditTextPreference
+            android:inputType="number"
+            android:dependency="switch_preference_bounds"
+            android:key="opt_wifi"
+            android:title="Valore ottimale Wi-Fi"
+            app:useSimpleSummaryProvider="true" />
+        <com.takisoft.preferencex.EditTextPreference
+            android:inputType="number"
+            android:dependency="switch_preference_bounds"
+            android:key="bad_wifi"
+            android:title="Valore pessimo Wi-Fi"
             app:useSimpleSummaryProvider="true" />
 
     </PreferenceCategory>
