@@ -6,6 +6,7 @@ import android.graphics.Color
 import android.location.Location
 import android.location.LocationManager
 import android.util.Log
+import androidx.preference.PreferenceManager
 import androidx.room.Room
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
@@ -32,17 +33,37 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
     val WIFI = 1
     val DB = 2
 
-    private val WIFI_BAD = -75.0
-    private val WIFI_OPT = -55.0
-    private val LTE_BAD = -95.0
-    private val LTE_OPT = -80.0
-    private val DB_BAD = -80.0
-    private val DB_OPT = -60.0
+    private var WIFI_BAD = -75.0
+    private var WIFI_OPT = -55.0
+    private var LTE_BAD = -95.0
+    private var LTE_OPT = -80.0
+    private var DB_BAD = -80.0
+    private var DB_OPT = -60.0
 
     private val mFusedLocationClient: FusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(activity)
 
     @SuppressLint("MissingPermission")
     fun loadMap(mode: Int) {
+        val prefs = PreferenceManager.getDefaultSharedPreferences(activity)
+        val manual = prefs.getBoolean("switch_preference_bounds", false)
+        if (manual) {
+            Log.d("Manual", "Sono manuale")
+            WIFI_OPT = prefs.getString("opt_wifi", (-55).toString())!!.toDouble()
+            WIFI_BAD = prefs.getString("bad_wifi", (-75).toString())!!.toDouble()
+            LTE_BAD = prefs.getString("bad_lte", (-95).toString())!!.toDouble()
+            LTE_OPT = prefs.getString("opt_lte", (-80).toString())!!.toDouble()
+            DB_BAD = -prefs.getString("bad_db", 80.toString())!!.toDouble()
+            DB_OPT = -prefs.getString("opt_db", 60.toString())!!.toDouble()
+            Log.d("Manual", "DB_BAD: $DB_BAD, DB_OPT: $DB_OPT")
+        } else {
+            WIFI_BAD = -75.0
+            WIFI_OPT = -55.0
+            LTE_BAD = -95.0
+            LTE_OPT = -80.0
+            DB_BAD = -80.0
+            DB_OPT = -60.0
+        }
+
         mFusedLocationClient.lastLocation
             .addOnSuccessListener(activity) { location ->
                 if (location != null) {
