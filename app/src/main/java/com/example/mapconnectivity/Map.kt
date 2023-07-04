@@ -48,12 +48,12 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
         val manual = prefs.getBoolean("switch_preference_bounds", false)
         if (manual) {
             Log.d("Manual", "Sono manuale")
-            WIFI_OPT = prefs.getString("opt_wifi", (-55).toString())!!.toDouble()
-            WIFI_BAD = prefs.getString("bad_wifi", (-75).toString())!!.toDouble()
-            LTE_BAD = prefs.getString("bad_lte", (-95).toString())!!.toDouble()
-            LTE_OPT = prefs.getString("opt_lte", (-80).toString())!!.toDouble()
-            DB_BAD = -prefs.getString("bad_db", 80.toString())!!.toDouble()
-            DB_OPT = -prefs.getString("opt_db", 60.toString())!!.toDouble()
+            WIFI_OPT = prefs.getString("opt_wifi", (-55).toString())?.toDoubleOrNull() ?: -55.0
+            WIFI_BAD = prefs.getString("bad_wifi", (-75).toString())?.toDoubleOrNull() ?: -75.0
+            LTE_BAD = prefs.getString("bad_lte", (-95).toString())?.toDoubleOrNull() ?: -95.0
+            LTE_OPT = prefs.getString("opt_lte", (-80).toString())?.toDoubleOrNull() ?: -80.0
+            DB_BAD = -(prefs.getString("bad_db", 80.toString())?.toDoubleOrNull() ?: 80.0)
+            DB_OPT = -(prefs.getString("opt_db", 60.toString())?.toDoubleOrNull() ?: 60.0)
             Log.d("Manual", "DB_BAD: $DB_BAD, DB_OPT: $DB_OPT")
         } else {
             WIFI_BAD = -75.0
