@@ -58,6 +58,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var measureDao: MeasureDao
     private lateinit var measureProgressBar: ProgressBar
     private lateinit var settingsBtn: ImageButton
+    private lateinit var swapBtn: ImageButton
     private var mode: Int = 0
 
     @RequiresApi(Build.VERSION_CODES.S)
@@ -77,6 +78,8 @@ class MainActivity : AppCompatActivity() {
 
         settingsBtn = findViewById(R.id.settingsBtn)
 
+        swapBtn = findViewById(R.id.swapBtn)
+
         val permissionsToRequest = mutableListOf<String>()
         if (!checkPermission(Manifest.permission.ACCESS_FINE_LOCATION)) {
             permissionsToRequest.add(Manifest.permission.ACCESS_FINE_LOCATION)
@@ -95,6 +98,11 @@ class MainActivity : AppCompatActivity() {
         settingsBtn.setOnClickListener {
             val settings = Intent(this, SettingsActivity::class.java)
             startActivity(settings)
+        }
+
+        swapBtn.setOnClickListener {
+            val swap = Intent(this, SwapActivity::class.java)
+            startActivity(swap)
         }
     }
 
