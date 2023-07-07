@@ -43,6 +43,7 @@ import androidx.lifecycle.Transformations.map
  *       VEDERE SE C'E' POSSIBILITA' DI USARE QUALCOS'ALTRO PER AVERE LA TASTIERA NUMERICA (NEI SETTINGS DELLE SOGLIE) (gericoppazzo)
  *       IMPORT / EXPORT DATI
  *       SCANSIONE AUTOMATICA E/O QUANDO SI ENTRA IN UN NUOVO RIQUADRO
+ *       CAMBIARE NOME DEL FILE DI EXPORT (E ANCHE ESTENSIONE PER FAVORIRE L'IMPORT, FORSE)
  * */
 
 class MainActivity : AppCompatActivity() {
@@ -200,7 +201,7 @@ class MainActivity : AppCompatActivity() {
                 measureBtn.visibility = View.VISIBLE
                 measureProgressBar.visibility = View.GONE
                 mapView?.getMapAsync { googleMap ->
-                    map.drawGridOnMap(googleMap, map.DB)
+                    map.drawGridOnMap(googleMap, mode)
                 }
             }
         }
