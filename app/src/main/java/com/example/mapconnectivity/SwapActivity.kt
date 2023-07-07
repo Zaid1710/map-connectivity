@@ -1,11 +1,15 @@
 package com.example.mapconnectivity
 
+import android.content.Intent
+import android.net.Uri
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import android.widget.Button
 import android.widget.ProgressBar
 import android.widget.Toast
+import androidx.core.content.FileProvider
 import androidx.room.Room
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
@@ -13,6 +17,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.json.JSONObject
 import java.io.File
 import java.io.IOException
 
@@ -53,12 +58,22 @@ class SwapActivity : AppCompatActivity() {
             mapper = jacksonObjectMapper()
             val measures = measureDao.getAllMeasures()
             try {
-                mapper.writeValue(File("${applicationContext.filesDir}/export.json"), measures)
+                val file = File("${applicationContext.filesDir}/export.json")
+                Log.d("FILE", file.toString())
+                mapper.writeValue(file, measures)
                 withContext(Dispatchers.Main) {
-                    val toast = Toast.makeText(applicationContext, "Ho esportato ${measures.last().id} misure con successo!", Toast.LENGTH_SHORT) // in Activity
+                    val toast = Toast.makeText(applicationContext, "Ho esportato ${measures.last().id} misure con successo!", Toast.LENGTH_SHORT)
                     toast.show()
                 }
+                val i = Intent(Intent.ACTION_SEND)
+                val uri = FileProvider.getUriForFile(applicationContext, "com.example.mapconnectivity.fileprovider", file)
+                i.type = "application/json"
+                i.putExtra(Intent.EXTRA_STREAM, uri)
+                i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                startActivity(Intent.createChooser(i, "Share File"))
+
             } catch (e: IOException) {
+                Log.e("Export", e.toString())
                 withContext(Dispatchers.Main) {
                     val toast = Toast.makeText(applicationContext, "Qualcosa è andato storto!", Toast.LENGTH_SHORT)
                     toast.show()
