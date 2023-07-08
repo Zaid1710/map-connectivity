@@ -1,5 +1,6 @@
 package com.example.mapconnectivity
 
+import android.app.Activity
 import android.content.Intent
 import android.os.Build
 import androidx.appcompat.app.AppCompatActivity
@@ -9,9 +10,12 @@ import android.view.View
 import android.widget.Button
 import android.widget.ProgressBar
 import android.widget.Toast
+import androidx.activity.result.ActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
 import androidx.core.content.FileProvider
 import androidx.room.Room
+import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import kotlinx.coroutines.CoroutineScope
@@ -22,6 +26,8 @@ import java.io.File
 import java.io.IOException
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
+import java.io.BufferedReader
+import java.io.InputStreamReader
 
 class SwapActivity : AppCompatActivity() {
     private lateinit var importBtn: Button
@@ -30,6 +36,22 @@ class SwapActivity : AppCompatActivity() {
     private lateinit var measureDao: MeasureDao
     private lateinit var mapper: ObjectMapper
     private lateinit var exportProgressBar: ProgressBar
+
+    private val startForResult = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result: ActivityResult ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val uri = result.data!!.data!!
+            val inputStreamReader = InputStreamReader(contentResolver.openInputStream(uri))
+            val bufferedReader = BufferedReader(inputStreamReader)
+            val s = bufferedReader.readLine()
+
+            val objectMapper = ObjectMapper()
+            val importedMeasures = objectMapper.readValue(s, JsonNode::class.java)
+
+            importData(importedMeasures)
+        }
+    }
 
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -44,13 +66,15 @@ class SwapActivity : AppCompatActivity() {
         exportProgressBar = findViewById(R.id.exportProgressBar)
 
         importBtn.setOnClickListener {
-
+            launcherImportData()
         }
 
         exportBtn.setOnClickListener {
             exportData()
         }
     }
+
+
 
     @RequiresApi(Build.VERSION_CODES.O)
     private fun exportData() {
@@ -78,7 +102,7 @@ class SwapActivity : AppCompatActivity() {
                 i.type = "application/json"
                 i.putExtra(Intent.EXTRA_STREAM, uri)
                 i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                startActivity(Intent.createChooser(i, "Share File"))
+                startActivity(Intent.createChooser(i, "Condividi file"))
 
             } catch (e: IOException) {
                 Log.e("Export", e.toString())
@@ -92,5 +116,19 @@ class SwapActivity : AppCompatActivity() {
                 exportProgressBar.visibility = View.GONE
             }
         }
+    }
+
+    private fun launcherImportData() {
+        val i = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = "*/*"
+            putExtra(Intent.EXTRA_ALLOW_MULTIPLE, false)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        startForResult.launch(i)
+    }
+
+    private fun importData(importedMeasures: JsonNode) {
+        // TODO: POPOLARE (👥) IL DB CON LE MISURE
     }
 }
