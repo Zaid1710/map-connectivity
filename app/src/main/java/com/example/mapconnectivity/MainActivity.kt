@@ -41,9 +41,10 @@ import androidx.lifecycle.Transformations.map
  *       FIX RICHIESTA PERMESSI (riguardare)
  *       PULIZIA CODICE (abbiamo spostato le funzioni relative ai sensori)
  *       VEDERE SE C'E' POSSIBILITA' DI USARE QUALCOS'ALTRO PER AVERE LA TASTIERA NUMERICA (NEI SETTINGS DELLE SOGLIE) (gericoppazzo)
- *       IMPORT / EXPORT DATI
  *       SCANSIONE AUTOMATICA E/O QUANDO SI ENTRA IN UN NUOVO RIQUADRO
  *       SE CLICCHI SU UN QUADRATO TI FA VEDERE TUTTE E TRE LE MEDIE DELLE MISURE (LTE, WIFI E AUDIO)
+ *       ORA CHE L'EXPORT HA UN NOME DIVERSO PER OGNI FILE (timestamp), BISOGNA CANCELLARE I FILE PRIMA CHE DIVENTINO TROPPI
+ *       AGGIUNGERE CONTROLLO DELLE SOGLIE A SCELTA - LA OTTIMALE NON PUO' ESSERE MINORE DELLA PESSIMA
  * */
 
 class MainActivity : AppCompatActivity() {
@@ -66,6 +67,8 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+
+        User.getUserId(this)
 
         database = Room.databaseBuilder(this, MeasureDB::class.java, "measuredb").fallbackToDestructiveMigration().build()
         measureDao = database.measureDao()
@@ -192,7 +195,9 @@ class MainActivity : AppCompatActivity() {
                 lon = map.getPosition()?.longitude,
                 lte = sensors.getLteSignalStrength(),
                 wifi = sensors.fetchWifi(),
-                db = sensors.fetchMicrophone()
+                db = sensors.fetchMicrophone(),
+                user_id = User.getUserId(applicationContext),
+                imported = false
             )
             measureDao.insertMeasure(measurements)
             Log.d("MEASURE", measurements.toString())

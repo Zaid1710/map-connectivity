@@ -9,7 +9,9 @@ data class Measure(@PrimaryKey(autoGenerate = true) var id: Long? = null,
                    var lon: Double?,
                    var lte: Double,
                    var wifi: Double,
-                   var db: Double)
+                   var db: Double,
+                   var user_id: String,
+                   var imported: Boolean)
 
 data class AverageMeasures(
     val avgLte: Double?,
@@ -27,17 +29,12 @@ interface MeasureDao {
 
     @Insert
     fun insertMeasure(measure: Measure): Long
+
+    @Query("DELETE FROM measures WHERE user_id = :user_id")
+    fun deleteMeasuresFrom(user_id: String)
 }
 
-@Database(entities = [Measure::class], version = 3)
+@Database(entities = [Measure::class], version = 6)
 abstract class MeasureDB: RoomDatabase() {
     abstract fun measureDao(): MeasureDao
 }
-
-//val database = Room.databaseBuilder(this, MeasureDB::class.java, "measuredb").build()
-//val measureDao = database.measureDao()
-//val measures = measureDao.getAllMeasures()
-
-//import java.util.UUID
-//
-//val id = UUID.randomUUID().toString()

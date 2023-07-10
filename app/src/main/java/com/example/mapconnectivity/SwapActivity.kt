@@ -129,6 +129,39 @@ class SwapActivity : AppCompatActivity() {
     }
 
     private fun importData(importedMeasures: JsonNode) {
-        // TODO: POPOLARE (👥) IL DB CON LE MISURE
+
+        for(measure in importedMeasures) {
+            Log.d("TEST", measure.get("user_id").toString())
+        }
+        CoroutineScope(Dispatchers.IO).launch {
+            var i = 0
+            while (importedMeasures[i].get("imported").toString().toBoolean()) { i++ } // Ottiene l'indice per la prima misura non importata
+            val senderId = importedMeasures[i].get("user_id").toString()
+            measureDao.deleteMeasuresFrom(senderId)
+
+            for (measure in importedMeasures) {
+                if (!measure.get("imported").toString().toBoolean()) {
+                    var timestamp = measure.get("timestamp").toString()
+                    timestamp = timestamp.removeRange(timestamp.length - 1, timestamp.length)
+                    timestamp = timestamp.removeRange(0, 1)
+
+                    var userId = measure.get("user_id").toString()
+                    userId = userId.removeRange(userId.length - 1, userId.length)
+                    userId = userId.removeRange(0, 1)
+
+                    var measurements = Measure(
+                        timestamp = timestamp,
+                        lat = measure.get("lat").toString().toDouble(),
+                        lon = measure.get("lon").toString().toDouble(),
+                        lte = measure.get("lte").toString().toDouble(),
+                        wifi = measure.get("wifi").toString().toDouble(),
+                        db = measure.get("db").toString().toDouble(),
+                        user_id = userId,
+                        imported = true
+                    )
+                    measureDao.insertMeasure(measurements)
+                }
+            }
+        }
     }
 }

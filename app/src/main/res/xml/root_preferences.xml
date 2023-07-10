@@ -63,4 +63,11 @@
             app:useSimpleSummaryProvider="true" />
 
     </PreferenceCategory>
+    <EditTextPreference
+        android:key="user_id"
+        android:selectAllOnFocus="true"
+        android:singleLine="true"
+        android:title="User ID"
+        app:enabled="false"
+        app:useSimpleSummaryProvider="true" />
 </PreferenceScreen>
