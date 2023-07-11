@@ -23,7 +23,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
-import java.io.IOException
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.io.BufferedReader
@@ -42,6 +41,7 @@ class SwapActivity : AppCompatActivity() {
         ActivityResultContracts.StartActivityForResult()
     ) { result: ActivityResult ->
         if (result.resultCode == Activity.RESULT_OK) {
+            try {
                 val uri = result.data!!.data!!
                 val inputStreamReader = InputStreamReader(contentResolver.openInputStream(uri))
                 val bufferedReader = BufferedReader(inputStreamReader)
@@ -51,10 +51,14 @@ class SwapActivity : AppCompatActivity() {
                 val importedMeasures = objectMapper.readValue(s, JsonNode::class.java)
 
                 importData(importedMeasures)
-            } else {
-                importBtn.visibility = View.VISIBLE
-                importProgressBar.visibility = View.GONE
+            } catch (e: Exception) {
+                Log.e("Import", e.toString())
+                val toast = Toast.makeText(applicationContext, "Qualcosa è andato storto!", Toast.LENGTH_SHORT)
+                toast.show()
             }
+        }
+        importBtn.visibility = View.VISIBLE
+        importProgressBar.visibility = View.GONE
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
@@ -178,10 +182,6 @@ class SwapActivity : AppCompatActivity() {
                     val toast = Toast.makeText(applicationContext, "Qualcosa è andato storto!", Toast.LENGTH_SHORT)
                     toast.show()
                 }
-            }
-            withContext(Dispatchers.Main) {
-                importBtn.visibility = View.VISIBLE
-                importProgressBar.visibility = View.GONE
             }
         }
     }
