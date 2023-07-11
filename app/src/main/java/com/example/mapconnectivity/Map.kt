@@ -137,11 +137,15 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
 
                     var color = Color.TRANSPARENT
 
+                    val prefs = PreferenceManager.getDefaultSharedPreferences(activity)
+                    val imported = prefs.getBoolean("view_imported", true)
+
                     val measurements = measureDao.getAvgMeasuresInPolygon(
                         latLng1.latitude,
                         latLng1.longitude,
                         latLng3.latitude,
-                        latLng3.longitude
+                        latLng3.longitude,
+                        imported
                     )
                     Log.d("BABA", measurements.toString())
                     var avgModeMeasure: Double? = 0.0

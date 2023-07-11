@@ -1,5 +1,12 @@
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
+    <EditTextPreference
+        android:key="user_id"
+        android:selectAllOnFocus="true"
+        android:singleLine="true"
+        android:title="User ID"
+        app:enabled="false"
+        app:useSimpleSummaryProvider="true" />
     <PreferenceCategory android:title="Modalità">
 
         <ListPreference
@@ -9,6 +16,10 @@
             android:key="mode_preference"
             android:title="Parametro di visualizzazione"
             app:useSimpleSummaryProvider="true" />
+        <SwitchPreference
+            android:defaultValue="true"
+            android:key="view_imported"
+            android:title="Visualizza misure importate" />
 
     </PreferenceCategory>
     <PreferenceCategory
@@ -63,11 +74,4 @@
             app:useSimpleSummaryProvider="true" />
 
     </PreferenceCategory>
-    <EditTextPreference
-        android:key="user_id"
-        android:selectAllOnFocus="true"
-        android:singleLine="true"
-        android:title="User ID"
-        app:enabled="false"
-        app:useSimpleSummaryProvider="true" />
 </PreferenceScreen>

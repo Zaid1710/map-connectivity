@@ -36,21 +36,25 @@ class SwapActivity : AppCompatActivity() {
     private lateinit var measureDao: MeasureDao
     private lateinit var mapper: ObjectMapper
     private lateinit var exportProgressBar: ProgressBar
+    private lateinit var importProgressBar: ProgressBar
 
     private val startForResult = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result: ActivityResult ->
         if (result.resultCode == Activity.RESULT_OK) {
-            val uri = result.data!!.data!!
-            val inputStreamReader = InputStreamReader(contentResolver.openInputStream(uri))
-            val bufferedReader = BufferedReader(inputStreamReader)
-            val s = bufferedReader.readLine()
+                val uri = result.data!!.data!!
+                val inputStreamReader = InputStreamReader(contentResolver.openInputStream(uri))
+                val bufferedReader = BufferedReader(inputStreamReader)
+                val s = bufferedReader.readLine()
 
-            val objectMapper = ObjectMapper()
-            val importedMeasures = objectMapper.readValue(s, JsonNode::class.java)
+                val objectMapper = ObjectMapper()
+                val importedMeasures = objectMapper.readValue(s, JsonNode::class.java)
 
-            importData(importedMeasures)
-        }
+                importData(importedMeasures)
+            } else {
+                importBtn.visibility = View.VISIBLE
+                importProgressBar.visibility = View.GONE
+            }
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
@@ -62,6 +66,7 @@ class SwapActivity : AppCompatActivity() {
         measureDao = database.measureDao()
 
         importBtn = findViewById(R.id.importBtn)
+        importProgressBar = findViewById(R.id.importProgressBar)
         exportBtn = findViewById(R.id.exportBtn)
         exportProgressBar = findViewById(R.id.exportProgressBar)
 
@@ -104,7 +109,7 @@ class SwapActivity : AppCompatActivity() {
                 i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 startActivity(Intent.createChooser(i, "Condividi file"))
 
-            } catch (e: IOException) {
+            } catch (e: Exception) {
                 Log.e("Export", e.toString())
                 withContext(Dispatchers.Main) {
                     val toast = Toast.makeText(applicationContext, "Qualcosa è andato storto!", Toast.LENGTH_SHORT)
@@ -119,6 +124,8 @@ class SwapActivity : AppCompatActivity() {
     }
 
     private fun launcherImportData() {
+        importBtn.visibility = View.GONE
+        importProgressBar.visibility = View.VISIBLE
         val i = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
             addCategory(Intent.CATEGORY_OPENABLE)
             type = "*/*"
@@ -129,38 +136,52 @@ class SwapActivity : AppCompatActivity() {
     }
 
     private fun importData(importedMeasures: JsonNode) {
-
-        for(measure in importedMeasures) {
-            Log.d("TEST", measure.get("user_id").toString())
-        }
         CoroutineScope(Dispatchers.IO).launch {
-            var i = 0
-            while (importedMeasures[i].get("imported").toString().toBoolean()) { i++ } // Ottiene l'indice per la prima misura non importata
-            val senderId = importedMeasures[i].get("user_id").toString()
-            measureDao.deleteMeasuresFrom(senderId)
+            try {
+                var i = 0
+                while (importedMeasures[i].get("imported").toString().toBoolean()) { i++ } // Ottiene l'indice per la prima misura non importata
+                val senderId = importedMeasures[i].get("user_id").toString()
+                measureDao.deleteMeasuresFrom(senderId)
+                var measureCounter = 0
+                for (measure in importedMeasures) {
+                    if (!measure.get("imported").toString().toBoolean()) {
+                        measureCounter++
+                        var timestamp = measure.get("timestamp").toString()
+                        timestamp = timestamp.removeRange(timestamp.length - 1, timestamp.length)
+                        timestamp = timestamp.removeRange(0, 1)
 
-            for (measure in importedMeasures) {
-                if (!measure.get("imported").toString().toBoolean()) {
-                    var timestamp = measure.get("timestamp").toString()
-                    timestamp = timestamp.removeRange(timestamp.length - 1, timestamp.length)
-                    timestamp = timestamp.removeRange(0, 1)
+                        var userId = measure.get("user_id").toString()
+                        userId = userId.removeRange(userId.length - 1, userId.length)
+                        userId = userId.removeRange(0, 1)
 
-                    var userId = measure.get("user_id").toString()
-                    userId = userId.removeRange(userId.length - 1, userId.length)
-                    userId = userId.removeRange(0, 1)
-
-                    var measurements = Measure(
-                        timestamp = timestamp,
-                        lat = measure.get("lat").toString().toDouble(),
-                        lon = measure.get("lon").toString().toDouble(),
-                        lte = measure.get("lte").toString().toDouble(),
-                        wifi = measure.get("wifi").toString().toDouble(),
-                        db = measure.get("db").toString().toDouble(),
-                        user_id = userId,
-                        imported = true
-                    )
-                    measureDao.insertMeasure(measurements)
+                        val measurements = Measure(
+                            timestamp = timestamp,
+                            lat = measure.get("lat").toString().toDouble(),
+                            lon = measure.get("lon").toString().toDouble(),
+                            lte = measure.get("lte").toString().toDouble(),
+                            wifi = measure.get("wifi").toString().toDouble(),
+                            db = measure.get("db").toString().toDouble(),
+                            user_id = userId,
+                            imported = true
+                        )
+                        measureDao.insertMeasure(measurements)
+                    }
                 }
+
+                withContext(Dispatchers.Main) {
+                    val toast = Toast.makeText(applicationContext, "Ho importato $measureCounter misure con successo!", Toast.LENGTH_SHORT)
+                    toast.show()
+                }
+            } catch (e: Exception) {
+                Log.e("Import", e.toString())
+                withContext(Dispatchers.Main) {
+                    val toast = Toast.makeText(applicationContext, "Qualcosa è andato storto!", Toast.LENGTH_SHORT)
+                    toast.show()
+                }
+            }
+            withContext(Dispatchers.Main) {
+                importBtn.visibility = View.VISIBLE
+                importProgressBar.visibility = View.GONE
             }
         }
     }

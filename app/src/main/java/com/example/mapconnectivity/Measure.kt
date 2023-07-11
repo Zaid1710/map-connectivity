@@ -24,8 +24,8 @@ interface MeasureDao {
     @Query("SELECT * FROM measures")
     fun getAllMeasures(): List<Measure>
 
-    @Query("SELECT (CASE COUNT(*) WHEN 0 THEN NULL ELSE AVG(lte) END) AS avgLte, (CASE COUNT(*) WHEN 0 THEN NULL ELSE AVG(wifi) END) AS avgWifi, (CASE COUNT(*) WHEN 0 THEN NULL ELSE AVG(db) END) AS avgDb FROM measures WHERE :lat1 >= lat AND :lat2 <= lat AND :lon1 >= lon AND :lon2 <= lon")
-    fun getAvgMeasuresInPolygon(lat1: Double, lon1: Double, lat2: Double, lon2: Double): AverageMeasures
+    @Query("SELECT (CASE COUNT(*) WHEN 0 THEN NULL ELSE AVG(lte) END) AS avgLte, (CASE COUNT(*) WHEN 0 THEN NULL ELSE AVG(wifi) END) AS avgWifi, (CASE COUNT(*) WHEN 0 THEN NULL ELSE AVG(db) END) AS avgDb FROM measures WHERE :lat1 >= lat AND :lat2 <= lat AND :lon1 >= lon AND :lon2 <= lon AND (imported = 0 OR imported = :imported)")
+    fun getAvgMeasuresInPolygon(lat1: Double, lon1: Double, lat2: Double, lon2: Double, imported: Boolean): AverageMeasures
 
     @Insert
     fun insertMeasure(measure: Measure): Long
@@ -34,7 +34,7 @@ interface MeasureDao {
     fun deleteMeasuresFrom(user_id: String)
 }
 
-@Database(entities = [Measure::class], version = 6)
+@Database(entities = [Measure::class], version = 8)
 abstract class MeasureDB: RoomDatabase() {
     abstract fun measureDao(): MeasureDao
 }
