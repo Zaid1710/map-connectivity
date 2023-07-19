@@ -123,8 +123,6 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
             withContext(Dispatchers.Main) {
                 val polygon = googleMap.addPolygon(polygonOptions)
 
-//                Log.d("QUADRATO", polygon.points.toString())
-
 //                polygon.tag = "Polygon($i,$j)"
 
 //                Log.d("Punticini", polygon.points[0].latitude.toString())
