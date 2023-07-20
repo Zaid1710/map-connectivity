@@ -5,9 +5,9 @@ import android.content.Context
 import android.graphics.Color
 import android.location.Location
 import android.location.LocationManager
+import android.os.Build
 import android.util.Log
 import androidx.preference.PreferenceManager
-import androidx.room.Room
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.CameraUpdateFactory
@@ -22,6 +22,11 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.math.ceil
 import kotlin.math.floor
+import android.util.DisplayMetrics
+import android.view.WindowManager
+import androidx.annotation.RequiresApi
+import kotlin.math.exp
+import kotlin.math.pow
 
 
 class Map(mapView: SupportMapFragment?, activity: MainActivity) {
@@ -44,6 +49,7 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
 
     private val mFusedLocationClient: FusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(activity)
 
+    @RequiresApi(Build.VERSION_CODES.R)
     @SuppressLint("MissingPermission")
     fun loadMap(mode: Int) {
         val prefs = PreferenceManager.getDefaultSharedPreferences(activity)
@@ -104,14 +110,26 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
             }
     }
 
+    @RequiresApi(Build.VERSION_CODES.R)
     fun drawGridOnMap(googleMap: GoogleMap, mode: Int) {
         CoroutineScope(Dispatchers.IO).launch {
-            val bounds = withContext(Dispatchers.Main) { googleMap.projection.visibleRegion.latLngBounds }
-            val meters = 100.0
-            val tlPoint = calculateGridSize(meters, bounds.northeast.latitude, bounds.southwest.longitude) // tl significa Top Left
+            val zoom: Float = withContext(Dispatchers.Main) { googleMap.cameraPosition.zoom }
+
+            val bounds =
+                withContext(Dispatchers.Main) { googleMap.projection.visibleRegion.latLngBounds }
+            val meters = calculateGridSize(zoom)
+            Log.d("METERS", meters.toString())
+            val tlPoint = generateTopLeftSquare(
+                meters,
+                bounds.northeast.latitude,
+                bounds.southwest.longitude
+            ) // tl significa Top Left
             var trPoint = LatLng(tlPoint.latitude + metersToOffset(meters), tlPoint.longitude)
             var blPoint = LatLng(tlPoint.latitude, tlPoint.longitude + metersToOffset(meters))
-            var brPoint = LatLng(tlPoint.latitude + metersToOffset(meters), tlPoint.longitude + metersToOffset(meters))
+            var brPoint = LatLng(
+                tlPoint.latitude + metersToOffset(meters),
+                tlPoint.longitude + metersToOffset(meters)
+            )
 
             val polygonOptions = PolygonOptions()
                 .add(tlPoint, trPoint, brPoint, blPoint)
@@ -131,8 +149,16 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.R)
+    private fun calculateGridSize(zoom: Float) : Double {
+        val screenSize = getScreenDimensions(activity)
+//        val cellSize = ceil((screenSize.first * 2.0) / 1.1.pow(zoom.toDouble())).toDouble()
 
-    private fun calculateGridSize(meters: Double, lat: Double, lon: Double) : LatLng {
+        val cellSize = ((screenSize.first * exp(-zoom)) * 100000).toDouble()
+        return cellSize
+    }
+
+    private fun generateTopLeftSquare(meters: Double, lat: Double, lon: Double) : LatLng {
         val offset = metersToOffset(meters)
 
         return LatLng(ceil(lat / offset) * offset, floor(lon / offset) * offset)
@@ -183,6 +209,24 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
         } else {
             Color.argb(90, 255, 255, 0)
         }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.R)
+    private fun getScreenDimensions(context: Context): Pair<Int, Int> {
+        val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
+        val displayMetrics = DisplayMetrics()
+
+        val windowMetrics = windowManager.currentWindowMetrics
+        val insets = windowMetrics.windowInsets.getInsetsIgnoringVisibility(
+            android.view.WindowInsets.Type.systemBars()
+        )
+        displayMetrics.widthPixels = windowMetrics.bounds.width() - insets.left - insets.right
+        displayMetrics.heightPixels = windowMetrics.bounds.height() - insets.top - insets.bottom
+
+        val screenWidth = displayMetrics.widthPixels
+        val screenHeight = displayMetrics.heightPixels
+
+        return Pair(screenWidth, screenHeight)
     }
 
 }
