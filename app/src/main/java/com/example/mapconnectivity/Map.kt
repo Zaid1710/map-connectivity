@@ -25,7 +25,6 @@ import kotlin.math.floor
 import android.util.DisplayMetrics
 import android.view.WindowManager
 import androidx.annotation.RequiresApi
-import kotlin.math.exp
 import kotlin.math.pow
 
 
@@ -49,7 +48,8 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
 
     private val mFusedLocationClient: FusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(activity)
 
-    @RequiresApi(Build.VERSION_CODES.R)
+    private val gridInARow = 5.0
+
     @SuppressLint("MissingPermission")
     fun loadMap(mode: Int) {
         val prefs = PreferenceManager.getDefaultSharedPreferences(activity)
@@ -110,15 +110,15 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
             }
     }
 
-    @RequiresApi(Build.VERSION_CODES.R)
     fun drawGridOnMap(googleMap: GoogleMap, mode: Int) {
         CoroutineScope(Dispatchers.IO).launch {
             val zoom: Float = withContext(Dispatchers.Main) { googleMap.cameraPosition.zoom }
 
             val bounds =
                 withContext(Dispatchers.Main) { googleMap.projection.visibleRegion.latLngBounds }
+//            val meters = calculateGridSize(bounds.northeast, bounds.southwest)
             val meters = calculateGridSize(zoom)
-            Log.d("METERS", meters.toString())
+            Log.d("METERS", "METERS: $meters, ZOOM: $zoom")
             val tlPoint = generateTopLeftSquare(
                 meters,
                 bounds.northeast.latitude,
@@ -149,12 +149,10 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
         }
     }
 
-    @RequiresApi(Build.VERSION_CODES.R)
-    private fun calculateGridSize(zoom: Float) : Double {
-        val screenSize = getScreenDimensions(activity)
-//        val cellSize = ceil((screenSize.first * 2.0) / 1.1.pow(zoom.toDouble())).toDouble()
 
-        val cellSize = ((screenSize.first * exp(-zoom)) * 100000).toDouble()
+    private fun calculateGridSize(zoom: Float) : Double {
+        val meters = 22 * (2.0.pow(-(zoom - 22) - 1.0)) // A partire da 21, ogni volta che lo zoom diminuisce di 1, meters raddoppia
+        val cellSize = meters / gridInARow
         return cellSize
     }
 
