@@ -3,6 +3,7 @@ package com.example.mapconnectivity
 import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Color
+import android.graphics.Rect
 import android.location.Location
 import android.location.LocationManager
 import android.os.Build
@@ -85,25 +86,11 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
                         googleMap.setOnMapLoadedCallback {
                             val latlng = LatLng(location.latitude, location.longitude)
                             googleMap.animateCamera(CameraUpdateFactory.newLatLngZoom(latlng, 16F))
-//                            drawGridOnMap(googleMap)
-//                            googleMap.addMarker(
-//                                MarkerOptions()
-//                                    .title("Posizione rilevata")
-//                                    .position(latlng)
-//                            )
                         }
 
                         googleMap.setOnCameraIdleListener {
+                            deleteGrid()
                             drawGridOnMap(googleMap, mode)
-//                            Log.d("POLIGONOATTUALE", getCurrentPolygon(getPosition()).toString())
-//                            val currpoly = getCurrentPolygon(getPosition())
-//                            if (currpoly != null) {
-//                                currpoly.fillColor = Color.RED
-//                            }
-                        }
-
-                        googleMap.setOnCameraMoveListener {
-//                            deleteGrid()
                         }
                     }
                 }
@@ -114,41 +101,56 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
         CoroutineScope(Dispatchers.IO).launch {
             val zoom: Float = withContext(Dispatchers.Main) { googleMap.cameraPosition.zoom }
 
-            val bounds =
-                withContext(Dispatchers.Main) { googleMap.projection.visibleRegion.latLngBounds }
-//            val meters = calculateGridSize(bounds.northeast, bounds.southwest)
+            val bounds = withContext(Dispatchers.Main) { googleMap.projection.visibleRegion.latLngBounds }
             val meters = calculateGridSize(zoom)
             Log.d("METERS", "METERS: $meters, ZOOM: $zoom")
-            val tlPoint = generateTopLeftSquare(
-                meters,
-                bounds.northeast.latitude,
-                bounds.southwest.longitude
-            ) // tl significa Top Left
-            var trPoint = LatLng(tlPoint.latitude + metersToOffset(meters), tlPoint.longitude)
-            var blPoint = LatLng(tlPoint.latitude, tlPoint.longitude + metersToOffset(meters))
-            var brPoint = LatLng(
-                tlPoint.latitude + metersToOffset(meters),
-                tlPoint.longitude + metersToOffset(meters)
-            )
-
-            val polygonOptions = PolygonOptions()
-                .add(tlPoint, trPoint, brPoint, blPoint)
-//                .strokeWidth(2f)
-                .strokeWidth(5f)
-                .strokeColor(Color.BLACK) // Colore del bordo (nero)
-                .fillColor(Color.argb(128, 255, 0, 0)) // Colore di riempimento
+            var tlPoint = generateTopLeftPoint(meters, bounds.northeast.latitude, bounds.southwest.longitude) // tl significa Top Left
+            var lastGeneratedPolygon = createPolygon(tlPoint, meters)
 
             withContext(Dispatchers.Main) {
-                val polygon = googleMap.addPolygon(polygonOptions)
-
+                val polygon = googleMap.addPolygon(lastGeneratedPolygon)
 //                polygon.tag = "Polygon($i,$j)"
-
-//                Log.d("Punticini", polygon.points[0].latitude.toString())
                 gridPolygons.add(polygon)
             }
+
+            var tr = withContext(Dispatchers.Main) { googleMap.projection.toScreenLocation(lastGeneratedPolygon.points[3])}
+            var bl = withContext(Dispatchers.Main) { googleMap.projection.toScreenLocation(lastGeneratedPolygon.points[1])}
+
+            val screen = Rect(0 - 500,0 - 500, activity.resources.displayMetrics.widthPixels + 500, activity.resources.displayMetrics.heightPixels + 500)
+
+
+            while (screen.contains(bl.x, bl.y)) {
+                val firstPolygon = lastGeneratedPolygon
+                while (screen.contains(tr.x, tr.y)) {
+                    lastGeneratedPolygon = createPolygon(lastGeneratedPolygon.points[3], meters)
+
+                    withContext(Dispatchers.Main) {
+                        val polygon = googleMap.addPolygon(lastGeneratedPolygon)
+                        gridPolygons.add(polygon)
+                    }
+
+                    tr = withContext(Dispatchers.Main) {
+                        googleMap.projection.toScreenLocation(lastGeneratedPolygon.points[3])
+                    }
+                }
+                lastGeneratedPolygon = createPolygon(firstPolygon.points[1], meters)
+
+                withContext(Dispatchers.Main) {
+                    val polygon = googleMap.addPolygon(lastGeneratedPolygon)
+                    gridPolygons.add(polygon)
+                }
+
+                bl = withContext(Dispatchers.Main) {
+                    googleMap.projection.toScreenLocation(lastGeneratedPolygon.points[1])
+                }
+                tr = withContext(Dispatchers.Main) {
+                    googleMap.projection.toScreenLocation(lastGeneratedPolygon.points[3])
+                }
+            }
+
+
         }
     }
-
 
     private fun calculateGridSize(zoom: Float) : Double {
         val meters = 22 * (2.0.pow(-(zoom - 22) - 1.0)) // A partire da 21, ogni volta che lo zoom diminuisce di 1, meters raddoppia
@@ -156,7 +158,7 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
         return cellSize
     }
 
-    private fun generateTopLeftSquare(meters: Double, lat: Double, lon: Double) : LatLng {
+    private fun generateTopLeftPoint(meters: Double, lat: Double, lon: Double) : LatLng {
         val offset = metersToOffset(meters)
 
         return LatLng(ceil(lat / offset) * offset, floor(lon / offset) * offset)
@@ -164,6 +166,22 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
 
     private fun metersToOffset(meters: Double) : Double {
         return meters / 111111.0
+    }
+
+    // polygon.points = [tl, bl, br, tr]
+    private fun createPolygon(tlPoint: LatLng, meters: Double) : PolygonOptions {
+        val trPoint = LatLng(tlPoint.latitude - metersToOffset(meters), tlPoint.longitude)
+        val blPoint = LatLng(tlPoint.latitude, tlPoint.longitude + metersToOffset(meters))
+        val brPoint = LatLng(tlPoint.latitude - metersToOffset(meters), tlPoint.longitude + metersToOffset(meters))
+
+        val polygon = PolygonOptions()
+            .add(tlPoint, trPoint, brPoint, blPoint)
+            .strokeWidth(2f)
+            .strokeColor(Color.BLACK) // Colore del bordo (nero)
+//            .fillColor(Color.argb(128, 255, 0, 0)) // Colore di riempimento
+            .fillColor(Color.TRANSPARENT) // Colore di riempimento
+
+        return polygon
     }
 
     // Rimuove i poligoni della griglia precedente dalla mappa, se presenti
@@ -180,7 +198,7 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
         val networkLocation = locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
         val gpsLocation = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER)
 
-        // Confronta le due posizioni e restituisci quella più recente
+        // Confronta le due posizioni e restituisce quella più recente
         return if (networkLocation != null && gpsLocation != null) {
             if (networkLocation.time > gpsLocation.time) networkLocation else gpsLocation
         } else {
