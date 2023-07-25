@@ -26,6 +26,7 @@ import kotlin.math.floor
 import android.util.DisplayMetrics
 import android.view.WindowManager
 import androidx.annotation.RequiresApi
+import androidx.room.Room
 import kotlin.math.pow
 
 
@@ -53,6 +54,8 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
 
     @SuppressLint("MissingPermission")
     fun loadMap(mode: Int) {
+        database = Room.databaseBuilder(activity, MeasureDB::class.java, "measuredb")
+            .fallbackToDestructiveMigration().build()
         val prefs = PreferenceManager.getDefaultSharedPreferences(activity)
         val manual = prefs.getBoolean("switch_preference_bounds", false)
         if (manual) {
@@ -105,7 +108,7 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
             val meters = calculateGridSize(zoom)
             Log.d("METERS", "METERS: $meters, ZOOM: $zoom")
             var tlPoint = generateTopLeftPoint(meters, bounds.northeast.latitude, bounds.southwest.longitude) // tl significa Top Left
-            var lastGeneratedPolygon = createPolygon(tlPoint, meters)
+            var lastGeneratedPolygon = createPolygon(tlPoint, meters, mode)
 
             withContext(Dispatchers.Main) {
                 val polygon = googleMap.addPolygon(lastGeneratedPolygon)
@@ -122,7 +125,7 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
             while (screen.contains(bl.x, bl.y)) {
                 val firstPolygon = lastGeneratedPolygon
                 while (screen.contains(tr.x, tr.y)) {
-                    lastGeneratedPolygon = createPolygon(lastGeneratedPolygon.points[3], meters)
+                    lastGeneratedPolygon = createPolygon(lastGeneratedPolygon.points[3], meters, mode)
 
                     withContext(Dispatchers.Main) {
                         val polygon = googleMap.addPolygon(lastGeneratedPolygon)
@@ -133,7 +136,7 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
                         googleMap.projection.toScreenLocation(lastGeneratedPolygon.points[3])
                     }
                 }
-                lastGeneratedPolygon = createPolygon(firstPolygon.points[1], meters)
+                lastGeneratedPolygon = createPolygon(firstPolygon.points[1], meters, mode)
 
                 withContext(Dispatchers.Main) {
                     val polygon = googleMap.addPolygon(lastGeneratedPolygon)
@@ -169,23 +172,49 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
     }
 
     // polygon.points = [tl, bl, br, tr]
-    private fun createPolygon(tlPoint: LatLng, meters: Double) : PolygonOptions {
-        val trPoint = LatLng(tlPoint.latitude - metersToOffset(meters), tlPoint.longitude)
-        val blPoint = LatLng(tlPoint.latitude, tlPoint.longitude + metersToOffset(meters))
+    private fun createPolygon(tlPoint: LatLng, meters: Double, mode: Int) : PolygonOptions {
+        val trPoint = LatLng(tlPoint.latitude, tlPoint.longitude + metersToOffset(meters))
+        val blPoint = LatLng(tlPoint.latitude - metersToOffset(meters), tlPoint.longitude)
         val brPoint = LatLng(tlPoint.latitude - metersToOffset(meters), tlPoint.longitude + metersToOffset(meters))
+
+        var color = Color.TRANSPARENT
+
+        val prefs = PreferenceManager.getDefaultSharedPreferences(activity)
+        val imported = prefs.getBoolean("view_imported", true)
+
+        var measureDao = database.measureDao()
+        val measurements = measureDao.getAvgMeasuresInPolygon(
+            trPoint.latitude,
+            trPoint.longitude,
+            blPoint.latitude,
+            blPoint.longitude,
+            imported
+        )
+
+        var avgModeMeasure: Double? = 0.0
+        var lowerBound = 0.0
+        var upperBound = 0.0
+        when (mode) {
+            LTE -> { avgModeMeasure = measurements.avgLte; lowerBound = LTE_BAD; upperBound = LTE_OPT }
+            WIFI -> { avgModeMeasure = measurements.avgWifi; lowerBound = WIFI_BAD; upperBound = WIFI_OPT }
+            DB -> { avgModeMeasure = measurements.avgDb?.times(-1); lowerBound = DB_BAD; upperBound = DB_OPT }
+        }
+        if (avgModeMeasure != null) {
+            color = getQuality(avgModeMeasure, lowerBound, upperBound)
+        }
 
         val polygon = PolygonOptions()
             .add(tlPoint, trPoint, brPoint, blPoint)
             .strokeWidth(2f)
             .strokeColor(Color.BLACK) // Colore del bordo (nero)
 //            .fillColor(Color.argb(128, 255, 0, 0)) // Colore di riempimento
-            .fillColor(Color.TRANSPARENT) // Colore di riempimento
+            .fillColor(color) // Colore di riempimento
 
         return polygon
     }
 
     // Rimuove i poligoni della griglia precedente dalla mappa, se presenti
-    private fun deleteGrid() {
+    fun deleteGrid() {
         for (polygon in gridPolygons) {
             polygon.remove()
         }
@@ -225,24 +254,6 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
         } else {
             Color.argb(90, 255, 255, 0)
         }
-    }
-
-    @RequiresApi(Build.VERSION_CODES.R)
-    private fun getScreenDimensions(context: Context): Pair<Int, Int> {
-        val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
-        val displayMetrics = DisplayMetrics()
-
-        val windowMetrics = windowManager.currentWindowMetrics
-        val insets = windowMetrics.windowInsets.getInsetsIgnoringVisibility(
-            android.view.WindowInsets.Type.systemBars()
-        )
-        displayMetrics.widthPixels = windowMetrics.bounds.width() - insets.left - insets.right
-        displayMetrics.heightPixels = windowMetrics.bounds.height() - insets.top - insets.bottom
-
-        val screenWidth = displayMetrics.widthPixels
-        val screenHeight = displayMetrics.heightPixels
-
-        return Pair(screenWidth, screenHeight)
     }
 
 }

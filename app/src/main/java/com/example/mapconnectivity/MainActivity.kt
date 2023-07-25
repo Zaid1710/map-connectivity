@@ -37,7 +37,6 @@ import androidx.lifecycle.Transformations.map
 
 /**
  * TODO: !!!!!!!!!!!!!!!!!!!!!!!!!!!!VMMV MODEL VIEW ECC!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
- *       SISTEMARE GRIGLIA (NON DEVE ESSERE UN FILTRO MA DEVE RESTARE ATTACCATA ALLA MAPPA)
  *       FIX RICHIESTA PERMESSI (riguardare)
  *       PULIZIA CODICE (abbiamo spostato le funzioni relative ai sensori)
  *       VEDERE SE C'E' POSSIBILITA' DI USARE QUALCOS'ALTRO PER AVERE LA TASTIERA NUMERICA (NEI SETTINGS DELLE SOGLIE) (gericoppazzo)
@@ -47,6 +46,7 @@ import androidx.lifecycle.Transformations.map
  *       AGGIUNGERE CONTROLLO DELLE SOGLIE A SCELTA - LA OTTIMALE NON PUO' ESSERE MINORE DELLA PESSIMA
  *       OPZIONALE: AGGIUNGERE INFO SULLE MISURE (QUANTE CE NE SONO ECC...)
  *       DA VALUTARE: PER ORA SE SI CLICCA SU UN FILE .mapc PORTA A SWAP_ACTIVITY, VALUTARE SE CONTINUARE CON L'IMPLEMENTAZIONE DELL'IMPORTAZIONE AUTOMATICA O MENO
+ *       BUG: A ZOOM MINIMO NON VIENE SPAWNATA LA GRIGLIA (nè su emulatore nè su telefono)
  * */
 
 class MainActivity : AppCompatActivity() {
@@ -207,7 +207,8 @@ class MainActivity : AppCompatActivity() {
             withContext(Dispatchers.Main) {
                 measureBtn.visibility = View.VISIBLE
                 measureProgressBar.visibility = View.GONE
-                mapView?.getMapAsync { googleMap ->
+                mapView.getMapAsync { googleMap ->
+                    map.deleteGrid()
                     map.drawGridOnMap(googleMap, mode)
                 }
             }
