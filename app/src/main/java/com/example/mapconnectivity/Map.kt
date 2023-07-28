@@ -6,11 +6,16 @@ import android.graphics.Color
 import android.graphics.Rect
 import android.location.Location
 import android.location.LocationManager
-import android.os.Build
+import android.os.Looper
 import android.util.Log
 import androidx.preference.PreferenceManager
+import androidx.room.Room
 import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationCallback
+import com.google.android.gms.location.LocationRequest
+import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.SupportMapFragment
@@ -23,17 +28,13 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.math.ceil
 import kotlin.math.floor
-import android.util.DisplayMetrics
-import android.view.WindowManager
-import androidx.annotation.RequiresApi
-import androidx.room.Room
 import kotlin.math.pow
-
 
 class Map(mapView: SupportMapFragment?, activity: MainActivity) {
     private var mapView: SupportMapFragment? = mapView
     private var activity: MainActivity = activity
     private val gridPolygons: MutableList<Polygon> = mutableListOf()
+    private var lastLocation: Location? = null
 
     private lateinit var database: MeasureDB
 
@@ -54,8 +55,8 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
 
     @SuppressLint("MissingPermission")
     fun loadMap(mode: Int) {
-        database = Room.databaseBuilder(activity, MeasureDB::class.java, "measuredb")
-            .fallbackToDestructiveMigration().build()
+        database = Room.databaseBuilder(activity, MeasureDB::class.java, "measuredb").fallbackToDestructiveMigration().build()
+
         val prefs = PreferenceManager.getDefaultSharedPreferences(activity)
         val manual = prefs.getBoolean("switch_preference_bounds", false)
         if (manual) {
@@ -75,6 +76,7 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
             DB_BAD = -80.0
             DB_OPT = -60.0
         }
+
 
         mFusedLocationClient.lastLocation
             .addOnSuccessListener(activity) { location ->
@@ -100,6 +102,7 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
             }
     }
 
+    @SuppressLint("MissingPermission")
     fun drawGridOnMap(googleMap: GoogleMap, mode: Int) {
         CoroutineScope(Dispatchers.IO).launch {
             val zoom: Float = withContext(Dispatchers.Main) { googleMap.cameraPosition.zoom }
@@ -107,7 +110,8 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
             val bounds = withContext(Dispatchers.Main) { googleMap.projection.visibleRegion.latLngBounds }
             val meters = calculateGridSize(zoom)
             Log.d("METERS", "METERS: $meters, ZOOM: $zoom")
-            var tlPoint = generateTopLeftPoint(meters, bounds.northeast.latitude, bounds.southwest.longitude) // tl significa Top Left
+
+            val tlPoint = generateTopLeftPoint(meters, bounds.northeast.latitude, bounds.southwest.longitude) // tl significa Top Left
             var lastGeneratedPolygon = createPolygon(tlPoint, meters, mode)
 
             withContext(Dispatchers.Main) {
@@ -119,7 +123,8 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
             var tr = withContext(Dispatchers.Main) { googleMap.projection.toScreenLocation(lastGeneratedPolygon.points[3])}
             var bl = withContext(Dispatchers.Main) { googleMap.projection.toScreenLocation(lastGeneratedPolygon.points[1])}
 
-            val screen = Rect(0 - 500,0 - 500, activity.resources.displayMetrics.widthPixels + 500, activity.resources.displayMetrics.heightPixels + 500)
+            val offset = 500
+            val screen = Rect(0 - offset,0 - offset, activity.resources.displayMetrics.widthPixels + offset, activity.resources.displayMetrics.heightPixels + offset)
 
 
             while (screen.contains(bl.x, bl.y)) {
@@ -150,7 +155,7 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
                     googleMap.projection.toScreenLocation(lastGeneratedPolygon.points[3])
                 }
             }
-
+            withContext(Dispatchers.Main) { updateLocation(meters.toFloat()) }
 
         }
     }
@@ -182,7 +187,7 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
         val prefs = PreferenceManager.getDefaultSharedPreferences(activity)
         val imported = prefs.getBoolean("view_imported", true)
 
-        var measureDao = database.measureDao()
+        val measureDao = database.measureDao()
         val measurements = measureDao.getAvgMeasuresInPolygon(
             trPoint.latitude,
             trPoint.longitude,
@@ -238,7 +243,7 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
     private fun getCurrentPolygon(currentPos: Location?): Polygon? {
         if (currentPos != null) {
             for (polygon in gridPolygons) {
-                if (polygon.points[0].latitude >= currentPos.latitude && polygon.points[2].latitude <= currentPos.latitude && polygon.points[0].longitude >= currentPos.longitude && polygon.points[2].longitude <= currentPos.longitude) {
+                if (polygon.points[0].latitude >= currentPos.latitude && polygon.points[2].latitude <= currentPos.latitude && polygon.points[0].longitude <= currentPos.longitude && polygon.points[2].longitude >= currentPos.longitude) {
                     return polygon
                 }
             }
@@ -246,8 +251,12 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
         return null
     }
 
+    private fun areInTheSamePolygon(pos1: Location?, pos2: Location?): Boolean {
+        return getCurrentPolygon(pos1)?.equals(getCurrentPolygon(pos2)) ?: false
+    }
+
     private fun getQuality(value: Double, bad: Double, optimal: Double): Int {
-        return if (value <= bad ) {
+        return if (value <= bad) {
             Color.argb(90, 255, 0, 0)
         } else if (value >= optimal) {
             Color.argb(90, 0, 255, 0)
@@ -256,4 +265,21 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
         }
     }
 
+    @SuppressLint("MissingPermission")
+    fun updateLocation(meters: Float) {
+        val mLocationCallback = object : LocationCallback() {
+            override fun onLocationResult(locationResult: LocationResult) {
+                super.onLocationResult(locationResult)
+                val mLastLocation = locationResult.lastLocation
+
+                if (lastLocation != null && !areInTheSamePolygon(mLastLocation, lastLocation)) {
+                    // Bisogna fare la misura
+                    Log.d("EHEHE", "HO CAMBIATO QUADRATOZZO")
+                }
+                lastLocation = mLastLocation
+            }
+        }
+        val mLocationRequest = LocationRequest.Builder(Priority.PRIORITY_LOW_POWER, 5000).setMinUpdateDistanceMeters(meters/4).build()
+        mFusedLocationClient.requestLocationUpdates(mLocationRequest, mLocationCallback, Looper.myLooper())
+    }
 }

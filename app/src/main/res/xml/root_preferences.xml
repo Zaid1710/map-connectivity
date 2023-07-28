@@ -20,6 +20,10 @@
             android:defaultValue="true"
             android:key="view_imported"
             android:title="Visualizza misure importate" />
+        <SwitchPreference
+            android:defaultValue="false"
+            android:key="automatic_fetch"
+            android:title="Scansiona automaticamente" />
 
     </PreferenceCategory>
     <PreferenceCategory

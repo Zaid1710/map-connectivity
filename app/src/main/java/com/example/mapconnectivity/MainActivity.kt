@@ -1,27 +1,23 @@
 package com.example.mapconnectivity
 
 import android.Manifest
-import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.hardware.Sensor
-import android.hardware.SensorManager
-import android.net.Uri
+import android.location.Location
 import android.os.Build
-import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.util.Log
 import android.view.View
 import android.widget.Button
 import android.widget.ImageButton
 import android.widget.ProgressBar
-import android.widget.Spinner
 import androidx.annotation.RequiresApi
+import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
-import androidx.core.view.GravityCompat
-import androidx.drawerlayout.widget.DrawerLayout
 import androidx.fragment.app.FragmentManager
+import androidx.preference.PreferenceManager
 import androidx.room.Room
+import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.maps.SupportMapFragment
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -29,11 +25,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.Instant
 import java.time.format.DateTimeFormatter
-import androidx.lifecycle.Transformations.map
-import androidx.preference.PreferenceManager
-import androidx.preference.EditTextPreference
-import android.text.InputType
-import androidx.lifecycle.Transformations.map
 
 /**
  * TODO: !!!!!!!!!!!!!!!!!!!!!!!!!!!!VMMV MODEL VIEW ECC!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -47,6 +38,7 @@ import androidx.lifecycle.Transformations.map
  *       OPZIONALE: AGGIUNGERE INFO SULLE MISURE (QUANTE CE NE SONO ECC...)
  *       DA VALUTARE: PER ORA SE SI CLICCA SU UN FILE .mapc PORTA A SWAP_ACTIVITY, VALUTARE SE CONTINUARE CON L'IMPLEMENTAZIONE DELL'IMPORTAZIONE AUTOMATICA O MENO
  *       BUG: A ZOOM MINIMO NON VIENE SPAWNATA LA GRIGLIA (nè su emulatore nè su telefono)
+ *       NELLA UPDATELOCATION GESTIRE IL CAMBIAMENTO DI ZOOM
  * */
 
 class MainActivity : AppCompatActivity() {
@@ -56,7 +48,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var fm: FragmentManager
     private lateinit var mapView: SupportMapFragment
     private lateinit var map: Map
-    private lateinit var sensors: com.example.mapconnectivity.Sensor
+    private lateinit var sensors: Sensor
     private lateinit var measureBtn: Button
     private lateinit var database: MeasureDB
     private lateinit var measureDao: MeasureDao
