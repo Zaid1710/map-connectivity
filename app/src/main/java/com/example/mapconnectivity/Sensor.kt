@@ -65,6 +65,7 @@ class Sensor(activity: MainActivity) {
     /* Registra 5 secondi l'audio ambientale dal microfono e calcola la media dei dB recepiti */
     @RequiresApi(Build.VERSION_CODES.S)
     fun fetchMicrophone(): Double {
+        val SECONDS_TO_FETCH = 1
         var avgAmplitude = 0.0
         var amplitudes = arrayOf<Double>()
         val recorder = MediaRecorder(activity)
@@ -78,7 +79,7 @@ class Sensor(activity: MainActivity) {
         recorder.prepare()
         recorder.start()
         Log.d("MediaRecorder", "Started")
-        repeat(6) {
+        repeat(SECONDS_TO_FETCH + 1) {
             val fetchedAmplitude = fetchAmplitude(recorder)
             amplitudes += fetchedAmplitude
             Thread.sleep(1000)
@@ -87,7 +88,7 @@ class Sensor(activity: MainActivity) {
         for (amplitude in amplitudes) {
             avgAmplitude += amplitude
         }
-        avgAmplitude /= 5
+        avgAmplitude /= SECONDS_TO_FETCH
         recorder.stop()
         recorder.reset()
 

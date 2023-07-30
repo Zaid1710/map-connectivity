@@ -3,7 +3,6 @@ package com.example.mapconnectivity
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.location.Location
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
@@ -17,7 +16,6 @@ import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentManager
 import androidx.preference.PreferenceManager
 import androidx.room.Room
-import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.maps.SupportMapFragment
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -39,6 +37,9 @@ import java.time.format.DateTimeFormatter
  *       DA VALUTARE: PER ORA SE SI CLICCA SU UN FILE .mapc PORTA A SWAP_ACTIVITY, VALUTARE SE CONTINUARE CON L'IMPLEMENTAZIONE DELL'IMPORTAZIONE AUTOMATICA O MENO
  *       BUG: A ZOOM MINIMO NON VIENE SPAWNATA LA GRIGLIA (nè su emulatore nè su telefono)
  *       NELLA UPDATELOCATION GESTIRE IL CAMBIAMENTO DI ZOOM
+ *       FAI QUADRATO QUANDO NON C'È
+ *       FETCH AUTOMATICO OGNI TOT SECONDI
+ *       QUANTO SONO GRANDI I QUADRATI QUANDO L'APP È SPENTA? :3
  * */
 
 class MainActivity : AppCompatActivity() {
@@ -136,7 +137,7 @@ class MainActivity : AppCompatActivity() {
                     map.loadMap(mode)
                     initMeasureBtn()
                 } else if (requestCode == PERMISSION_MEASUREMENTS) {
-                    getMeasurement()
+                    addMeasurement()
                 }
             } else {
                 // Almeno uno dei permessi è stato negato
@@ -170,14 +171,14 @@ class MainActivity : AppCompatActivity() {
                 Log.d("PERMISSIONS", "SOMETHING'S MISSING 2")
                 requestPermissions(permissionsToRequest.toTypedArray(), PERMISSION_MEASUREMENTS)
             } else {
-                getMeasurement()
+                addMeasurement()
             }
 
         }
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
-    private fun getMeasurement() {
+    fun addMeasurement() {
         CoroutineScope(Dispatchers.IO).launch {
             withContext(Dispatchers.Main) {
                 measureBtn.visibility = View.GONE

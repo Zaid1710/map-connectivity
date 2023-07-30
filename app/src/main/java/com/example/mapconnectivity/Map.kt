@@ -6,8 +6,10 @@ import android.graphics.Color
 import android.graphics.Rect
 import android.location.Location
 import android.location.LocationManager
+import android.os.Build
 import android.os.Looper
 import android.util.Log
+import androidx.annotation.RequiresApi
 import androidx.preference.PreferenceManager
 import androidx.room.Room
 import com.google.android.gms.location.FusedLocationProviderClient
@@ -155,7 +157,11 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
                     googleMap.projection.toScreenLocation(lastGeneratedPolygon.points[3])
                 }
             }
-            withContext(Dispatchers.Main) { updateLocation(meters.toFloat()) }
+            val prefs = PreferenceManager.getDefaultSharedPreferences(activity)
+            val automatic = prefs.getBoolean("automatic_fetch", false)
+            if (automatic) {
+                withContext(Dispatchers.Main) { updateLocation(meters.toFloat()) }
+            }
 
         }
     }
@@ -268,12 +274,13 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
     @SuppressLint("MissingPermission")
     fun updateLocation(meters: Float) {
         val mLocationCallback = object : LocationCallback() {
+            @RequiresApi(Build.VERSION_CODES.S)
             override fun onLocationResult(locationResult: LocationResult) {
                 super.onLocationResult(locationResult)
                 val mLastLocation = locationResult.lastLocation
 
                 if (lastLocation != null && !areInTheSamePolygon(mLastLocation, lastLocation)) {
-                    // Bisogna fare la misura
+                    activity.addMeasurement()
                     Log.d("EHEHE", "HO CAMBIATO QUADRATOZZO")
                 }
                 lastLocation = mLastLocation
