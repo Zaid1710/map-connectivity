@@ -35,16 +35,20 @@ import java.time.format.DateTimeFormatter
  *       AGGIUNGERE CONTROLLO DELLE SOGLIE A SCELTA - LA OTTIMALE NON PUO' ESSERE MINORE DELLA PESSIMA
  *       OPZIONALE: AGGIUNGERE INFO SULLE MISURE (QUANTE CE NE SONO ECC...)
  *       DA VALUTARE: PER ORA SE SI CLICCA SU UN FILE .mapc PORTA A SWAP_ACTIVITY, VALUTARE SE CONTINUARE CON L'IMPLEMENTAZIONE DELL'IMPORTAZIONE AUTOMATICA O MENO
- *       BUG: A ZOOM MINIMO NON VIENE SPAWNATA LA GRIGLIA (nè su emulatore nè su telefono)
  *       NELLA UPDATELOCATION GESTIRE IL CAMBIAMENTO DI ZOOM
- *       FAI QUADRATO QUANDO NON C'È
+ *       FAI QUADRATO QUANDO NON C'E'
  *       FETCH AUTOMATICO OGNI TOT SECONDI
- *       QUANTO SONO GRANDI I QUADRATI QUANDO L'APP È SPENTA? :3
+ *       QUANTO SONO GRANDI I QUADRATI QUANDO L'APP E' SPENTA? :3
+ *
+ *       BUGS:
+ *       A ZOOM MINIMO NON VIENE SPAWNATA LA GRIGLIA (nè su emulatore nè su telefono)
+ *       QUANDO SPOSTO LA VISUALE VIENE CREATA UNA MISURA
  * */
 
 class MainActivity : AppCompatActivity() {
-    private val PERMISSION_INIT = 0
-    private val PERMISSION_MEASUREMENTS = 1
+    val PERMISSION_INIT = 0
+    val PERMISSION_MEASUREMENTS = 1
+    val PERMISSION_OUTSIDE_MEASUREMENTS = 2
 
     private lateinit var fm: FragmentManager
     private lateinit var mapView: SupportMapFragment
@@ -137,7 +141,9 @@ class MainActivity : AppCompatActivity() {
                     map.loadMap(mode)
                     initMeasureBtn()
                 } else if (requestCode == PERMISSION_MEASUREMENTS) {
-                    addMeasurement()
+                    addMeasurement(false)
+                } else if (requestCode == PERMISSION_OUTSIDE_MEASUREMENTS) {
+                    addMeasurement(true)
                 }
             } else {
                 // Almeno uno dei permessi è stato negato
@@ -147,7 +153,7 @@ class MainActivity : AppCompatActivity() {
 
 
     /* Verifica un permesso */
-    private fun checkPermission(permission: String): Boolean {
+    fun checkPermission(permission: String): Boolean {
         return (ContextCompat.checkSelfPermission(
                 this,
                 permission
@@ -171,14 +177,14 @@ class MainActivity : AppCompatActivity() {
                 Log.d("PERMISSIONS", "SOMETHING'S MISSING 2")
                 requestPermissions(permissionsToRequest.toTypedArray(), PERMISSION_MEASUREMENTS)
             } else {
-                addMeasurement()
+                addMeasurement(false)
             }
 
         }
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
-    fun addMeasurement() {
+    fun addMeasurement(isOutside: Boolean) {
         CoroutineScope(Dispatchers.IO).launch {
             withContext(Dispatchers.Main) {
                 measureBtn.visibility = View.GONE
@@ -200,9 +206,11 @@ class MainActivity : AppCompatActivity() {
             withContext(Dispatchers.Main) {
                 measureBtn.visibility = View.VISIBLE
                 measureProgressBar.visibility = View.GONE
-                mapView.getMapAsync { googleMap ->
-                    map.deleteGrid()
-                    map.drawGridOnMap(googleMap, mode)
+                if (!isOutside) {
+                    mapView.getMapAsync { googleMap ->
+                        map.deleteGrid()
+                        map.drawGridOnMap(googleMap, mode)
+                    }
                 }
             }
         }

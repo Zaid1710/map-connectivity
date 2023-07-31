@@ -1,5 +1,6 @@
 package com.example.mapconnectivity
 
+import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Color
@@ -96,6 +97,7 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
                         }
 
                         googleMap.setOnCameraIdleListener {
+                            Log.d("URLA", "LUP")
                             deleteGrid()
                             drawGridOnMap(googleMap, mode)
                         }
@@ -160,7 +162,7 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
             val prefs = PreferenceManager.getDefaultSharedPreferences(activity)
             val automatic = prefs.getBoolean("automatic_fetch", false)
             if (automatic) {
-                withContext(Dispatchers.Main) { updateLocation(meters.toFloat()) }
+                withContext(Dispatchers.Main) { updateLocation(googleMap, meters.toFloat()) }
             }
 
         }
@@ -246,7 +248,7 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
         }
     }
 
-    private fun getCurrentPolygon(currentPos: Location?): Polygon? {
+    private fun getPolygon(currentPos: Location?): Polygon? {
         if (currentPos != null) {
             for (polygon in gridPolygons) {
                 if (polygon.points[0].latitude >= currentPos.latitude && polygon.points[2].latitude <= currentPos.latitude && polygon.points[0].longitude <= currentPos.longitude && polygon.points[2].longitude >= currentPos.longitude) {
@@ -258,7 +260,7 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
     }
 
     private fun areInTheSamePolygon(pos1: Location?, pos2: Location?): Boolean {
-        return getCurrentPolygon(pos1)?.equals(getCurrentPolygon(pos2)) ?: false
+        return getPolygon(pos1)?.equals(getPolygon(pos2)) ?: false
     }
 
     private fun getQuality(value: Double, bad: Double, optimal: Double): Int {
@@ -272,21 +274,54 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
     }
 
     @SuppressLint("MissingPermission")
-    fun updateLocation(meters: Float) {
+    fun updateLocation(googleMap: GoogleMap, meters: Float) {
         val mLocationCallback = object : LocationCallback() {
             @RequiresApi(Build.VERSION_CODES.S)
             override fun onLocationResult(locationResult: LocationResult) {
                 super.onLocationResult(locationResult)
                 val mLastLocation = locationResult.lastLocation
 
+                if (getPolygon(mLastLocation) == null) {
+                    Log.d("URLA", "NON ESISTE UN POLIGONO, QUINDI LO CREO!")
+                    if (mLastLocation != null) {
+                        CoroutineScope(Dispatchers.IO).launch {
+                            val newPolygon = createPolygon(
+                                generateTopLeftPoint(
+                                    meters.toDouble(),
+                                    mLastLocation.latitude,
+                                    mLastLocation.longitude
+                                ), meters.toDouble(), 0
+                            )
+                            withContext(Dispatchers.Main) {
+                                val polygon = googleMap.addPolygon(newPolygon)
+                                gridPolygons.add(polygon)
+                            }
+                        }
+                    }
+                }
                 if (lastLocation != null && !areInTheSamePolygon(mLastLocation, lastLocation)) {
-                    activity.addMeasurement()
+                    val permissionsToRequest = mutableListOf<String>()
+                    if (!activity.checkPermission(Manifest.permission.ACCESS_FINE_LOCATION)) {
+                        permissionsToRequest.add(Manifest.permission.ACCESS_FINE_LOCATION)
+                    }
+                    if (!activity.checkPermission(Manifest.permission.RECORD_AUDIO)) {
+                        permissionsToRequest.add(Manifest.permission.RECORD_AUDIO)
+                    }
+
+                    if (permissionsToRequest.isNotEmpty()) {
+                        Log.d("PERMISSIONS", "SOMETHING'S MISSING 2")
+                        activity.requestPermissions(permissionsToRequest.toTypedArray(), activity.PERMISSION_OUTSIDE_MEASUREMENTS)
+                    } else {
+                        CoroutineScope(Dispatchers.IO).launch {
+                            activity.addMeasurement(true)
+                        }
+                    }
                     Log.d("EHEHE", "HO CAMBIATO QUADRATOZZO")
                 }
                 lastLocation = mLastLocation
             }
         }
-        val mLocationRequest = LocationRequest.Builder(Priority.PRIORITY_LOW_POWER, 5000).setMinUpdateDistanceMeters(meters/4).build()
+        val mLocationRequest = LocationRequest.Builder(Priority.PRIORITY_BALANCED_POWER_ACCURACY, 5000).setMinUpdateDistanceMeters(meters/4).build()
         mFusedLocationClient.requestLocationUpdates(mLocationRequest, mLocationCallback, Looper.myLooper())
     }
 }
