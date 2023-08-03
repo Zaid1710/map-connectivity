@@ -23,7 +23,20 @@
         <SwitchPreference
             android:defaultValue="false"
             android:key="automatic_fetch"
-            android:title="Scansiona automaticamente" />
+            android:summary="Ogni volta che entri in un nuovo riquadro"
+            android:title="Scansione automatica" />
+        <SwitchPreference
+            android:defaultValue="false"
+            android:key="periodic_fetch"
+            android:title="Scansione periodica" />
+        <ListPreference
+            android:dependency="periodic_fetch"
+            android:defaultValue="10"
+            android:entries="@array/time"
+            android:entryValues="@array/time_value"
+            android:key="periodic_fetch_interval"
+            android:title="Intervallo di scansione"
+            app:useSimpleSummaryProvider="true" />
 
     </PreferenceCategory>
     <PreferenceCategory

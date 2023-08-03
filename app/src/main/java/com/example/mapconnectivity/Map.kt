@@ -53,14 +53,21 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
     private var DB_OPT = -60.0
 
     private val mFusedLocationClient: FusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(activity)
+    private lateinit var automaticLocationCallback: LocationCallback
+    private lateinit var periodicLocationCallback: LocationCallback
+
+    private val prefs = PreferenceManager.getDefaultSharedPreferences(activity)
 
     private val gridInARow = 5.0
+
+    private var lastZoomValue: Float = -1.0f
+    private var lastAutomatic: Boolean = prefs.getBoolean("automatic_fetch", false)
+    private var lastPeriodic: Boolean = prefs.getBoolean("periodic_fetch", false)
 
     @SuppressLint("MissingPermission")
     fun loadMap(mode: Int) {
         database = Room.databaseBuilder(activity, MeasureDB::class.java, "measuredb").fallbackToDestructiveMigration().build()
 
-        val prefs = PreferenceManager.getDefaultSharedPreferences(activity)
         val manual = prefs.getBoolean("switch_preference_bounds", false)
         if (manual) {
             Log.d("Manual", "Sono manuale")
@@ -159,12 +166,19 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
                     googleMap.projection.toScreenLocation(lastGeneratedPolygon.points[3])
                 }
             }
-            val prefs = PreferenceManager.getDefaultSharedPreferences(activity)
+
             val automatic = prefs.getBoolean("automatic_fetch", false)
-            if (automatic) {
-                withContext(Dispatchers.Main) { updateLocation(googleMap, meters.toFloat()) }
+            if (zoom != lastZoomValue || automatic != lastAutomatic) {
+                withContext(Dispatchers.Main) { automaticFetch(googleMap, meters.toFloat()) }
             }
 
+            val periodic = prefs.getBoolean("periodic_fetch", false)
+            if (periodic != lastPeriodic) {
+                withContext(Dispatchers.Main) { periodicFetch() }
+            }
+            lastZoomValue = zoom
+            lastAutomatic = automatic
+            lastPeriodic = periodic
         }
     }
 
@@ -192,7 +206,6 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
 
         var color = Color.TRANSPARENT
 
-        val prefs = PreferenceManager.getDefaultSharedPreferences(activity)
         val imported = prefs.getBoolean("view_imported", true)
 
         val measureDao = database.measureDao()
@@ -273,16 +286,21 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
         }
     }
 
-    @SuppressLint("MissingPermission")
-    fun updateLocation(googleMap: GoogleMap, meters: Float) {
-        val mLocationCallback = object : LocationCallback() {
+    private fun automaticFetch(googleMap: GoogleMap, meters: Float) {
+
+        val automatic = prefs.getBoolean("automatic_fetch", false)
+
+        if (this::automaticLocationCallback.isInitialized) {
+            mFusedLocationClient.removeLocationUpdates(automaticLocationCallback)
+        }
+
+        automaticLocationCallback = object : LocationCallback() {
             @RequiresApi(Build.VERSION_CODES.S)
             override fun onLocationResult(locationResult: LocationResult) {
                 super.onLocationResult(locationResult)
                 val mLastLocation = locationResult.lastLocation
 
                 if (getPolygon(mLastLocation) == null) {
-                    Log.d("URLA", "NON ESISTE UN POLIGONO, QUINDI LO CREO!")
                     if (mLastLocation != null) {
                         CoroutineScope(Dispatchers.IO).launch {
                             val newPolygon = createPolygon(
@@ -321,7 +339,49 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
                 lastLocation = mLastLocation
             }
         }
-        val mLocationRequest = LocationRequest.Builder(Priority.PRIORITY_BALANCED_POWER_ACCURACY, 5000).setMinUpdateDistanceMeters(meters/4).build()
-        mFusedLocationClient.requestLocationUpdates(mLocationRequest, mLocationCallback, Looper.myLooper())
+
+        if (automatic) {
+            val mLocationRequest = LocationRequest.Builder(Priority.PRIORITY_BALANCED_POWER_ACCURACY, 5000).setMinUpdateDistanceMeters(meters/4).build()
+            mFusedLocationClient.requestLocationUpdates(mLocationRequest, automaticLocationCallback, Looper.myLooper())
+        }
     }
+
+    private fun periodicFetch() {
+        val periodic = prefs.getBoolean("periodic_fetch", false)
+
+        if (this::periodicLocationCallback.isInitialized) {
+            mFusedLocationClient.removeLocationUpdates(periodicLocationCallback)
+        }
+
+        periodicLocationCallback = object : LocationCallback() {
+            @RequiresApi(Build.VERSION_CODES.S)
+            override fun onLocationResult(locationResult: LocationResult) {
+                super.onLocationResult(locationResult)
+
+                val permissionsToRequest = mutableListOf<String>()
+                if (!activity.checkPermission(Manifest.permission.ACCESS_FINE_LOCATION)) {
+                    permissionsToRequest.add(Manifest.permission.ACCESS_FINE_LOCATION)
+                }
+                if (!activity.checkPermission(Manifest.permission.RECORD_AUDIO)) {
+                    permissionsToRequest.add(Manifest.permission.RECORD_AUDIO)
+                }
+
+                if (permissionsToRequest.isNotEmpty()) {
+                    Log.d("PERMISSIONS", "SOMETHING'S MISSING 2")
+                    activity.requestPermissions(permissionsToRequest.toTypedArray(), activity.PERMISSION_MEASUREMENTS)
+                } else {
+                    CoroutineScope(Dispatchers.IO).launch {
+                        activity.addMeasurement(false)
+                    }
+                }
+            }
+        }
+        val seconds = prefs.getString("periodic_fetch_interval", 10.toString())!!.toInt()
+
+        if (periodic) {
+            val mLocationRequest = LocationRequest.Builder(Priority.PRIORITY_BALANCED_POWER_ACCURACY, (seconds * 1000).toLong()).build()
+            mFusedLocationClient.requestLocationUpdates(mLocationRequest, periodicLocationCallback, Looper.myLooper())
+        }
+    }
+
 }

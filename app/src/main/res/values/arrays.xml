@@ -10,4 +10,22 @@
         <item>1</item>
         <item>2</item>
     </string-array>
+
+    <string-array name="time">
+        <item>5 secondi</item>
+        <item>10 secondi</item>
+        <item>15 secondi</item>
+        <item>30 secondi</item>
+        <item>1 minuto</item>
+        <item>2 minuti</item>
+    </string-array>
+
+    <string-array name="time_value">
+        <item>5</item>
+        <item>10</item>
+        <item>15</item>
+        <item>30</item>
+        <item>60</item>
+        <item>120</item>
+    </string-array>
 </resources>

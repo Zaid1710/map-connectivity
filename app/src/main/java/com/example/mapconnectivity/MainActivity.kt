@@ -36,12 +36,11 @@ import java.time.format.DateTimeFormatter
  *       OPZIONALE: AGGIUNGERE INFO SULLE MISURE (QUANTE CE NE SONO ECC...)
  *       DA VALUTARE: PER ORA SE SI CLICCA SU UN FILE .mapc PORTA A SWAP_ACTIVITY, VALUTARE SE CONTINUARE CON L'IMPLEMENTAZIONE DELL'IMPORTAZIONE AUTOMATICA O MENO
  *       NELLA UPDATELOCATION GESTIRE IL CAMBIAMENTO DI ZOOM
- *       FAI QUADRATO QUANDO NON C'E'
  *       FETCH AUTOMATICO OGNI TOT SECONDI
  *       QUANTO SONO GRANDI I QUADRATI QUANDO L'APP E' SPENTA? :3
  *
  *       BUGS:
- *       A ZOOM MINIMO NON VIENE SPAWNATA LA GRIGLIA (nè su emulatore nè su telefono)
+ *       A ZOOM MINIMO NON VIENE SPAWNATA LA GRIGLIA (n� su emulatore n� su telefono)
  *       QUANDO SPOSTO LA VISUALE VIENE CREATA UNA MISURA
  * */
 
@@ -92,7 +91,7 @@ class MainActivity : AppCompatActivity() {
             Log.d("PERMISSIONS", "SOMETHING'S MISSING 1")
             requestPermissions(permissionsToRequest.toTypedArray(), PERMISSION_INIT)
         } else {
-            // Tutti i permessi sono stati già concessi
+            // Tutti i permessi sono stati gi� concessi
             Log.d("PERMISSIONS", "ALL PERMISSIONS GRANTED")
             initMeasureBtn()
 
@@ -146,7 +145,7 @@ class MainActivity : AppCompatActivity() {
                     addMeasurement(true)
                 }
             } else {
-                // Almeno uno dei permessi è stato negato
+                // Almeno uno dei permessi � stato negato
                 Log.d("PERMISSIONS", "ONE OR MORE PERMISSIONS MISSING")
             }
     }
