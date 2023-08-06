@@ -64,6 +64,7 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
     private var lastAutomatic: Boolean = prefs.getBoolean("automatic_fetch", false)
     private var lastPeriodic: Boolean = prefs.getBoolean("periodic_fetch", false)
 
+    @RequiresApi(Build.VERSION_CODES.S)
     @SuppressLint("MissingPermission")
     fun loadMap(mode: Int) {
         database = Room.databaseBuilder(activity, MeasureDB::class.java, "measuredb").fallbackToDestructiveMigration().build()
@@ -113,6 +114,7 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
             }
     }
 
+    @RequiresApi(Build.VERSION_CODES.S)
     @SuppressLint("MissingPermission")
     fun drawGridOnMap(googleMap: GoogleMap, mode: Int) {
         CoroutineScope(Dispatchers.IO).launch {
@@ -169,6 +171,24 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
 
             val automatic = prefs.getBoolean("automatic_fetch", false)
             if (zoom != lastZoomValue || automatic != lastAutomatic) {
+                if (zoom == lastZoomValue && automatic) {
+                    val permissionsToRequest = mutableListOf<String>()
+                    if (!activity.checkPermission(Manifest.permission.ACCESS_FINE_LOCATION)) {
+                        permissionsToRequest.add(Manifest.permission.ACCESS_FINE_LOCATION)
+                    }
+                    if (!activity.checkPermission(Manifest.permission.RECORD_AUDIO)) {
+                        permissionsToRequest.add(Manifest.permission.RECORD_AUDIO)
+                    }
+
+                    if (permissionsToRequest.isNotEmpty()) {
+                        Log.d("PERMISSIONS", "SOMETHING'S MISSING 2")
+                        activity.requestPermissions(permissionsToRequest.toTypedArray(), activity.PERMISSION_MEASUREMENTS)
+                    } else {
+                        CoroutineScope(Dispatchers.IO).launch {
+                            activity.addMeasurement(false)
+                        }
+                    }
+                }
                 withContext(Dispatchers.Main) { automaticFetch(googleMap, meters.toFloat()) }
             }
 
