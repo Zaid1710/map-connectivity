@@ -306,6 +306,7 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
         }
     }
 
+    @SuppressLint("MissingPermission")
     private fun automaticFetch(googleMap: GoogleMap, meters: Float) {
 
         val automatic = prefs.getBoolean("automatic_fetch", false)
@@ -338,23 +339,7 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
                     }
                 }
                 if (lastLocation != null && !areInTheSamePolygon(mLastLocation, lastLocation)) {
-                    val permissionsToRequest = mutableListOf<String>()
-                    if (!activity.checkPermission(Manifest.permission.ACCESS_FINE_LOCATION)) {
-                        permissionsToRequest.add(Manifest.permission.ACCESS_FINE_LOCATION)
-                    }
-                    if (!activity.checkPermission(Manifest.permission.RECORD_AUDIO)) {
-                        permissionsToRequest.add(Manifest.permission.RECORD_AUDIO)
-                    }
-
-                    if (permissionsToRequest.isNotEmpty()) {
-                        Log.d("PERMISSIONS", "SOMETHING'S MISSING 2")
-                        activity.requestPermissions(permissionsToRequest.toTypedArray(), activity.PERMISSION_OUTSIDE_MEASUREMENTS)
-                    } else {
-                        CoroutineScope(Dispatchers.IO).launch {
-                            activity.addMeasurement(true)
-                        }
-                    }
-                    Log.d("EHEHE", "HO CAMBIATO QUADRATOZZO")
+                    activity.manageMeasurePermissions(true)
                 }
                 lastLocation = mLastLocation
             }
@@ -366,6 +351,7 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
         }
     }
 
+    @SuppressLint("MissingPermission")
     private fun periodicFetch() {
         val periodic = prefs.getBoolean("periodic_fetch", false)
 
@@ -378,22 +364,7 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
             override fun onLocationResult(locationResult: LocationResult) {
                 super.onLocationResult(locationResult)
 
-                val permissionsToRequest = mutableListOf<String>()
-                if (!activity.checkPermission(Manifest.permission.ACCESS_FINE_LOCATION)) {
-                    permissionsToRequest.add(Manifest.permission.ACCESS_FINE_LOCATION)
-                }
-                if (!activity.checkPermission(Manifest.permission.RECORD_AUDIO)) {
-                    permissionsToRequest.add(Manifest.permission.RECORD_AUDIO)
-                }
-
-                if (permissionsToRequest.isNotEmpty()) {
-                    Log.d("PERMISSIONS", "SOMETHING'S MISSING 2")
-                    activity.requestPermissions(permissionsToRequest.toTypedArray(), activity.PERMISSION_MEASUREMENTS)
-                } else {
-                    CoroutineScope(Dispatchers.IO).launch {
-                        activity.addMeasurement(false)
-                    }
-                }
+                activity.manageMeasurePermissions(false)
             }
         }
         val seconds = prefs.getString("periodic_fetch_interval", 10.toString())!!.toInt()

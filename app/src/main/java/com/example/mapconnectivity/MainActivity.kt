@@ -35,13 +35,12 @@ import java.time.format.DateTimeFormatter
  *       AGGIUNGERE CONTROLLO DELLE SOGLIE A SCELTA - LA OTTIMALE NON PUO' ESSERE MINORE DELLA PESSIMA
  *       OPZIONALE: AGGIUNGERE INFO SULLE MISURE (QUANTE CE NE SONO ECC...)
  *       DA VALUTARE: PER ORA SE SI CLICCA SU UN FILE .mapc PORTA A SWAP_ACTIVITY, VALUTARE SE CONTINUARE CON L'IMPLEMENTAZIONE DELL'IMPORTAZIONE AUTOMATICA O MENO
- *       NELLA UPDATELOCATION GESTIRE IL CAMBIAMENTO DI ZOOM
- *       FETCH AUTOMATICO OGNI TOT SECONDI
  *       QUANTO SONO GRANDI I QUADRATI QUANDO L'APP E' SPENTA? :3
+ *       GESTIRE IL CAMBIAMENTO DEL TEMPO DI FETCH PERIODICO QUANDO LA SPUNTA E' ATTIVA
  *
  *       BUGS:
- *       A ZOOM MINIMO NON VIENE SPAWNATA LA GRIGLIA (n� su emulatore n� su telefono)
- *       QUANDO SPOSTO LA VISUALE VIENE CREATA UNA MISURA
+ *       A ZOOM MINIMO NON VIENE SPAWNATA LA GRIGLIA (ne su emulatore ne su telefono)
+ *       SE IL TELEFONO È LENTO CARICA GRIGLIE ALL'INFINITO
  * */
 
 class MainActivity : AppCompatActivity() {
@@ -108,6 +107,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.S)
     override fun onResume() {
         super.onResume()
 //        val sensorManager = this.getSystemService(Context.SENSOR_SERVICE) as SensorManager
@@ -163,22 +163,7 @@ class MainActivity : AppCompatActivity() {
     @RequiresApi(Build.VERSION_CODES.S)
     private fun initMeasureBtn() {
         measureBtn.setOnClickListener {
-            Log.d("MEASURE", "Sono entrato")
-            val permissionsToRequest = mutableListOf<String>()
-            if (!checkPermission(Manifest.permission.ACCESS_FINE_LOCATION)) {
-                permissionsToRequest.add(Manifest.permission.ACCESS_FINE_LOCATION)
-            }
-            if (!checkPermission(Manifest.permission.RECORD_AUDIO)) {
-                permissionsToRequest.add(Manifest.permission.RECORD_AUDIO)
-            }
-
-            if (permissionsToRequest.isNotEmpty()) {
-                Log.d("PERMISSIONS", "SOMETHING'S MISSING 2")
-                requestPermissions(permissionsToRequest.toTypedArray(), PERMISSION_MEASUREMENTS)
-            } else {
-                addMeasurement(false)
-            }
-
+            manageMeasurePermissions(false)
         }
     }
 
@@ -211,6 +196,29 @@ class MainActivity : AppCompatActivity() {
                         map.drawGridOnMap(googleMap, mode)
                     }
                 }
+            }
+        }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.S)
+    fun manageMeasurePermissions(isOutside: Boolean) {
+        val permissionsToRequest = mutableListOf<String>()
+        if (!this.checkPermission(Manifest.permission.ACCESS_FINE_LOCATION)) {
+            permissionsToRequest.add(Manifest.permission.ACCESS_FINE_LOCATION)
+        }
+        if (!this.checkPermission(Manifest.permission.RECORD_AUDIO)) {
+            permissionsToRequest.add(Manifest.permission.RECORD_AUDIO)
+        }
+
+        if (permissionsToRequest.isNotEmpty()) {
+            if (isOutside) {
+                this.requestPermissions(permissionsToRequest.toTypedArray(), this.PERMISSION_OUTSIDE_MEASUREMENTS)
+            } else {
+                this.requestPermissions(permissionsToRequest.toTypedArray(), this.PERMISSION_MEASUREMENTS)
+            }
+        } else {
+            CoroutineScope(Dispatchers.IO).launch {
+                addMeasurement(isOutside)
             }
         }
     }
