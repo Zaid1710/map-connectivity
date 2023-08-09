@@ -63,6 +63,7 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
     private var lastZoomValue: Float = -1.0f
     private var lastAutomatic: Boolean = prefs.getBoolean("automatic_fetch", false)
     private var lastPeriodic: Boolean = prefs.getBoolean("periodic_fetch", false)
+    private var lastSeconds: Int = prefs.getString("periodic_fetch_interval", 10.toString())!!.toInt()
 
     @RequiresApi(Build.VERSION_CODES.S)
     @SuppressLint("MissingPermission")
@@ -172,33 +173,20 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
             val automatic = prefs.getBoolean("automatic_fetch", false)
             if (zoom != lastZoomValue || automatic != lastAutomatic) {
                 if (zoom == lastZoomValue && automatic) {
-                    val permissionsToRequest = mutableListOf<String>()
-                    if (!activity.checkPermission(Manifest.permission.ACCESS_FINE_LOCATION)) {
-                        permissionsToRequest.add(Manifest.permission.ACCESS_FINE_LOCATION)
-                    }
-                    if (!activity.checkPermission(Manifest.permission.RECORD_AUDIO)) {
-                        permissionsToRequest.add(Manifest.permission.RECORD_AUDIO)
-                    }
-
-                    if (permissionsToRequest.isNotEmpty()) {
-                        Log.d("PERMISSIONS", "SOMETHING'S MISSING 2")
-                        activity.requestPermissions(permissionsToRequest.toTypedArray(), activity.PERMISSION_MEASUREMENTS)
-                    } else {
-                        CoroutineScope(Dispatchers.IO).launch {
-                            activity.addMeasurement(false)
-                        }
-                    }
+                    activity.manageMeasurePermissions(false)
                 }
                 withContext(Dispatchers.Main) { automaticFetch(googleMap, meters.toFloat()) }
             }
 
             val periodic = prefs.getBoolean("periodic_fetch", false)
-            if (periodic != lastPeriodic) {
+            val seconds = prefs.getString("periodic_fetch_interval", 10.toString())!!.toInt()
+            if (periodic != lastPeriodic || seconds != lastSeconds) {
                 withContext(Dispatchers.Main) { periodicFetch() }
             }
             lastZoomValue = zoom
             lastAutomatic = automatic
             lastPeriodic = periodic
+            lastSeconds = seconds
         }
     }
 
