@@ -3,10 +3,10 @@ package com.example.mapconnectivity
 import android.os.Bundle
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.preference.EditTextPreference
 import androidx.preference.Preference
 import androidx.preference.PreferenceFragmentCompat
 import androidx.preference.PreferenceManager
-import com.takisoft.preferencex.EditTextPreference
 import kotlin.math.abs
 
 class SettingsActivity : AppCompatActivity() {
@@ -36,59 +36,83 @@ class SettingsActivity : AppCompatActivity() {
 
             optimal_db?.onPreferenceChangeListener =
                 Preference.OnPreferenceChangeListener { _, newValue ->
-                    val valid = validateInputOpt(newValue.toString(), bad_db?.text)
+                    val valid = validateInputOpt(newValue.toString(), bad_db?.text, true)
                     valid
                 }
 
             bad_db?.onPreferenceChangeListener =
                 Preference.OnPreferenceChangeListener { _, newValue ->
-                    val valid = validateInputBad(newValue.toString(), optimal_db?.text)
+                    val valid = validateInputBad(newValue.toString(), optimal_db?.text, true)
                     valid
                 }
 
             optimal_lte?.onPreferenceChangeListener =
                 Preference.OnPreferenceChangeListener { _, newValue ->
-                    val valid = validateInputOpt(newValue.toString(), bad_lte?.text)
+                    val valid = validateInputOpt(newValue.toString(), bad_lte?.text, false)
                     valid
                 }
 
             bad_lte?.onPreferenceChangeListener =
                 Preference.OnPreferenceChangeListener { _, newValue ->
-                    val valid = validateInputBad(newValue.toString(), optimal_lte?.text)
+                    val valid = validateInputBad(newValue.toString(), optimal_lte?.text, false)
                     valid
                 }
 
             optimal_wifi?.onPreferenceChangeListener =
                 Preference.OnPreferenceChangeListener { _, newValue ->
-                    val valid = validateInputOpt(newValue.toString(), bad_wifi?.text)
+                    val valid = validateInputOpt(newValue.toString(), bad_wifi?.text, false)
                     valid
                 }
 
             bad_wifi?.onPreferenceChangeListener =
                 Preference.OnPreferenceChangeListener { _, newValue ->
-                    val valid = validateInputBad(newValue.toString(), optimal_wifi?.text)
+                    val valid = validateInputBad(newValue.toString(), optimal_wifi?.text, false)
                     valid
                 }
         }
 
-        private fun validateInputOpt(input: String, bad: String?): Boolean {
+        private fun validateInputOpt(input: String, bad: String?, isDb: Boolean): Boolean {
+            if (!isNumber(input)) {
+                val toast = Toast.makeText(requireContext(), "Input non valido", Toast.LENGTH_SHORT)
+                toast.show()
+                return false
+            }
+
             return if (bad != null && input.isNotEmpty() && abs(input.toInt()) < abs(bad.toInt())) {
                 true
             } else {
-                val toast = Toast.makeText(requireContext(), "Inserire un valore inferiore a $bad", Toast.LENGTH_SHORT)
+                val toast: Toast = if (isDb) {
+                    Toast.makeText(requireContext(), "Inserire un valore inferiore a $bad", Toast.LENGTH_SHORT)
+                } else {
+                    Toast.makeText(requireContext(), "Inserire un valore superiore a $bad", Toast.LENGTH_SHORT)
+                }
                 toast.show()
                 false
             }
         }
 
-        private fun validateInputBad(input: String, opt: String?): Boolean {
+        private fun validateInputBad(input: String, opt: String?, isDb: Boolean): Boolean {
+            if (!isNumber(input)) {
+                val toast = Toast.makeText(requireContext(), "Input non valido", Toast.LENGTH_SHORT)
+                toast.show()
+                return false
+            }
+
             return if (opt != null && input.isNotEmpty() && abs(input.toInt()) > abs(opt.toInt())) {
                 true
             } else {
-                val toast = Toast.makeText(requireContext(), "Inserire un valore superiore a $opt", Toast.LENGTH_SHORT)
+                val toast: Toast = if (isDb) {
+                    Toast.makeText(requireContext(), "Inserire un valore superiore a $opt", Toast.LENGTH_SHORT)
+                } else {
+                    Toast.makeText(requireContext(), "Inserire un valore inferiore a $opt", Toast.LENGTH_SHORT)
+                }
                 toast.show()
                 false
             }
+        }
+
+        private fun isNumber(input: String): Boolean {
+            return input.toIntOrNull() != null
         }
 
     }

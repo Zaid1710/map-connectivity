@@ -47,44 +47,38 @@
             android:defaultValue="false"
             android:key="switch_preference_bounds"
             android:title="Imposta le soglie manualmente" />
-        <com.takisoft.preferencex.EditTextPreference
+        <EditTextPreference
             android:dependency="switch_preference_bounds"
-            android:inputType="number"
             android:key="opt_db"
             android:title="Valore ottimale audio (dB)"
             app:defaultValue="60"
             app:useSimpleSummaryProvider="true" />
-        <com.takisoft.preferencex.EditTextPreference
+        <EditTextPreference
             android:dependency="switch_preference_bounds"
-            android:inputType="number"
             android:key="bad_db"
             android:title="Valore pessimo audio (dB)"
             app:defaultValue="80"
             app:useSimpleSummaryProvider="true" />
-        <com.takisoft.preferencex.EditTextPreference
+        <EditTextPreference
             android:dependency="switch_preference_bounds"
-            android:inputType="number"
             android:key="opt_lte"
             android:title="Valore ottimale LTE"
             app:defaultValue="-80"
             app:useSimpleSummaryProvider="true" />
-        <com.takisoft.preferencex.EditTextPreference
+        <EditTextPreference
             android:dependency="switch_preference_bounds"
-            android:inputType="number"
             android:key="bad_lte"
             android:title="Valore pessimo LTE"
             app:defaultValue="-95"
             app:useSimpleSummaryProvider="true" />
-        <com.takisoft.preferencex.EditTextPreference
+        <EditTextPreference
             android:dependency="switch_preference_bounds"
-            android:inputType="number"
             android:key="opt_wifi"
             android:title="Valore ottimale Wi-Fi"
             app:defaultValue="-55"
             app:useSimpleSummaryProvider="true" />
-        <com.takisoft.preferencex.EditTextPreference
+        <EditTextPreference
             android:dependency="switch_preference_bounds"
-            android:inputType="number"
             android:key="bad_wifi"
             android:title="Valore pessimo Wi-Fi"
             app:defaultValue="-75"
