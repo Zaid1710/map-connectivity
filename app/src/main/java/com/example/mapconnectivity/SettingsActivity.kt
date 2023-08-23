@@ -1,12 +1,13 @@
 package com.example.mapconnectivity
 
 import android.os.Bundle
+import android.util.Log
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.preference.EditTextPreference
 import androidx.preference.Preference
 import androidx.preference.PreferenceFragmentCompat
-import androidx.preference.PreferenceManager
+import androidx.preference.SwitchPreference
 import kotlin.math.abs
 
 class SettingsActivity : AppCompatActivity() {
@@ -27,12 +28,48 @@ class SettingsActivity : AppCompatActivity() {
         override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
             setPreferencesFromResource(R.xml.root_preferences, rootKey)
 
+            val manual = findPreference<SwitchPreference>("switch_preference_bounds")
             val optimal_db = findPreference<EditTextPreference>("opt_db")
             val bad_db = findPreference<EditTextPreference>("bad_db")
             val optimal_lte = findPreference<EditTextPreference>("opt_lte")
             val bad_lte = findPreference<EditTextPreference>("bad_lte")
             val optimal_wifi = findPreference<EditTextPreference>("opt_wifi")
             val bad_wifi = findPreference<EditTextPreference>("bad_wifi")
+
+            var last_optimal_db = optimal_db?.text
+            var last_bad_db = bad_db?.text
+            var last_optimal_lte = optimal_lte?.text
+            var last_bad_lte = bad_lte?.text
+            var last_optimal_wifi = optimal_wifi?.text
+            var last_bad_wifi = bad_wifi?.text
+
+            manual?.onPreferenceChangeListener =
+                Preference.OnPreferenceChangeListener { _, newValue ->
+                    if (newValue == false) {
+                        last_optimal_db = optimal_db?.text
+                        last_bad_db = bad_db?.text
+                        last_optimal_lte = optimal_lte?.text
+                        last_bad_lte = bad_lte?.text
+                        last_optimal_wifi = optimal_wifi?.text
+                        last_bad_wifi = bad_wifi?.text
+
+                        optimal_db?.text = resources.getString(R.string.opt_db_defaultValue)
+                        bad_db?.text = resources.getString(R.string.bad_db_defaultValue)
+                        optimal_lte?.text = resources.getString(R.string.opt_lte_defaultValue)
+                        bad_lte?.text = resources.getString(R.string.bad_lte_defaultValue)
+                        optimal_wifi?.text = resources.getString(R.string.opt_wifi_defaultValue)
+                        bad_wifi?.text = resources.getString(R.string.bad_wifi_defaultValue)
+                    } else {
+                        optimal_db?.text = last_optimal_db
+                        bad_db?.text = last_bad_db
+                        optimal_lte?.text = last_optimal_lte
+                        bad_lte?.text = last_bad_lte
+                        optimal_wifi?.text = last_optimal_wifi
+                        bad_wifi?.text = last_bad_wifi
+                    }
+                    true
+                }
+
 
             optimal_db?.onPreferenceChangeListener =
                 Preference.OnPreferenceChangeListener { _, newValue ->

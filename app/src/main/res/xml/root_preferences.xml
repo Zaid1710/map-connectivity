@@ -51,37 +51,37 @@
             android:dependency="switch_preference_bounds"
             android:key="opt_db"
             android:title="Valore ottimale audio (dB)"
-            app:defaultValue="60"
+            app:defaultValue="@string/opt_db_defaultValue"
             app:useSimpleSummaryProvider="true" />
         <EditTextPreference
             android:dependency="switch_preference_bounds"
             android:key="bad_db"
             android:title="Valore pessimo audio (dB)"
-            app:defaultValue="80"
+            app:defaultValue="@string/bad_db_defaultValue"
             app:useSimpleSummaryProvider="true" />
         <EditTextPreference
             android:dependency="switch_preference_bounds"
             android:key="opt_lte"
             android:title="Valore ottimale LTE"
-            app:defaultValue="-80"
+            app:defaultValue="@string/opt_lte_defaultValue"
             app:useSimpleSummaryProvider="true" />
         <EditTextPreference
             android:dependency="switch_preference_bounds"
             android:key="bad_lte"
             android:title="Valore pessimo LTE"
-            app:defaultValue="-95"
+            app:defaultValue="@string/bad_lte_defaultValue"
             app:useSimpleSummaryProvider="true" />
         <EditTextPreference
             android:dependency="switch_preference_bounds"
             android:key="opt_wifi"
             android:title="Valore ottimale Wi-Fi"
-            app:defaultValue="-55"
+            app:defaultValue="@string/opt_wifi_defaultValue"
             app:useSimpleSummaryProvider="true" />
         <EditTextPreference
             android:dependency="switch_preference_bounds"
             android:key="bad_wifi"
             android:title="Valore pessimo Wi-Fi"
-            app:defaultValue="-75"
+            app:defaultValue="@string/bad_wifi_defaultValue"
             app:useSimpleSummaryProvider="true" />
 
     </PreferenceCategory>
