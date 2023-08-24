@@ -7,6 +7,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.preference.EditTextPreference
 import androidx.preference.Preference
 import androidx.preference.PreferenceFragmentCompat
+import androidx.preference.PreferenceManager
 import androidx.preference.SwitchPreference
 import kotlin.math.abs
 
@@ -36,22 +37,19 @@ class SettingsActivity : AppCompatActivity() {
             val optimal_wifi = findPreference<EditTextPreference>("opt_wifi")
             val bad_wifi = findPreference<EditTextPreference>("bad_wifi")
 
-            var last_optimal_db = optimal_db?.text
-            var last_bad_db = bad_db?.text
-            var last_optimal_lte = optimal_lte?.text
-            var last_bad_lte = bad_lte?.text
-            var last_optimal_wifi = optimal_wifi?.text
-            var last_bad_wifi = bad_wifi?.text
+            val prefs = PreferenceManager.getDefaultSharedPreferences(requireContext())
+            val editor = prefs.edit()
 
             manual?.onPreferenceChangeListener =
                 Preference.OnPreferenceChangeListener { _, newValue ->
                     if (newValue == false) {
-                        last_optimal_db = optimal_db?.text
-                        last_bad_db = bad_db?.text
-                        last_optimal_lte = optimal_lte?.text
-                        last_bad_lte = bad_lte?.text
-                        last_optimal_wifi = optimal_wifi?.text
-                        last_bad_wifi = bad_wifi?.text
+                        editor.putString("last_optimal_db", optimal_db?.text)
+                        editor.putString("last_bad_db", bad_db?.text)
+                        editor.putString("last_optimal_lte", optimal_lte?.text)
+                        editor.putString("last_bad_lte", bad_lte?.text)
+                        editor.putString("last_optimal_wifi", optimal_wifi?.text)
+                        editor.putString("last_bad_wifi", bad_wifi?.text)
+                        editor.apply()
 
                         optimal_db?.text = resources.getString(R.string.opt_db_defaultValue)
                         bad_db?.text = resources.getString(R.string.bad_db_defaultValue)
@@ -60,12 +58,12 @@ class SettingsActivity : AppCompatActivity() {
                         optimal_wifi?.text = resources.getString(R.string.opt_wifi_defaultValue)
                         bad_wifi?.text = resources.getString(R.string.bad_wifi_defaultValue)
                     } else {
-                        optimal_db?.text = last_optimal_db
-                        bad_db?.text = last_bad_db
-                        optimal_lte?.text = last_optimal_lte
-                        bad_lte?.text = last_bad_lte
-                        optimal_wifi?.text = last_optimal_wifi
-                        bad_wifi?.text = last_bad_wifi
+                        optimal_db?.text = prefs.getString("last_optimal_db", resources.getString(R.string.opt_db_defaultValue))
+                        bad_db?.text = prefs.getString("last_bad_db", resources.getString(R.string.bad_db_defaultValue))
+                        optimal_lte?.text = prefs.getString("last_optimal_lte", resources.getString(R.string.opt_lte_defaultValue))
+                        bad_lte?.text = prefs.getString("last_bad_lte", resources.getString(R.string.bad_lte_defaultValue))
+                        optimal_wifi?.text = prefs.getString("last_optimal_wifi", resources.getString(R.string.opt_wifi_defaultValue))
+                        bad_wifi?.text = prefs.getString("last_bad_wifi", resources.getString(R.string.bad_wifi_defaultValue))
                     }
                     true
                 }
