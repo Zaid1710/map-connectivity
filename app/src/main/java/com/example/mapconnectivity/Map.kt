@@ -1,7 +1,7 @@
 package com.example.mapconnectivity
 
-import android.Manifest
 import android.annotation.SuppressLint
+import android.app.AlertDialog
 import android.content.Context
 import android.graphics.Color
 import android.graphics.Rect
@@ -10,6 +10,7 @@ import android.location.LocationManager
 import android.os.Build
 import android.os.Looper
 import android.util.Log
+import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.preference.PreferenceManager
 import androidx.room.Room
@@ -29,6 +30,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.pow
@@ -105,8 +108,17 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
                             googleMap.animateCamera(CameraUpdateFactory.newLatLngZoom(latlng, 16F))
                         }
 
+                        googleMap.setOnMapClickListener {
+                            Log.d("TOCCO", "Hai toccato la mappa, $it")
+                            val touchPos = Location(LocationManager.GPS_PROVIDER)
+                            touchPos.latitude = it.latitude
+                            touchPos.longitude = it.longitude
+                            val touchedPolygon = getPolygon(touchPos)
+                            Log.d("TOCCO", "Hai toccato il poligono $touchedPolygon")
+                            showInfoDialog(touchedPolygon)
+                        }
+
                         googleMap.setOnCameraIdleListener {
-                            Log.d("URLA", "LUP")
                             deleteGrid()
                             drawGridOnMap(googleMap, mode)
                         }
@@ -363,4 +375,133 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.S)
+    private fun showInfoDialog(polygon: Polygon?) {
+        if (polygon != null) {
+//            Log.d("MISUREQUADRATO", "${polygon.points[0]}, ${polygon.points[1]}, ${polygon.points[2]}, ${polygon.points[3]}")
+            val imported = prefs.getBoolean("view_imported", true)
+            CoroutineScope(Dispatchers.IO).launch {
+                val trPoint = withContext(Dispatchers.Main) { polygon.points[1] }
+                val blPoint = withContext(Dispatchers.Main) { polygon.points[3] }
+                val measures =
+                    database.measureDao().getMeasuresInPolygon(
+                        trPoint.latitude,
+                        trPoint.longitude,
+                        blPoint.latitude,
+                        blPoint.longitude,
+                        imported
+                    )
+                val avgMeasures = database.measureDao().getAvgMeasuresInPolygon(
+                    trPoint.latitude,
+                    trPoint.longitude,
+                    blPoint.latitude,
+                    blPoint.longitude,
+                    imported
+                )
+                Log.d("MISUREQUADRATO", measures.toString())
+                val dialogBuilder = AlertDialog.Builder(activity)
+                dialogBuilder.setTitle("${measures.size} " + if (measures.size == 1) "MISURA TROVATA" else "MISURE TROVATE")
+
+                var info: String
+                if (measures.isEmpty()) {
+                    info = "Nessuna misura trovata"
+                } else {
+                    info = "Media DB: ${avgMeasures.avgDb}\n\n" +
+                            "Media LTE: ${avgMeasures.avgLte}\n\n" +
+                            "Media WiFi: ${avgMeasures.avgWifi}"
+
+                    if (imported) { info += "\n\nNumero misure importate: ${database.measureDao().countImportedMeasuresInPolygon(
+                        trPoint.latitude,
+                        trPoint.longitude,
+                        blPoint.latitude,
+                        blPoint.longitude
+                    )} su ${measures.size}"}
+                }
+
+                dialogBuilder.setMessage(info)
+
+                dialogBuilder.setNegativeButton("Chiudi") { _, _ -> }
+                if (measures.isNotEmpty()) {
+                    dialogBuilder.setNeutralButton("Mostra di più") { _, _ ->
+                        showMoreDialog(measures)
+                    }
+                }
+                withContext(Dispatchers.Main) { dialogBuilder.create().show() }
+            }
+
+        }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.S)
+    private fun showMoreDialog(measures: List<Measure>) {
+        val dialogBuilder = AlertDialog.Builder(activity)
+        val measures_titles = createExpandedString(measures)
+        dialogBuilder.setTitle("${measures.size} " + if (measures.size == 1) "MISURA TROVATA" else "MISURE TROVATE")
+        dialogBuilder.setNegativeButton("Chiudi") { _, _ -> }
+        dialogBuilder.setItems(measures_titles) { _, which ->
+            Log.d("SIMONETTA", "${measures[which].id}")
+            showDetailsDialog(measures[which])
+        }
+        dialogBuilder.create().show()
+    }
+
+    @RequiresApi(Build.VERSION_CODES.S)
+    private fun showDetailsDialog(measure: Measure) {
+        val dialogBuilder = AlertDialog.Builder(activity)
+        dialogBuilder.setTitle("MISURA IN DATA ${formatTimestamp(measure.timestamp)}")
+
+        var info = "LAT: ${measure.lat}\n\n" +
+                "LON: ${measure.lon}\n\n" +
+                "DB: ${measure.db}\n\n" +
+                "LTE: ${measure.lte}\n\n" +
+                "WiFi: ${measure.wifi}"
+
+        val imported = prefs.getBoolean("view_imported", true)
+        if (imported) { info += "\n\nImportata: ${if (measure.imported) "Si" else "No"}" }
+
+        dialogBuilder.setMessage(info)
+        dialogBuilder.setNegativeButton("Chiudi") { _, _ -> }
+        dialogBuilder.setNeutralButton("Elimina misura") { _, _ ->
+            deleteMeasureDialog(measure)
+        }
+        dialogBuilder.create().show()
+    }
+
+    @RequiresApi(Build.VERSION_CODES.S)
+    private fun deleteMeasureDialog(measure: Measure) {
+        val dialogBuilder = AlertDialog.Builder(activity)
+        dialogBuilder.setTitle("Sei sicuro di voler eliminare la misura?")
+        dialogBuilder.setNegativeButton("No") { _, _ -> }
+        dialogBuilder.setPositiveButton("Si") { _, _ ->
+            CoroutineScope(Dispatchers.IO).launch {
+                database.measureDao().deleteMeasureWithId(measure.id)
+            }
+            val toast = Toast.makeText(activity, "Misura cancellata con successo", Toast.LENGTH_SHORT)
+            toast.show()
+            mapView?.getMapAsync { googleMap ->
+                deleteGrid()
+                drawGridOnMap(googleMap, prefs.getString("mode_preference", 0.toString())!!.toInt())
+            }
+        }
+        dialogBuilder.create().show()
+
+    }
+
+    @RequiresApi(Build.VERSION_CODES.O)
+    private fun createExpandedString(measures: List<Measure>): Array<String> {
+        var array = arrayOf<String>()
+        for (measure in measures) {
+            val date = formatTimestamp(measure.timestamp)
+            array += date
+        }
+        return array
+    }
+
+    @RequiresApi(Build.VERSION_CODES.O)
+    private fun formatTimestamp(timestamp: String): String {
+        val l = LocalDateTime.parse(timestamp, DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'")).format(
+            DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss"))
+
+        return l.toString()
+    }
 }
