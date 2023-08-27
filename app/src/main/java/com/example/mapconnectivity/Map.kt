@@ -399,7 +399,7 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
                     imported
                 )
                 Log.d("MISUREQUADRATO", measures.toString())
-                val dialogBuilder = AlertDialog.Builder(activity)
+                val dialogBuilder = AlertDialog.Builder(activity, R.style.DialogTheme)
                 dialogBuilder.setTitle("${measures.size} " + if (measures.size == 1) "MISURA TROVATA" else "MISURE TROVATE")
 
                 var info: String
@@ -434,7 +434,7 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
 
     @RequiresApi(Build.VERSION_CODES.S)
     private fun showMoreDialog(measures: List<Measure>) {
-        val dialogBuilder = AlertDialog.Builder(activity)
+        val dialogBuilder = AlertDialog.Builder(activity, R.style.DialogTheme)
         val measures_titles = createExpandedString(measures)
         dialogBuilder.setTitle("${measures.size} " + if (measures.size == 1) "MISURA TROVATA" else "MISURE TROVATE")
         dialogBuilder.setNegativeButton("Chiudi") { _, _ -> }
@@ -447,7 +447,7 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
 
     @RequiresApi(Build.VERSION_CODES.S)
     private fun showDetailsDialog(measure: Measure) {
-        val dialogBuilder = AlertDialog.Builder(activity)
+        val dialogBuilder = AlertDialog.Builder(activity, R.style.DialogTheme)
         dialogBuilder.setTitle("MISURA IN DATA ${formatTimestamp(measure.timestamp)}")
 
         var info = "LAT: ${measure.lat}\n\n" +
@@ -469,8 +469,8 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
 
     @RequiresApi(Build.VERSION_CODES.S)
     private fun deleteMeasureDialog(measure: Measure) {
-        val dialogBuilder = AlertDialog.Builder(activity)
-        dialogBuilder.setTitle("Sei sicuro di voler eliminare la misura?")
+        val dialogBuilder = AlertDialog.Builder(activity, R.style.DialogTheme)
+        dialogBuilder.setMessage("Sei sicuro di voler eliminare la misura?")
         dialogBuilder.setNegativeButton("No") { _, _ -> }
         dialogBuilder.setPositiveButton("Si") { _, _ ->
             CoroutineScope(Dispatchers.IO).launch {
