@@ -4,7 +4,9 @@ import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.app.AppCompatDelegate
 import androidx.preference.EditTextPreference
+import androidx.preference.ListPreference
 import androidx.preference.Preference
 import androidx.preference.PreferenceFragmentCompat
 import androidx.preference.PreferenceManager
@@ -36,6 +38,8 @@ class SettingsActivity : AppCompatActivity() {
             val bad_lte = findPreference<EditTextPreference>("bad_lte")
             val optimal_wifi = findPreference<EditTextPreference>("opt_wifi")
             val bad_wifi = findPreference<EditTextPreference>("bad_wifi")
+
+            val theme = findPreference<ListPreference>("theme_preference")
 
             val prefs = PreferenceManager.getDefaultSharedPreferences(requireContext())
             val editor = prefs.edit()
@@ -104,6 +108,18 @@ class SettingsActivity : AppCompatActivity() {
                     val valid = validateInputBad(newValue.toString(), optimal_wifi?.text, false)
                     valid
                 }
+
+            theme?.onPreferenceChangeListener =
+                Preference.OnPreferenceChangeListener { _, newValue ->
+                    when (newValue as String) {
+                        "0" -> { AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO) }
+                        "1" -> { AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES) }
+                        "2" -> { AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM) }
+                    }
+                    true
+                }
+
+
         }
 
         private fun validateInputOpt(input: String, bad: String?, isDb: Boolean): Boolean {

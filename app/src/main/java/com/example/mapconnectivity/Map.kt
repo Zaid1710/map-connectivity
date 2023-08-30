@@ -439,7 +439,6 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
         dialogBuilder.setTitle("${measures.size} " + if (measures.size == 1) "MISURA TROVATA" else "MISURE TROVATE")
         dialogBuilder.setNegativeButton("Chiudi") { _, _ -> }
         dialogBuilder.setItems(measures_titles) { _, which ->
-            Log.d("SIMONETTA", "${measures[which].id}")
             showDetailsDialog(measures[which])
         }
         dialogBuilder.create().show()
@@ -471,7 +470,7 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
     private fun deleteMeasureDialog(measure: Measure) {
         val dialogBuilder = AlertDialog.Builder(activity, R.style.DialogTheme)
         dialogBuilder.setMessage("Sei sicuro di voler eliminare la misura?")
-        dialogBuilder.setNegativeButton("No") { _, _ -> }
+        dialogBuilder.setNeutralButton("No") { _, _ -> }
         dialogBuilder.setPositiveButton("Si") { _, _ ->
             CoroutineScope(Dispatchers.IO).launch {
                 database.measureDao().deleteMeasureWithId(measure.id)
