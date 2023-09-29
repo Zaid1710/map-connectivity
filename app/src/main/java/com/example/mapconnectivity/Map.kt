@@ -3,6 +3,7 @@ package com.example.mapconnectivity
 import android.annotation.SuppressLint
 import android.app.AlertDialog
 import android.content.Context
+import android.content.res.Configuration
 import android.graphics.Color
 import android.graphics.Rect
 import android.location.Location
@@ -12,6 +13,7 @@ import android.os.Looper
 import android.util.Log
 import android.widget.Toast
 import androidx.annotation.RequiresApi
+import androidx.appcompat.app.AppCompatDelegate
 import androidx.preference.PreferenceManager
 import androidx.room.Room
 import com.google.android.gms.location.FusedLocationProviderClient
@@ -24,6 +26,7 @@ import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.SupportMapFragment
 import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.maps.model.MapStyleOptions
 import com.google.android.gms.maps.model.Polygon
 import com.google.android.gms.maps.model.PolygonOptions
 import kotlinx.coroutines.CoroutineScope
@@ -92,12 +95,27 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
             DB_OPT = -60.0
         }
 
-
         mFusedLocationClient.lastLocation
             .addOnSuccessListener(activity) { location ->
                 if (location != null) {
                     Log.d("LOCATION", "LAT: ${location.latitude}, LONG: ${location.longitude}")
                     mapView?.getMapAsync { googleMap ->
+
+                        var style = MapStyleOptions.loadRawResourceStyle(activity, R.raw.default_theme)
+                        when (prefs.getString("theme_preference", 2.toString())) {
+                            "0" -> { style = MapStyleOptions.loadRawResourceStyle(activity, R.raw.default_theme) }
+                            "1" -> { style = MapStyleOptions.loadRawResourceStyle(activity, R.raw.dark_theme) }
+                            "2" -> {
+                                when (activity.resources?.configuration?.uiMode?.and(Configuration.UI_MODE_NIGHT_MASK)) {
+                                    Configuration.UI_MODE_NIGHT_YES -> {style = MapStyleOptions.loadRawResourceStyle(activity, R.raw.dark_theme)}
+                                    Configuration.UI_MODE_NIGHT_NO -> {style = MapStyleOptions.loadRawResourceStyle(activity, R.raw.default_theme)}
+                                    Configuration.UI_MODE_NIGHT_UNDEFINED -> {style = MapStyleOptions.loadRawResourceStyle(activity, R.raw.default_theme)}
+                                }
+                            }
+                        }
+
+                        googleMap.setMapStyle(style)
+
                         googleMap.uiSettings.isZoomControlsEnabled = true
                         googleMap.isMyLocationEnabled = true
                         googleMap.uiSettings.isMyLocationButtonEnabled = true
@@ -131,6 +149,7 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
     @SuppressLint("MissingPermission")
     fun drawGridOnMap(googleMap: GoogleMap, mode: Int) {
         CoroutineScope(Dispatchers.IO).launch {
+            Log.d("PERCHE", "Sono entrato nella draw grid")
             val zoom: Float = withContext(Dispatchers.Main) { googleMap.cameraPosition.zoom }
 
             val bounds = withContext(Dispatchers.Main) { googleMap.projection.visibleRegion.latLngBounds }
