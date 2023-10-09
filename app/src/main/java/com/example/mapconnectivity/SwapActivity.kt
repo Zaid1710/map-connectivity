@@ -1,18 +1,30 @@
 package com.example.mapconnectivity
 
+import android.Manifest
+import android.annotation.SuppressLint
 import android.app.Activity
+import android.app.AlertDialog
+import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothDevice
+import android.bluetooth.BluetoothManager
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
+import android.content.pm.PackageManager
 import android.os.Build
-import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.util.Log
 import android.view.View
+import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.ProgressBar
 import android.widget.Toast
 import androidx.activity.result.ActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
+import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.room.Room
 import com.fasterxml.jackson.databind.JsonNode
@@ -22,20 +34,38 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.BufferedReader
 import java.io.File
+import java.io.InputStreamReader
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
-import java.io.BufferedReader
-import java.io.InputStreamReader
+
+/**
+ * TODO:
+ *  AL RIAVVIO PULIRE LISTA DI DISPOSITIVI
+ *  ALLA DISCONNESSIONE RIMUOVERE DALLA DI DISPOSITIVI
+ * */
 
 class SwapActivity : AppCompatActivity() {
     private lateinit var importBtn: Button
     private lateinit var exportBtn: Button
+    private lateinit var importBtBtn: Button
+    private lateinit var exportBtBtn: Button
     private lateinit var database: MeasureDB
     private lateinit var measureDao: MeasureDao
     private lateinit var mapper: ObjectMapper
     private lateinit var exportProgressBar: ProgressBar
     private lateinit var importProgressBar: ProgressBar
+    private val PERMISSION_BT_RECEIVER = 3
+    private val PERMISSION_BT_DISCOVER = 4
+    private lateinit var bluetoothManager: BluetoothManager
+    private lateinit var bluetoothAdapter: BluetoothAdapter
+    private lateinit var receiver: BroadcastReceiver
+    private var isReceivers: Boolean = true
+    private var foundDevices: MutableList<String?> = mutableListOf()
+    private lateinit var devicesArrayAdapter: ArrayAdapter<String>
+//    private val intentFilter = IntentFilter()
+//    private lateinit var wifiReceiver: BroadcastReceiver
 
     private val startForResult = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -61,11 +91,62 @@ class SwapActivity : AppCompatActivity() {
         importProgressBar.visibility = View.GONE
     }
 
-    @RequiresApi(Build.VERSION_CODES.O)
+    @RequiresApi(Build.VERSION_CODES.S)
+    private val enableBluetoothLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            if (isReceivers) {
+                Log.d("BLUETOOTH", "sono il ricevitore")
+                btReceiveHandler()
+            } else {
+                Log.d("BLUETOOTH", "sono il mandatore")
+                btDiscoverHandler()
+            }
+
+        } else {
+            val toast = Toast.makeText(applicationContext, "Qualcosa � andato storto!", Toast.LENGTH_SHORT)
+            toast.show()
+        }
+    }
+
+    private val enableDiscoverabilityLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_CANCELED) {
+            Log.d("BLUETOOTH", "Richiesta discoverability cancellata")
+            val toast = Toast.makeText(applicationContext, "Qualcosa è andato storto!", Toast.LENGTH_SHORT)
+            toast.show()
+        } else {
+            Log.d("BLUETOOTH", "Discoverability abilitata con successo")
+
+            if (this.checkSelfPermission("android.permission.ACCESS_COARSE_LOCATION") == PackageManager.PERMISSION_GRANTED) {
+                Log.d("BLUETOOTH", "Receiver registrato")
+            } else {
+                Log.d("BLUETOOTH", "Permesso di posizione negato")
+            }
+        }
+    }
+
+
+    @RequiresApi(Build.VERSION_CODES.S)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_swap)
 
+        devicesArrayAdapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, foundDevices)
+
+//        //  Indicates a change in the Wi-Fi Peer-to-Peer status.
+//        intentFilter.addAction(WifiP2pManager.WIFI_P2P_STATE_CHANGED_ACTION);
+//
+//        // Indicates a change in the list of available peers.
+//        intentFilter.addAction(WifiP2pManager.WIFI_P2P_PEERS_CHANGED_ACTION);
+//
+//        // Indicates the state of Wi-Fi P2P connectivity has changed.
+//        intentFilter.addAction(WifiP2pManager.WIFI_P2P_CONNECTION_CHANGED_ACTION);
+//
+//        // Indicates this device's details have changed.
+//        intentFilter.addAction(WifiP2pManager.WIFI_P2P_THIS_DEVICE_CHANGED_ACTION);
         database = Room.databaseBuilder(this, MeasureDB::class.java, "measuredb").fallbackToDestructiveMigration().build()
         measureDao = database.measureDao()
 
@@ -74,6 +155,9 @@ class SwapActivity : AppCompatActivity() {
         exportBtn = findViewById(R.id.exportBtn)
         exportProgressBar = findViewById(R.id.exportProgressBar)
 
+        importBtBtn = findViewById(R.id.importBtBtn)
+        exportBtBtn = findViewById(R.id.exportBtBtn)
+
         importBtn.setOnClickListener {
             launcherImportData()
         }
@@ -81,9 +165,68 @@ class SwapActivity : AppCompatActivity() {
         exportBtn.setOnClickListener {
             exportData()
         }
+
+        importBtBtn.setOnClickListener {
+            btInit(true)
+        }
+
+        exportBtBtn.setOnClickListener {
+            btInit(false)
+        }
+
+
+//        val mManager = getSystemService(Context.WIFI_P2P_SERVICE) as WifiP2pManager
+//        val mChannel = mManager.initialize(this, mainLooper, null)
     }
 
 
+
+    override fun onDestroy() {
+        super.onDestroy()
+        Log.d("BLUETOOTH", "Receiver deregistrato")
+//        unregisterReceiver(receiver)
+    }
+
+//    override fun onResume() {
+//        super.onResume()
+//
+//        wifiReceiver = object : BroadcastReceiver() {
+//            @RequiresApi(Build.VERSION_CODES.TIRAMISU)
+//            override fun onReceive(context: Context, intent: Intent) {
+//                val action = intent.action
+//                if (WifiP2pManager.WIFI_P2P_STATE_CHANGED_ACTION == action) {
+//                    // Determine if Wifi Direct mode is enabled or not, alert
+//                    // the Activity.
+//                    val state = intent.getIntExtra(WifiP2pManager.EXTRA_WIFI_STATE, -1)
+//                    if (state == WifiP2pManager.WIFI_P2P_STATE_ENABLED) {
+//
+//                    } else {
+//
+//                    }
+//                } else if (WifiP2pManager.WIFI_P2P_PEERS_CHANGED_ACTION == action) {
+//
+//                    // The peer list has changed!  We should probably do something about
+//                    // that.
+//                } else if (WifiP2pManager.WIFI_P2P_CONNECTION_CHANGED_ACTION == action) {
+//
+//                    // Connection state changed!  We should probably do something about
+//                    // that.
+//                } else if (WifiP2pManager.WIFI_P2P_THIS_DEVICE_CHANGED_ACTION == action) {
+//
+//                    //Prendi i dati
+//                    var device = intent.getParcelableExtra(WifiP2pManager.EXTRA_WIFI_P2P_DEVICE, WifiP2pDevice::class.java)
+//                    Log.d("WIFI", "${device?.deviceName}")
+//                }
+//            }
+//        }
+//
+//        registerReceiver(wifiReceiver, intentFilter)
+//    }
+//
+//    override fun onPause() {
+//        super.onPause()
+//        unregisterReceiver(wifiReceiver)
+//    }
 
     @RequiresApi(Build.VERSION_CODES.O)
     private fun exportData() {
@@ -116,7 +259,7 @@ class SwapActivity : AppCompatActivity() {
             } catch (e: Exception) {
                 Log.e("Export", e.toString())
                 withContext(Dispatchers.Main) {
-                    val toast = Toast.makeText(applicationContext, "Qualcosa è andato storto!", Toast.LENGTH_SHORT)
+                    val toast = Toast.makeText(applicationContext, "Qualcosa � andato storto!", Toast.LENGTH_SHORT)
                     toast.show()
                 }
             }
@@ -179,10 +322,187 @@ class SwapActivity : AppCompatActivity() {
             } catch (e: Exception) {
                 Log.e("Import", e.toString())
                 withContext(Dispatchers.Main) {
-                    val toast = Toast.makeText(applicationContext, "Qualcosa è andato storto!", Toast.LENGTH_SHORT)
+                    val toast = Toast.makeText(applicationContext, "Qualcosa � andato storto!", Toast.LENGTH_SHORT)
                     toast.show()
                 }
             }
         }
     }
+
+    /* Verifica un permesso */
+    private fun checkPermission(permission: String): Boolean {
+        return (ContextCompat.checkSelfPermission(
+            this,
+            permission
+        ) == PackageManager.PERMISSION_GRANTED
+                )
+    }
+
+    @SuppressLint("MissingPermission")
+    @RequiresApi(Build.VERSION_CODES.S)
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+
+        var allPermissionsGranted = true
+        for (result in grantResults) {
+            if (result != PackageManager.PERMISSION_GRANTED) {
+                allPermissionsGranted = false
+                break
+            }
+        }
+
+        if (allPermissionsGranted) {
+            // Tutti i permessi sono stati concessi
+            Log.d("PERMISSIONS", "BT - ALL OK")
+            if (requestCode == PERMISSION_BT_RECEIVER) {
+                btInitHandler(true)
+            } else if (requestCode == PERMISSION_BT_DISCOVER) {
+                btInitHandler(false)
+            }
+        } else {
+            // Almeno uno dei permessi � stato negato
+            Log.d("PERMISSIONS", "ONE OR MORE BT PERMISSIONS MISSING")
+        }
+    }
+
+//    @SuppressLint("MissingPermission")
+//    private fun getPairedDevices(): Set<BluetoothDevice>? {
+//        val pairedDevices: Set<BluetoothDevice>? = bluetoothAdapter?.bondedDevices
+//        Log.d("PAIREDDEVICE", "BEGIN")
+//        pairedDevices?.forEach { device ->
+//            val deviceName = device.name
+//            val deviceHardwareAddress = device.address // MAC address
+//            Log.d("PAIREDDEVICE", "$deviceName - $deviceHardwareAddress")
+//        }
+//        Log.d("PAIREDDEVICE", "END")
+//        return pairedDevices
+//    }
+
+    @RequiresApi(Build.VERSION_CODES.S)
+    private fun btInit(isReceiver: Boolean) {
+        bluetoothManager = getSystemService(BluetoothManager::class.java)
+        bluetoothAdapter = bluetoothManager.adapter
+
+        val permissionsToRequest = mutableListOf<String>()
+        if (!checkPermission(Manifest.permission.ACCESS_FINE_LOCATION)) {
+            permissionsToRequest.add(Manifest.permission.ACCESS_FINE_LOCATION)
+        }
+        if (!checkPermission(Manifest.permission.ACCESS_COARSE_LOCATION)) {
+            permissionsToRequest.add(Manifest.permission.ACCESS_COARSE_LOCATION)
+        }
+        if (!checkPermission(Manifest.permission.BLUETOOTH_SCAN)) {
+            permissionsToRequest.add(Manifest.permission.BLUETOOTH_SCAN)
+        }
+        if (!checkPermission(Manifest.permission.BLUETOOTH)) {
+            permissionsToRequest.add(Manifest.permission.BLUETOOTH)
+        }
+        if (!checkPermission(Manifest.permission.BLUETOOTH_CONNECT)) {
+            permissionsToRequest.add(Manifest.permission.BLUETOOTH_CONNECT)
+        }
+//        if (!checkPermission(Manifest.permission.BLUETOOTH_ADMIN)) {
+//            permissionsToRequest.add(Manifest.permission.BLUETOOTH_ADMIN)
+//        }
+//        if (!checkPermission(Manifest.permission.BLUETOOTH_PRIVILEGED)) {
+//            permissionsToRequest.add(Manifest.permission.BLUETOOTH_PRIVILEGED)
+//        }
+//        if (!checkPermission(Manifest.permission.BLUETOOTH_ADVERTISE)) {
+//            permissionsToRequest.add(Manifest.permission.BLUETOOTH_ADVERTISE)
+//        }
+
+        if (permissionsToRequest.isNotEmpty()) {
+            Log.d("PERMISSIONS", "BT PERMISSIONS MISSING")
+            if (isReceiver) {
+                requestPermissions(permissionsToRequest.toTypedArray(), PERMISSION_BT_RECEIVER)
+            } else {
+                requestPermissions(permissionsToRequest.toTypedArray(), PERMISSION_BT_DISCOVER)
+            }
+
+        } else {
+            // Tutti i permessi sono stati già concessi
+            Log.d("PERMISSIONS", "BT PERMISSIONS GRANTED")
+            btInitHandler(isReceiver)
+        }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.S)
+    private fun btInitHandler(isReceiver: Boolean) {
+        if (!bluetoothAdapter.isEnabled) {
+            val enableBtIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
+            isReceivers = isReceiver
+            enableBluetoothLauncher.launch(enableBtIntent)
+        } else {
+            if (isReceiver) {
+                btReceiveHandler()
+            } else {
+                btDiscoverHandler()
+            }
+        }
+    }
+
+    // Quello che importa. Rileva gli altri dipositivi e ci si connette come client
+    @RequiresApi(Build.VERSION_CODES.S)
+    @SuppressLint("MissingPermission")
+    private fun btReceiveHandler() {
+//        val pairedDevices = getPairedDevices()
+//        btDiscoverHandler()
+
+
+        val filter = IntentFilter()
+        filter.addAction(BluetoothDevice.ACTION_FOUND)
+        filter.addAction(BluetoothDevice.ACTION_ACL_CONNECTED)
+        filter.addAction(BluetoothDevice.ACTION_ACL_DISCONNECTED)
+        filter.addAction(BluetoothDevice.ACTION_ACL_DISCONNECT_REQUESTED)
+        receiver = object : BroadcastReceiver() {
+            @SuppressLint("MissingPermission")
+            @RequiresApi(Build.VERSION_CODES.TIRAMISU)
+            override fun onReceive(context: Context, intent: Intent) {
+                Log.d("BLUETOOTH", "Ricevuto intent: ${intent.action}")
+                when (intent.action) {
+                    BluetoothDevice.ACTION_FOUND -> {
+                        val device: BluetoothDevice? = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice::class.java)
+                        if (!foundDevices.contains(device?.name)) {
+                            foundDevices.add(device?.name)
+                            devicesArrayAdapter.notifyDataSetChanged()
+                        }
+
+                        val deviceName = device?.name
+                        val deviceHardwareAddress = device?.address // MAC address
+
+                        Log.d("BLUETOOTH", "$deviceName - $deviceHardwareAddress")
+                    }
+                }
+            }
+        }
+        registerReceiver(receiver, filter)
+        bluetoothAdapter.startDiscovery()
+        showListOfDevicesDialog()
+    }
+
+    // Quello che esporta. Si rende rilevabile agli altri dispositivi e fa da server
+    @SuppressLint("MissingPermission")
+    private fun btDiscoverHandler() {
+        val discoverableIntent: Intent = Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE).apply {
+            putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 300)
+        }
+        Log.d("BLUETOOTH", "Richiesta di discoverability in corso...")
+        enableDiscoverabilityLauncher.launch(discoverableIntent)
+
+    }
+
+    @RequiresApi(Build.VERSION_CODES.S)
+    private fun showListOfDevicesDialog() {
+        val dialogBuilder = AlertDialog.Builder(this, R.style.DialogTheme)
+//        val measures_titles = createExpandedString(measures)
+        dialogBuilder.setTitle("DISPOSITIVI NELLE VICINANZE")
+        dialogBuilder.setNegativeButton("Chiudi") { _, _ -> }
+        dialogBuilder.setAdapter(devicesArrayAdapter, null)
+//        dialogBuilder.setItems(measures_titles) { _, which ->
+//            showDetailsDialog(measures[which])
+//        }
+
+        val dialog = dialogBuilder.create()
+        dialog.show()
+    }
+
 }
+

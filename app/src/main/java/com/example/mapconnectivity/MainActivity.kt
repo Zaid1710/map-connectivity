@@ -1,6 +1,8 @@
 package com.example.mapconnectivity
 
 import android.Manifest
+import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothManager
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
@@ -44,6 +46,7 @@ class MainActivity : AppCompatActivity() {
     val PERMISSION_INIT = 0
     val PERMISSION_MEASUREMENTS = 1
     val PERMISSION_OUTSIDE_MEASUREMENTS = 2
+    val PERMISSION_BT = 3
 
     private lateinit var fm: FragmentManager
     private lateinit var mapView: SupportMapFragment
@@ -149,7 +152,7 @@ class MainActivity : AppCompatActivity() {
 
 
     /* Verifica un permesso */
-    fun checkPermission(permission: String): Boolean {
+    private fun checkPermission(permission: String): Boolean {
         return (ContextCompat.checkSelfPermission(
                 this,
                 permission
