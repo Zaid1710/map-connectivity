@@ -14,6 +14,8 @@ import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.view.View
 import android.widget.ArrayAdapter
@@ -42,8 +44,8 @@ import java.time.format.DateTimeFormatter
 
 /**
  * TODO:
- *  AL RIAVVIO PULIRE LISTA DI DISPOSITIVI
- *  ALLA DISCONNESSIONE RIMUOVERE DALLA DI DISPOSITIVI
+ *  FARE IN MODO CHE I PULSANTI NON VENGANO PREMUTI PIÙ DI UNA VOLTA A SESSIONE DI SCAMBIO
+ *  FARE IN MODO DI POTER SPEGNERE LA DISCOVERABILITÀ (SMETTERE DI ESPORTARE)
  * */
 
 class SwapActivity : AppCompatActivity() {
@@ -63,6 +65,7 @@ class SwapActivity : AppCompatActivity() {
     private lateinit var receiver: BroadcastReceiver
     private var isReceivers: Boolean = true
     private var foundDevices: MutableList<String?> = mutableListOf()
+    private var newFoundDevices: MutableList<String?> = mutableListOf()
     private lateinit var devicesArrayAdapter: ArrayAdapter<String>
 //    private val intentFilter = IntentFilter()
 //    private lateinit var wifiReceiver: BroadcastReceiver
@@ -134,7 +137,16 @@ class SwapActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_swap)
 
+        foundDevices = mutableListOf()
+        newFoundDevices = mutableListOf()
         devicesArrayAdapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, foundDevices)
+        Log.d("BLUETOOTH", "Before:")
+        for (i in 0 until devicesArrayAdapter.count) {
+            val item = devicesArrayAdapter.getItem(i)
+            Log.d("BLUETOOTH", "Item $i: $item")
+        }
+        Log.d("BLUETOOTH", "END")
+
 
 //        //  Indicates a change in the Wi-Fi Peer-to-Peer status.
 //        intentFilter.addAction(WifiP2pManager.WIFI_P2P_STATE_CHANGED_ACTION);
@@ -181,10 +193,14 @@ class SwapActivity : AppCompatActivity() {
 
 
 
+    @RequiresApi(Build.VERSION_CODES.S)
+    @SuppressLint("MissingPermission")
     override fun onDestroy() {
         super.onDestroy()
         Log.d("BLUETOOTH", "Receiver deregistrato")
-//        unregisterReceiver(receiver)
+        if(bluetoothAdapter.isDiscovering) {
+            stopScanning()
+        }
     }
 
 //    override fun onResume() {
@@ -360,7 +376,7 @@ class SwapActivity : AppCompatActivity() {
                 btInitHandler(false)
             }
         } else {
-            // Almeno uno dei permessi � stato negato
+            // Almeno uno dei permessi è stato negato
             Log.d("PERMISSIONS", "ONE OR MORE BT PERMISSIONS MISSING")
         }
     }
@@ -424,6 +440,7 @@ class SwapActivity : AppCompatActivity() {
         }
     }
 
+    // Questa funzione è inutile, si può accorpare con quella sopra
     @RequiresApi(Build.VERSION_CODES.S)
     private fun btInitHandler(isReceiver: Boolean) {
         if (!bluetoothAdapter.isEnabled) {
@@ -443,9 +460,7 @@ class SwapActivity : AppCompatActivity() {
     @RequiresApi(Build.VERSION_CODES.S)
     @SuppressLint("MissingPermission")
     private fun btReceiveHandler() {
-//        val pairedDevices = getPairedDevices()
-//        btDiscoverHandler()
-
+        startScanning()
 
         val filter = IntentFilter()
         filter.addAction(BluetoothDevice.ACTION_FOUND)
@@ -460,9 +475,17 @@ class SwapActivity : AppCompatActivity() {
                 when (intent.action) {
                     BluetoothDevice.ACTION_FOUND -> {
                         val device: BluetoothDevice? = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice::class.java)
+                        newFoundDevices.add(device?.name)
                         if (!foundDevices.contains(device?.name)) {
                             foundDevices.add(device?.name)
                             devicesArrayAdapter.notifyDataSetChanged()
+
+                            Log.d("BLUETOOTH", "After:")
+                            for (i in 0 until devicesArrayAdapter.count) {
+                                val item = devicesArrayAdapter.getItem(i)
+                                Log.d("BLUETOOTH", "Item $i: $item")
+                            }
+                            Log.d("BLUETOOTH", "END")
                         }
 
                         val deviceName = device?.name
@@ -474,7 +497,6 @@ class SwapActivity : AppCompatActivity() {
             }
         }
         registerReceiver(receiver, filter)
-        bluetoothAdapter.startDiscovery()
         showListOfDevicesDialog()
     }
 
@@ -504,5 +526,41 @@ class SwapActivity : AppCompatActivity() {
         dialog.show()
     }
 
+    private val bluetoothHandler = Handler(Looper.getMainLooper())
+    private val scanInterval = 2000 // Intervallo di scansione in millisecondi (2 secondi)
+
+    private val scanRunnable = object : Runnable {
+        @SuppressLint("MissingPermission")
+        override fun run() {
+            // Avvia una nuova scansione
+            Log.d("LISTE", "NEWFOUNDDEVICES: $newFoundDevices")
+            Log.d("LISTE", "FOUNDDEVICES: $foundDevices")
+            foundDevices -= foundDevices.subtract(newFoundDevices)
+            Log.d("LISTE", "REMOVE: $foundDevices")
+            devicesArrayAdapter.notifyDataSetChanged()
+
+            newFoundDevices.clear()
+            bluetoothAdapter.startDiscovery()
+
+            // Ripeti la scansione dopo l'intervallo
+            bluetoothHandler.postDelayed(this, scanInterval.toLong())
+        }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.S)
+    @SuppressLint("MissingPermission")
+    private fun startScanning() {
+        // Inizia la scansione periodica
+        bluetoothHandler.post(scanRunnable)
+    }
+
+    @RequiresApi(Build.VERSION_CODES.S)
+    @SuppressLint("MissingPermission")
+    private fun stopScanning() {
+        // Interrompi la scansione periodica
+        bluetoothAdapter.cancelDiscovery()
+        unregisterReceiver(receiver)
+        bluetoothHandler.removeCallbacks(scanRunnable)
+    }
 }
 
