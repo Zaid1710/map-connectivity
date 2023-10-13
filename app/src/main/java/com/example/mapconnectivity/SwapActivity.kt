@@ -7,6 +7,8 @@ import android.app.AlertDialog
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothManager
+import android.bluetooth.BluetoothServerSocket
+import android.bluetooth.BluetoothSocket
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -20,6 +22,7 @@ import android.util.Log
 import android.view.View
 import android.widget.ArrayAdapter
 import android.widget.Button
+import android.widget.ListView
 import android.widget.ProgressBar
 import android.widget.Toast
 import androidx.activity.result.ActivityResult
@@ -38,9 +41,11 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.BufferedReader
 import java.io.File
+import java.io.IOException
 import java.io.InputStreamReader
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
+import java.util.UUID
 
 /**
  * TODO:
@@ -64,11 +69,11 @@ class SwapActivity : AppCompatActivity() {
     private lateinit var bluetoothAdapter: BluetoothAdapter
     private lateinit var receiver: BroadcastReceiver
     private var isReceivers: Boolean = true
-    private var foundDevices: MutableList<String?> = mutableListOf()
-    private var newFoundDevices: MutableList<String?> = mutableListOf()
-    private lateinit var devicesArrayAdapter: ArrayAdapter<String>
-//    private val intentFilter = IntentFilter()
-//    private lateinit var wifiReceiver: BroadcastReceiver
+    private var foundDevices: MutableList<BluetoothDevice?> = mutableListOf()
+    private var newFoundDevices: MutableList<BluetoothDevice?> = mutableListOf()
+    private lateinit var devicesArrayAdapter: ArrayAdapter<BluetoothDevice>
+    private val bluetooth_UUID = UUID.fromString("161201d1-1def-4267-89a4-c88b23b4bd87")
+    private val bluetooth_NAME = "mapConnectivity"
 
     private val startForResult = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -108,7 +113,7 @@ class SwapActivity : AppCompatActivity() {
             }
 
         } else {
-            val toast = Toast.makeText(applicationContext, "Qualcosa � andato storto!", Toast.LENGTH_SHORT)
+            val toast = Toast.makeText(applicationContext, "Qualcosa è andato storto!", Toast.LENGTH_SHORT)
             toast.show()
         }
     }
@@ -475,9 +480,9 @@ class SwapActivity : AppCompatActivity() {
                 when (intent.action) {
                     BluetoothDevice.ACTION_FOUND -> {
                         val device: BluetoothDevice? = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice::class.java)
-                        newFoundDevices.add(device?.name)
-                        if (!foundDevices.contains(device?.name)) {
-                            foundDevices.add(device?.name)
+                        newFoundDevices.add(device)
+                        if (!foundDevices.contains(device)) {
+                            foundDevices.add(device)
                             devicesArrayAdapter.notifyDataSetChanged()
 
                             Log.d("BLUETOOTH", "After:")
@@ -509,18 +514,38 @@ class SwapActivity : AppCompatActivity() {
         Log.d("BLUETOOTH", "Richiesta di discoverability in corso...")
         enableDiscoverabilityLauncher.launch(discoverableIntent)
 
+        CoroutineScope(Dispatchers.IO).launch {
+            var serverSocket = AcceptThread()
+            serverSocket.start()
+        }
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
     private fun showListOfDevicesDialog() {
         val dialogBuilder = AlertDialog.Builder(this, R.style.DialogTheme)
-//        val measures_titles = createExpandedString(measures)
         dialogBuilder.setTitle("DISPOSITIVI NELLE VICINANZE")
         dialogBuilder.setNegativeButton("Chiudi") { _, _ -> }
-        dialogBuilder.setAdapter(devicesArrayAdapter, null)
+
+        val listView = ListView(this)
+        listView.adapter = devicesArrayAdapter
+
+        listView.setOnItemClickListener { _, _, position, _ ->
+            val selectedDevice = devicesArrayAdapter.getItem(position)
+
+            if (selectedDevice != null) {
+                Log.d("BLUETOOTH", selectedDevice.toString())
+                var clientSocket = ConnectThread(selectedDevice)
+                clientSocket.start()
+            }
+        }
+
+        dialogBuilder.setView(listView)
+
+//        dialogBuilder.setAdapter(devicesArrayAdapter, null)
 //        dialogBuilder.setItems(measures_titles) { _, which ->
 //            showDetailsDialog(measures[which])
 //        }
+
 
         val dialog = dialogBuilder.create()
         dialog.show()
@@ -561,6 +586,73 @@ class SwapActivity : AppCompatActivity() {
         bluetoothAdapter.cancelDiscovery()
         unregisterReceiver(receiver)
         bluetoothHandler.removeCallbacks(scanRunnable)
+    }
+
+    // SERVER //
+    @SuppressLint("MissingPermission")
+    private inner class AcceptThread : Thread() {
+        private val mmServerSocket: BluetoothServerSocket? by lazy(LazyThreadSafetyMode.NONE) {
+            bluetoothAdapter.listenUsingInsecureRfcommWithServiceRecord(bluetooth_NAME, bluetooth_UUID)
+        }
+
+        override fun run() {
+            // Rimane in ascolto finché non viene trovato un socket o viene catturata un'eccezione
+            var shouldLoop = true
+            while (shouldLoop) {
+                val socket: BluetoothSocket? = try {
+                    mmServerSocket?.accept()
+                } catch (e: IOException) {
+                    Log.e("BLUETOOTH", "Accept() ha fallito", e)
+                    shouldLoop = false
+                    null
+                }
+                socket?.also {
+                    Log.d("BLUETOOTH", "Accept() ha avuto successo")
+                    mmServerSocket?.close()
+                    shouldLoop = false
+                }
+            }
+        }
+
+        // Chiude il socket e termina la connessione
+        fun cancel() {
+            try {
+                mmServerSocket?.close()
+            } catch (e: IOException) {
+                Log.e("BLUETOOTH", "Non è stato possibile chiudere il socket server", e)
+            }
+        }
+    }
+
+    // CLIENT //
+    @SuppressLint("MissingPermission")
+    private inner class ConnectThread(device: BluetoothDevice) : Thread() {
+        private val mmSocket: BluetoothSocket? by lazy(LazyThreadSafetyMode.NONE) {
+            device.createRfcommSocketToServiceRecord(bluetooth_UUID)
+        }
+
+        @RequiresApi(Build.VERSION_CODES.S)
+        override fun run() {
+            // Cancella la ricerca perchè non più necessaria
+            stopScanning()
+
+            mmSocket?.let { socket ->
+                // Si connette al dispositivo remoto tramite il socket.
+                socket.connect()
+
+                // La connessione è stata effettuata con successo.
+                Log.d("BLUETOOTH", "Connessione effettuata con successo")
+            }
+        }
+
+        // Chiude il socket e termina la connessione
+        fun cancel() {
+            try {
+                mmSocket?.close()
+            } catch (e: IOException) {
+                Log.e("BLUETOOTH", "Non è stato possibile chiudere il socket client", e)
+            }
+        }
     }
 }
 
