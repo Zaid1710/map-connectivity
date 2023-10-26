@@ -77,9 +77,34 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="ESPORTA BLUETOOTH"
+        android:visibility="visible"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="@+id/guideline4"
         app:layout_constraintTop_toTopOf="@+id/guideline5" />
+
+    <Button
+        android:id="@+id/stopExportBtBtn"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="INTERROMPI ESPORTA"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="@+id/guideline4"
+        app:layout_constraintTop_toTopOf="@+id/guideline5"
+        app:layout_constraintVertical_bias="0.501" />
+
+    <androidx.fragment.app.FragmentContainerView
+        android:id="@+id/loadingFragment"
+        android:name="com.example.mapconnectivity.Loading"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        tools:layout="@layout/fragment_loading" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
