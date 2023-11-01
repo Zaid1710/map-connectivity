@@ -51,12 +51,14 @@ import java.io.InputStreamReader
 import java.io.OutputStream
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
+import java.util.Arrays.copyOf
 import java.util.UUID
 
 /**
  * TODO:
  *  FORSE OGNI TANTO MANDA ANCORA MESSAGGI A CASO
  *  MOSTRARE ANCHE I DISPOSITIVI GIÀ CONNESSI SE NO ESPLODE TUTTO
+ *  CHIUDERE PAGINA DI CONNESSIONE QUANDO PASSANO I MINUTI DI DISCOVERABILITY
  * */
 
 class SwapActivity : AppCompatActivity() {
@@ -86,8 +88,6 @@ class SwapActivity : AppCompatActivity() {
     private val bluetooth_UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
     private val bluetooth_NAME = "mapConnectivity"
     private lateinit var messageHandler: Handler
-    private val MESSAGE_READ: Int = 0
-    private val MESSAGE_WRITE: Int = 1
     private var receivedText: String = ""
     private val compareText = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed sed accumsan neque. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Morbi vel tristique nisl. Suspendisse commodo suscipit sem, in eleifend leo vestibulum sit amet. Aliquam vel finibus odio. Nunc ut laoreet dui, et interdum metus. Nulla facilisi. Morbi suscipit euismod ex, eget tincidunt enim semper a. Ut dictum rhoncus risus, a convallis purus dictum eget. Aenean elementum venenatis rutrum. Ut fermentum in diam a eleifend. Morbi eget maximus mi. Praesent cursus ligula nunc, eget imperdiet est laoreet id. Cras mauris urna, eleifend ut leo ac, molestie feugiat eros. Nulla ac lobortis dui, at placerat ex. Duis vestibulum suscipit dictum.\n" +
     "\n" +
@@ -397,7 +397,7 @@ class SwapActivity : AppCompatActivity() {
 
 //    @SuppressLint("MissingPermission")
 //    private fun getPairedDevices(): Set<BluetoothDevice>? {
-//        val pairedDevices: Set<BluetoothDevice>? = bluetoothAdapter?.bondedDevices
+//        val pairedDevices: Set<BluetoothDevice>? = bluetoothAdapter.bondedDevices
 //        Log.d("PAIREDDEVICE", "BEGIN")
 //        pairedDevices?.forEach { device ->
 //            val deviceName = device.name
@@ -407,7 +407,6 @@ class SwapActivity : AppCompatActivity() {
 //        Log.d("PAIREDDEVICE", "END")
 //        return pairedDevices
 //    }
-
 
     private fun manageData() {
         var data = receivedText
@@ -428,16 +427,16 @@ class SwapActivity : AppCompatActivity() {
         messageHandler = object : Handler(Looper.getMainLooper()) {
 
             override fun handleMessage(msg: Message) {
-                val numBytes = msg.arg1
-                val byteArray = msg.obj as ByteArray
-                var text = String(byteArray, Charsets.UTF_8)
-                text = text.substring(0, numBytes)
-//                Log.d("TRANSMISSION", "DOPO: $text")
-                receivedText += text
-
-                if (text.contains("-- END --")) {
-                    manageData()
-                }
+//                val numBytes = msg.arg1
+//                val byteArray = msg.obj as ByteArray
+//                var text = String(byteArray, Charsets.UTF_8)
+//                text = text.substring(0, numBytes)
+////                Log.d("TRANSMISSION", "DOPO: $text")
+//                receivedText += text
+//
+//                if (text.contains("-- END --")) {
+//                    manageData()
+//                }
             }
         }
 
@@ -496,9 +495,9 @@ class SwapActivity : AppCompatActivity() {
 
         val filter = IntentFilter()
         filter.addAction(BluetoothDevice.ACTION_FOUND)
-        filter.addAction(BluetoothDevice.ACTION_ACL_CONNECTED)
-        filter.addAction(BluetoothDevice.ACTION_ACL_DISCONNECTED)
-        filter.addAction(BluetoothDevice.ACTION_ACL_DISCONNECT_REQUESTED)
+//        filter.addAction(BluetoothDevice.ACTION_ACL_CONNECTED)
+//        filter.addAction(BluetoothDevice.ACTION_ACL_DISCONNECTED)
+//        filter.addAction(BluetoothDevice.ACTION_ACL_DISCONNECT_REQUESTED)
         receiver = object : BroadcastReceiver() {
             @SuppressLint("MissingPermission")
             @RequiresApi(Build.VERSION_CODES.TIRAMISU)
@@ -546,7 +545,7 @@ class SwapActivity : AppCompatActivity() {
         enableDiscoverabilityLauncher.launch(discoverableIntent)
 
         CoroutineScope(Dispatchers.IO).launch {
-            var serverSocket = AcceptThread()
+            val serverSocket = AcceptThread()
             serverSocket.start()
         }
     }
@@ -566,7 +565,7 @@ class SwapActivity : AppCompatActivity() {
 
             if (selectedDevice != null) {
                 Log.d("BLUETOOTH", selectedDevice.toString())
-                var clientSocket = ConnectThread(selectedDevice)
+                val clientSocket = ConnectThread(selectedDevice)
                 clientSocket.start()
             }
         }
@@ -675,20 +674,20 @@ class SwapActivity : AppCompatActivity() {
             val byteLength = longString.toByteArray(Charsets.UTF_8).size
             Log.d("TRANSMISSION", "Lunghezza in byte: $byteLength")
 
-            val messageBytes = longString.toByteArray()
-            for (i in messageBytes.indices step 1024) {
-                val endIndex = minOf(i + 1024, messageBytes.size)
-                val block = messageBytes.copyOfRange(i, endIndex)
-                Handler(Looper.getMainLooper()).postDelayed(
-                    {
-                        thread.write(block)
-                    },
-                    100
-                )
+//            val messageBytes = longString.toByteArray()
+//            for (i in messageBytes.indices step 1024) {
+//                val endIndex = minOf(i + 1024, messageBytes.size)
+//                val block = messageBytes.copyOfRange(i, endIndex)
+//                Handler(Looper.getMainLooper()).postDelayed(
+//                    {
+//                        thread.write(block)
+//                    },
+//                    100
+//                )
+//
+//            }
 
-            }
-
-//            thread.write(longString.toByteArray())
+            thread.write(longString.toByteArray())
         }
     }
 
@@ -707,9 +706,16 @@ class SwapActivity : AppCompatActivity() {
             mmSocket?.let { socket ->
                 // Si connette al dispositivo remoto tramite il socket.
                 Log.d("VEDIAMO", "A")
-                socket.connect()
+                try {
+                    if (!socket.isConnected) {
+                        socket.connect()
+                        manageSocket(socket)
+                    }
+                } catch (e: IOException) {
+                    Log.e("ERRORAZZO", "Si è verificato un errore", e)
+                }
                 Log.d("VEDIAMO", "B")
-                manageSocket(socket)
+//                manageSocket(socket)
                 Log.d("VEDIAMO", "C")
                 // La connessione è stata effettuata con successo.
                 Log.d("BLUETOOTH", "Connessione effettuata con successo")
@@ -743,40 +749,51 @@ class SwapActivity : AppCompatActivity() {
 
         private val mmInStream: InputStream = mmSocket.inputStream
         private val mmOutStream: OutputStream = mmSocket.outputStream
-        private val mmBuffer: ByteArray = ByteArray(1024) // mmBuffer store for the stream
+        private val mmBuffer = ByteArray(1024) // mmBuffer store for the stream
 
         override fun run() {
+            var fullMsg = ""
             Log.d("VEDIAMO", "F")
             var numBytes: Int // bytes returned from read()
 //            var receivedData = ""
             // Keep listening to the InputStream until an exception occurs.
             while (true) {
                 // Read from the InputStream.
-                if ( mmInStream.available() > 0 ){
-                    numBytes = try {
+                if ( mmInStream.available() > 0 ) {
+                    try {
                         Log.d("VEDIAMO", "G")
-                        mmInStream.read(mmBuffer)
+                        numBytes = mmInStream.read(mmBuffer)
+                        fullMsg += String(mmBuffer.copyOf(numBytes), Charsets.UTF_8)
                     } catch (e: IOException) {
                         Log.d("VEDIAMO", "H")
                         Log.d("BLUETOOTH", "Input stream was disconnected", e)
                         break
                     }
+
                 }
                 else {
                     numBytes = 0
                     SystemClock.sleep(100)
                 }
 
-
                 Log.d("VEDIAMO", "I")
                 // Send the obtained bytes to the UI activity.
-                val readMsg = messageHandler.obtainMessage(MESSAGE_READ, numBytes, -1, mmBuffer)
-                readMsg.sendToTarget()
+//                val readMsg = messageHandler.obtainMessage(MESSAGE_READ, numBytes, -1, mmBuffer)
+//                readMsg.sendToTarget()
 //                Log.d("TRANSMISSION", "PRIMA: ${String(mmBuffer, Charsets.UTF_8)}")
                 Log.d("VEDIAMO", "J")
 //                receivedData += String(mmBuffer, 0, numBytes)
+
+                if (fullMsg.contains("-- END --")) {
+                    fullMsg = fullMsg.replace("-- END --", "")
+                    break
+                }
+
             }
-//            Log.d("TRANSMISSION", receivedData)
+            Log.d("TRANSMISSION", (fullMsg == compareText).toString())
+            Log.d("TRANSMISSION", fullMsg)
+
+            // QUI CONTINUA IL CODICE.
         }
 
         // Call this from the main activity to send data to the remote device.
