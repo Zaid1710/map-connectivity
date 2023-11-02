@@ -89,16 +89,6 @@ class SwapActivity : AppCompatActivity() {
     private val bluetooth_NAME = "mapConnectivity"
     private lateinit var messageHandler: Handler
     private var receivedText: String = ""
-    private val compareText = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed sed accumsan neque. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Morbi vel tristique nisl. Suspendisse commodo suscipit sem, in eleifend leo vestibulum sit amet. Aliquam vel finibus odio. Nunc ut laoreet dui, et interdum metus. Nulla facilisi. Morbi suscipit euismod ex, eget tincidunt enim semper a. Ut dictum rhoncus risus, a convallis purus dictum eget. Aenean elementum venenatis rutrum. Ut fermentum in diam a eleifend. Morbi eget maximus mi. Praesent cursus ligula nunc, eget imperdiet est laoreet id. Cras mauris urna, eleifend ut leo ac, molestie feugiat eros. Nulla ac lobortis dui, at placerat ex. Duis vestibulum suscipit dictum.\n" +
-    "\n" +
-    "In porta justo finibus orci imperdiet placerat. Sed pellentesque sit amet velit et ultricies. Donec mollis magna at quam condimentum mattis. Fusce malesuada, tellus id suscipit ullamcorper, ligula est finibus risus, a ornare sapien magna nec libero. Sed sagittis augue neque, sit amet sodales urna posuere non. Vestibulum aliquam, ligula vitae porttitor pellentesque, tellus metus mattis lorem, in venenatis massa metus vitae libero. Nunc et tristique arcu. Suspendisse potenti.\n" +
-    "\n" +
-    "Nam ornare felis eros, nec auctor tellus congue eu. Mauris sagittis lacinia pulvinar. Curabitur sit amet ultrices magna, a pellentesque ex. Sed hendrerit tempus euismod. In hac habitasse platea dictumst. Nullam pulvinar tellus vitae semper scelerisque. Donec urna tortor, finibus ac cursus in, dictum vitae ipsum. Fusce consequat efficitur diam. Curabitur massa elit, fermentum vel pulvinar a, lacinia in nunc.\n" +
-    "\n" +
-    "Sed ac pretium libero, a ultricies justo. Nunc non magna ullamcorper, dapibus mauris vitae, feugiat risus. Aliquam bibendum pretium neque, ut semper est. Proin vestibulum nisl velit, at posuere quam faucibus ut. Sed ipsum urna, fringilla non malesuada nec, faucibus sed erat. Donec ultricies sapien vitae nisl tincidunt, vitae pulvinar lacus auctor. In accumsan dui vitae erat lobortis, in pellentesque purus pellentesque. Duis dictum lacus ex. Pellentesque malesuada odio nec neque hendrerit dictum. Nam velit diam, imperdiet ac neque id, rutrum varius erat. Nullam rutrum convallis massa cursus laoreet. Sed nunc tortor, congue ac nibh sed, pellentesque imperdiet purus. Praesent a consequat nulla. Curabitur condimentum feugiat metus. Aenean bibendum consequat sollicitudin. Nulla eleifend tristique justo, nec interdum leo vehicula accumsan.\n" +
-    "\n" +
-    "Ut eros lacus, mattis nec lacinia a, imperdiet sit amet lorem. Morbi eget lorem purus. Proin semper metus in libero ornare aliquam. Ut pellentesque a nulla quis consectetur. Integer venenatis metus sit amet orci molestie, non placerat nibh posuere. Sed pellentesque ligula et faucibus tincidunt. Maecenas at leo quis felis porta tincidunt. Orci varius natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus. Morbi suscipit tempor lobortis. Aliquam imperdiet eu quam eu dignissim. Nulla eget libero."
-
 
     private val startForResult = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -229,7 +219,22 @@ class SwapActivity : AppCompatActivity() {
         }
 
         exportBtBtn.setOnClickListener {
-            btInit(false)
+            CoroutineScope(Dispatchers.IO).launch {
+                val measures = measureDao.getAllMeasures()
+                if (measures.isEmpty()) {
+                    withContext(Dispatchers.Main) {
+                        val toast = Toast.makeText(
+                            applicationContext,
+                            "Nessuna misura presente",
+                            Toast.LENGTH_SHORT
+                        )
+                        toast.show()
+                    }
+                } else {
+                    btInit(false)
+                }
+            }
+
         }
 
 //        stopExportBtBtn.setOnClickListener {
@@ -414,7 +419,6 @@ class SwapActivity : AppCompatActivity() {
         data = data.replace("-- END --", "")
         Log.d("TRANSMISSION", data)
         Log.d("TRANSMISSION", "Trasmissione finita, buonanotte")
-        Log.d("TRANSMISSION", (data == compareText).toString())
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
@@ -654,24 +658,27 @@ class SwapActivity : AppCompatActivity() {
 
         // Send data
         fun manageSocket(socket: BluetoothSocket) {
+//            var longString = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed sed accumsan neque. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Morbi vel tristique nisl. Suspendisse commodo suscipit sem, in eleifend leo vestibulum sit amet. Aliquam vel finibus odio. Nunc ut laoreet dui, et interdum metus. Nulla facilisi. Morbi suscipit euismod ex, eget tincidunt enim semper a. Ut dictum rhoncus risus, a convallis purus dictum eget. Aenean elementum venenatis rutrum. Ut fermentum in diam a eleifend. Morbi eget maximus mi. Praesent cursus ligula nunc, eget imperdiet est laoreet id. Cras mauris urna, eleifend ut leo ac, molestie feugiat eros. Nulla ac lobortis dui, at placerat ex. Duis vestibulum suscipit dictum.\n" +
+//                    "\n" +
+//                    "In porta justo finibus orci imperdiet placerat. Sed pellentesque sit amet velit et ultricies. Donec mollis magna at quam condimentum mattis. Fusce malesuada, tellus id suscipit ullamcorper, ligula est finibus risus, a ornare sapien magna nec libero. Sed sagittis augue neque, sit amet sodales urna posuere non. Vestibulum aliquam, ligula vitae porttitor pellentesque, tellus metus mattis lorem, in venenatis massa metus vitae libero. Nunc et tristique arcu. Suspendisse potenti.\n" +
+//                    "\n" +
+//                    "Nam ornare felis eros, nec auctor tellus congue eu. Mauris sagittis lacinia pulvinar. Curabitur sit amet ultrices magna, a pellentesque ex. Sed hendrerit tempus euismod. In hac habitasse platea dictumst. Nullam pulvinar tellus vitae semper scelerisque. Donec urna tortor, finibus ac cursus in, dictum vitae ipsum. Fusce consequat efficitur diam. Curabitur massa elit, fermentum vel pulvinar a, lacinia in nunc.\n" +
+//                    "\n" +
+//                    "Sed ac pretium libero, a ultricies justo. Nunc non magna ullamcorper, dapibus mauris vitae, feugiat risus. Aliquam bibendum pretium neque, ut semper est. Proin vestibulum nisl velit, at posuere quam faucibus ut. Sed ipsum urna, fringilla non malesuada nec, faucibus sed erat. Donec ultricies sapien vitae nisl tincidunt, vitae pulvinar lacus auctor. In accumsan dui vitae erat lobortis, in pellentesque purus pellentesque. Duis dictum lacus ex. Pellentesque malesuada odio nec neque hendrerit dictum. Nam velit diam, imperdiet ac neque id, rutrum varius erat. Nullam rutrum convallis massa cursus laoreet. Sed nunc tortor, congue ac nibh sed, pellentesque imperdiet purus. Praesent a consequat nulla. Curabitur condimentum feugiat metus. Aenean bibendum consequat sollicitudin. Nulla eleifend tristique justo, nec interdum leo vehicula accumsan.\n" +
+//                    "\n" +
+//                    "Ut eros lacus, mattis nec lacinia a, imperdiet sit amet lorem. Morbi eget lorem purus. Proin semper metus in libero ornare aliquam. Ut pellentesque a nulla quis consectetur. Integer venenatis metus sit amet orci molestie, non placerat nibh posuere. Sed pellentesque ligula et faucibus tincidunt. Maecenas at leo quis felis porta tincidunt. Orci varius natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus. Morbi suscipit tempor lobortis. Aliquam imperdiet eu quam eu dignissim. Nulla eget libero."
             val thread = ConnectedThread(socket)
-            var longString = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed sed accumsan neque. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Morbi vel tristique nisl. Suspendisse commodo suscipit sem, in eleifend leo vestibulum sit amet. Aliquam vel finibus odio. Nunc ut laoreet dui, et interdum metus. Nulla facilisi. Morbi suscipit euismod ex, eget tincidunt enim semper a. Ut dictum rhoncus risus, a convallis purus dictum eget. Aenean elementum venenatis rutrum. Ut fermentum in diam a eleifend. Morbi eget maximus mi. Praesent cursus ligula nunc, eget imperdiet est laoreet id. Cras mauris urna, eleifend ut leo ac, molestie feugiat eros. Nulla ac lobortis dui, at placerat ex. Duis vestibulum suscipit dictum.\n" +
-                    "\n" +
-                    "In porta justo finibus orci imperdiet placerat. Sed pellentesque sit amet velit et ultricies. Donec mollis magna at quam condimentum mattis. Fusce malesuada, tellus id suscipit ullamcorper, ligula est finibus risus, a ornare sapien magna nec libero. Sed sagittis augue neque, sit amet sodales urna posuere non. Vestibulum aliquam, ligula vitae porttitor pellentesque, tellus metus mattis lorem, in venenatis massa metus vitae libero. Nunc et tristique arcu. Suspendisse potenti.\n" +
-                    "\n" +
-                    "Nam ornare felis eros, nec auctor tellus congue eu. Mauris sagittis lacinia pulvinar. Curabitur sit amet ultrices magna, a pellentesque ex. Sed hendrerit tempus euismod. In hac habitasse platea dictumst. Nullam pulvinar tellus vitae semper scelerisque. Donec urna tortor, finibus ac cursus in, dictum vitae ipsum. Fusce consequat efficitur diam. Curabitur massa elit, fermentum vel pulvinar a, lacinia in nunc.\n" +
-                    "\n" +
-                    "Sed ac pretium libero, a ultricies justo. Nunc non magna ullamcorper, dapibus mauris vitae, feugiat risus. Aliquam bibendum pretium neque, ut semper est. Proin vestibulum nisl velit, at posuere quam faucibus ut. Sed ipsum urna, fringilla non malesuada nec, faucibus sed erat. Donec ultricies sapien vitae nisl tincidunt, vitae pulvinar lacus auctor. In accumsan dui vitae erat lobortis, in pellentesque purus pellentesque. Duis dictum lacus ex. Pellentesque malesuada odio nec neque hendrerit dictum. Nam velit diam, imperdiet ac neque id, rutrum varius erat. Nullam rutrum convallis massa cursus laoreet. Sed nunc tortor, congue ac nibh sed, pellentesque imperdiet purus. Praesent a consequat nulla. Curabitur condimentum feugiat metus. Aenean bibendum consequat sollicitudin. Nulla eleifend tristique justo, nec interdum leo vehicula accumsan.\n" +
-                    "\n" +
-                    "Ut eros lacus, mattis nec lacinia a, imperdiet sit amet lorem. Morbi eget lorem purus. Proin semper metus in libero ornare aliquam. Ut pellentesque a nulla quis consectetur. Integer venenatis metus sit amet orci molestie, non placerat nibh posuere. Sed pellentesque ligula et faucibus tincidunt. Maecenas at leo quis felis porta tincidunt. Orci varius natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus. Morbi suscipit tempor lobortis. Aliquam imperdiet eu quam eu dignissim. Nulla eget libero."
 
-            longString += "-- END --"
+            mapper = jacksonObjectMapper()
+            var payload = mapper.writeValueAsString(measureDao.getAllMeasures())
+
+            payload += "-- END --"
 //            Log.d("LONGSTRING", longString)
 
 //            val shortString = "CIAO"
 
             // Calcola la lunghezza in byte utilizzando l'encoding UTF-8
-            val byteLength = longString.toByteArray(Charsets.UTF_8).size
+            val byteLength = payload.toByteArray(Charsets.UTF_8).size
             Log.d("TRANSMISSION", "Lunghezza in byte: $byteLength")
 
 //            val messageBytes = longString.toByteArray()
@@ -687,7 +694,7 @@ class SwapActivity : AppCompatActivity() {
 //
 //            }
 
-            thread.write(longString.toByteArray())
+            thread.write(payload.toByteArray())
         }
     }
 
@@ -737,7 +744,7 @@ class SwapActivity : AppCompatActivity() {
 
         // Receive data
         fun manageSocket(socket: BluetoothSocket) {
-            var thread = ConnectedThread(socket)
+            val thread = ConnectedThread(socket)
             Log.d("VEDIAMO", "D")
             thread.start()
             Log.d("VEDIAMO", "E")
@@ -771,10 +778,9 @@ class SwapActivity : AppCompatActivity() {
                     }
 
                 }
-                else {
-                    numBytes = 0
-                    SystemClock.sleep(100)
-                }
+//                else {
+//                    SystemClock.sleep(100)
+//                }
 
                 Log.d("VEDIAMO", "I")
                 // Send the obtained bytes to the UI activity.
@@ -790,10 +796,11 @@ class SwapActivity : AppCompatActivity() {
                 }
 
             }
-            Log.d("TRANSMISSION", (fullMsg == compareText).toString())
             Log.d("TRANSMISSION", fullMsg)
 
-            // QUI CONTINUA IL CODICE.
+            mapper = jacksonObjectMapper()
+            val json = mapper.readTree(fullMsg)
+            importData(json)
         }
 
         // Call this from the main activity to send data to the remote device.
