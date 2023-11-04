@@ -4,6 +4,7 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.AlertDialog
+import android.app.Dialog
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothManager
@@ -19,7 +20,6 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.os.Message
-import android.os.SystemClock
 import android.util.Log
 import android.view.View
 import android.widget.ArrayAdapter
@@ -35,6 +35,8 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentContainerView
+import androidx.fragment.app.FragmentManager
+import androidx.fragment.app.FragmentTransaction
 import androidx.room.Room
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -51,14 +53,13 @@ import java.io.InputStreamReader
 import java.io.OutputStream
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
-import java.util.Arrays.copyOf
 import java.util.UUID
 
 /**
  * TODO:
- *  FORSE OGNI TANTO MANDA ANCORA MESSAGGI A CASO
+ *  CONTROLLARE PERCHE' QUANDO FINISCE IL TEMPO DI DISCOVERABILITY, IL DISPOSITIVO E' ANCORA VISIBLE AGLI ALTRI.
  *  MOSTRARE ANCHE I DISPOSITIVI GIÀ CONNESSI SE NO ESPLODE TUTTO
- *  CHIUDERE PAGINA DI CONNESSIONE QUANDO PASSANO I MINUTI DI DISCOVERABILITY
+ *  METTERE SECONDI DISCOVERABILITY FRA LE IMPOSTAZIONI
  * */
 
 class SwapActivity : AppCompatActivity() {
@@ -68,6 +69,10 @@ class SwapActivity : AppCompatActivity() {
     private lateinit var exportBtBtn: Button
     private lateinit var stopExportBtBtn: Button
     private lateinit var loadingView: FragmentContainerView
+    private lateinit var mFragmentManager: FragmentManager
+    private lateinit var mFragmentTransaction: FragmentTransaction
+    private lateinit var mBundle: Bundle
+    private lateinit var loadingFragment: Fragment
     private lateinit var database: MeasureDB
     private lateinit var measureDao: MeasureDao
     private lateinit var mapper: ObjectMapper
@@ -89,6 +94,8 @@ class SwapActivity : AppCompatActivity() {
     private val bluetooth_NAME = "mapConnectivity"
     private lateinit var messageHandler: Handler
     private var receivedText: String = ""
+    private lateinit var dialog: Dialog
+    private val DISCOVERABLE_DURATION : Long = 120
 
     private val startForResult = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -145,11 +152,9 @@ class SwapActivity : AppCompatActivity() {
 
             if (this.checkSelfPermission("android.permission.ACCESS_COARSE_LOCATION") == PackageManager.PERMISSION_GRANTED) {
                 Log.d("BLUETOOTH", "Receiver registrato")
-                loadingView.visibility = View.VISIBLE
-                importBtn.visibility = View.GONE
-                exportBtn.visibility = View.GONE
-                importBtBtn.visibility = View.GONE
-                exportBtBtn.visibility = View.GONE
+
+                showFragment("Esportazione in corso...", false)
+
             } else {
                 Log.d("BLUETOOTH", "Permesso di posizione negato")
             }
@@ -163,12 +168,37 @@ class SwapActivity : AppCompatActivity() {
             val toast = Toast.makeText(applicationContext, "Qualcosa è andato storto!", Toast.LENGTH_SHORT)
             toast.show()
         } else {
-            loadingView.visibility = View.GONE
-            importBtn.visibility = View.VISIBLE
-            exportBtn.visibility = View.VISIBLE
-            importBtBtn.visibility = View.VISIBLE
-            exportBtBtn.visibility = View.VISIBLE
+            hideFragment()
         }
+    }
+
+    private fun showFragment(newText: String, isImport: Boolean) {
+        mBundle = Bundle()
+        mBundle.putString("swap", newText)
+        mBundle.putBoolean("mode", isImport)
+        if (!isImport) {
+            mBundle.putLong("timer", DISCOVERABLE_DURATION)
+        }
+        loadingFragment.arguments = mBundle
+        mFragmentTransaction = mFragmentManager.beginTransaction()
+        mFragmentTransaction.add(R.id.loadingFragment, loadingFragment).commit()
+        Log.d("Bundle", mBundle.toString())
+
+        importBtn.visibility = View.GONE
+        exportBtn.visibility = View.GONE
+        importBtBtn.visibility = View.GONE
+        exportBtBtn.visibility = View.GONE
+        loadingView.visibility = View.VISIBLE
+    }
+
+    fun hideFragment() {
+        mFragmentTransaction = mFragmentManager.beginTransaction()
+        mFragmentTransaction.remove(loadingFragment).commit()
+        loadingView.visibility = View.GONE
+        importBtn.visibility = View.VISIBLE
+        exportBtn.visibility = View.VISIBLE
+        importBtBtn.visibility = View.VISIBLE
+        exportBtBtn.visibility = View.VISIBLE
     }
 
 
@@ -203,6 +233,12 @@ class SwapActivity : AppCompatActivity() {
 
         stopExportBtBtn = findViewById(R.id.stopExportBtBtn)
         loadingView = findViewById(R.id.loadingFragment)
+
+        mFragmentManager = supportFragmentManager
+        mBundle = Bundle()
+        loadingFragment = Loading()
+
+
 
 //        var stopBtn : Button = findViewById(R.id.loadingFragment)
 
@@ -353,6 +389,7 @@ class SwapActivity : AppCompatActivity() {
                 withContext(Dispatchers.Main) {
                     val toast = Toast.makeText(applicationContext, "Ho importato $measureCounter misure con successo!", Toast.LENGTH_SHORT)
                     toast.show()
+                    hideFragment()
                 }
             } catch (e: Exception) {
                 Log.e("Import", e.toString())
@@ -543,7 +580,7 @@ class SwapActivity : AppCompatActivity() {
     @SuppressLint("MissingPermission")
     private fun btDiscoverHandler() {
         val discoverableIntent: Intent = Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE).apply {
-            putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 300)
+            putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, DISCOVERABLE_DURATION)
         }
         Log.d("BLUETOOTH", "Richiesta di discoverability in corso...")
         enableDiscoverabilityLauncher.launch(discoverableIntent)
@@ -560,7 +597,6 @@ class SwapActivity : AppCompatActivity() {
         val dialogBuilder = AlertDialog.Builder(this, R.style.DialogTheme)
         dialogBuilder.setTitle("DISPOSITIVI NELLE VICINANZE")
         dialogBuilder.setNegativeButton("Chiudi") { _, _ -> }
-
         val listView = ListView(this)
         listView.adapter = devicesArrayNamesAdapter
 
@@ -569,6 +605,8 @@ class SwapActivity : AppCompatActivity() {
 
             if (selectedDevice != null) {
                 Log.d("BLUETOOTH", selectedDevice.toString())
+                dialog.dismiss()
+                showFragment("Connessione in corso a ${selectedDevice.name}", true)
                 val clientSocket = ConnectThread(selectedDevice)
                 clientSocket.start()
             }
@@ -576,7 +614,7 @@ class SwapActivity : AppCompatActivity() {
 
         dialogBuilder.setView(listView)
 
-        val dialog = dialogBuilder.create()
+        dialog = dialogBuilder.create()
         dialog.show()
     }
 
