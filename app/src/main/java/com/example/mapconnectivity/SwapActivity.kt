@@ -95,7 +95,7 @@ class SwapActivity : AppCompatActivity() {
     private lateinit var messageHandler: Handler
     private var receivedText: String = ""
     private lateinit var dialog: Dialog
-    private val DISCOVERABLE_DURATION : Long = 120
+    private val DISCOVERABLE_DURATION : Int = 30 // Considera il doppio del tempo per scomparire, ad esempio se DISCOVERABLE_DURATION=30, il dispositivo verra' nascosto dopo 60 secondi circa (DA VERIFICARE).
 
     private val startForResult = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -143,6 +143,7 @@ class SwapActivity : AppCompatActivity() {
     private val enableDiscoverabilityLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
+        Log.d("BLUETOOTH", result.resultCode.toString())
         if (result.resultCode == Activity.RESULT_CANCELED) {
             Log.d("BLUETOOTH", "Richiesta discoverability cancellata")
             val toast = Toast.makeText(applicationContext, "Qualcosa è andato storto!", Toast.LENGTH_SHORT)
@@ -154,7 +155,6 @@ class SwapActivity : AppCompatActivity() {
                 Log.d("BLUETOOTH", "Receiver registrato")
 
                 showFragment("Esportazione in corso...", false)
-
             } else {
                 Log.d("BLUETOOTH", "Permesso di posizione negato")
             }
@@ -177,7 +177,7 @@ class SwapActivity : AppCompatActivity() {
         mBundle.putString("swap", newText)
         mBundle.putBoolean("mode", isImport)
         if (!isImport) {
-            mBundle.putLong("timer", DISCOVERABLE_DURATION)
+            mBundle.putLong("timer", DISCOVERABLE_DURATION.toLong())
         }
         loadingFragment.arguments = mBundle
         mFragmentTransaction = mFragmentManager.beginTransaction()
@@ -579,10 +579,14 @@ class SwapActivity : AppCompatActivity() {
     // Quello che esporta. Si rende rilevabile agli altri dispositivi e fa da server
     @SuppressLint("MissingPermission")
     private fun btDiscoverHandler() {
-        val discoverableIntent: Intent = Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE).apply {
-            putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, DISCOVERABLE_DURATION)
-        }
-        Log.d("BLUETOOTH", "Richiesta di discoverability in corso...")
+//        val discoverableIntent: Intent = Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE).apply {
+//            putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, DISCOVERABLE_DURATION)
+//        }
+//        Log.d("BLUETOOTH", "Richiesta di discoverability in corso...")
+//        enableDiscoverabilityLauncher.launch(discoverableIntent)
+
+        val discoverableIntent = Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE)
+        discoverableIntent.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, DISCOVERABLE_DURATION)
         enableDiscoverabilityLauncher.launch(discoverableIntent)
 
         CoroutineScope(Dispatchers.IO).launch {
@@ -596,7 +600,9 @@ class SwapActivity : AppCompatActivity() {
     private fun showListOfDevicesDialog() {
         val dialogBuilder = AlertDialog.Builder(this, R.style.DialogTheme)
         dialogBuilder.setTitle("DISPOSITIVI NELLE VICINANZE")
-        dialogBuilder.setNegativeButton("Chiudi") { _, _ -> }
+        dialogBuilder.setNegativeButton("Chiudi") { _, _ ->
+            stopScanning()
+        }
         val listView = ListView(this)
         listView.adapter = devicesArrayNamesAdapter
 

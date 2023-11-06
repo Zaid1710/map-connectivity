@@ -32,7 +32,8 @@ class Loading : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         val cancelBtn : Button? = getView()?.findViewById(R.id.cancelBtn)
-
+//        changeTimer("")
+        var countdown: CountDownTimer? = null
         val swapActivity = activity as SwapActivity
         val bundle = arguments
         if (bundle != null) {
@@ -48,16 +49,18 @@ class Loading : Fragment() {
                 cancelBtn?.visibility = View.VISIBLE
                 cancelBtn?.setOnClickListener {
                     swapActivity.stopDiscoverable()
+                    countdown?.cancel()
                 }
 
                 val timerBundle = bundle.getLong("timer") * 1000
-                val countdown = object: CountDownTimer(timerBundle, 1000) {
+                countdown = object: CountDownTimer(timerBundle, 1000) {
                     override fun onTick(millisUntilFinished: Long) {
                         changeTimer("Secondi rimanenti: ${millisUntilFinished / 1000}")
                     }
 
                     override fun onFinish() {
                         swapActivity.hideFragment()
+                        countdown?.cancel()
                     }
                 }
                 countdown.start()
