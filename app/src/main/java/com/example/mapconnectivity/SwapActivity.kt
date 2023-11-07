@@ -14,6 +14,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -37,6 +38,7 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentContainerView
 import androidx.fragment.app.FragmentManager
 import androidx.fragment.app.FragmentTransaction
+import androidx.preference.PreferenceManager
 import androidx.room.Room
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -57,9 +59,7 @@ import java.util.UUID
 
 /**
  * TODO:
- *  CONTROLLARE PERCHE' QUANDO FINISCE IL TEMPO DI DISCOVERABILITY, IL DISPOSITIVO E' ANCORA VISIBLE AGLI ALTRI.
  *  MOSTRARE ANCHE I DISPOSITIVI GIÀ CONNESSI SE NO ESPLODE TUTTO
- *  METTERE SECONDI DISCOVERABILITY FRA LE IMPOSTAZIONI
  * */
 
 class SwapActivity : AppCompatActivity() {
@@ -95,7 +95,9 @@ class SwapActivity : AppCompatActivity() {
     private lateinit var messageHandler: Handler
     private var receivedText: String = ""
     private lateinit var dialog: Dialog
-    private val DISCOVERABLE_DURATION : Int = 30 // Considera il doppio del tempo per scomparire, ad esempio se DISCOVERABLE_DURATION=30, il dispositivo verra' nascosto dopo 60 secondi circa (DA VERIFICARE).
+
+    private lateinit var prefs : SharedPreferences
+    private var DISCOVERABLE_DURATION : Int? = 60
 
     private val startForResult = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -176,8 +178,8 @@ class SwapActivity : AppCompatActivity() {
         mBundle = Bundle()
         mBundle.putString("swap", newText)
         mBundle.putBoolean("mode", isImport)
-        if (!isImport) {
-            mBundle.putLong("timer", DISCOVERABLE_DURATION.toLong())
+        if (!isImport && DISCOVERABLE_DURATION != null) {
+            mBundle.putLong("timer", DISCOVERABLE_DURATION!!.toLong())
         }
         loadingFragment.arguments = mBundle
         mFragmentTransaction = mFragmentManager.beginTransaction()
@@ -206,6 +208,10 @@ class SwapActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_swap)
+
+        prefs = PreferenceManager.getDefaultSharedPreferences(this)
+        DISCOVERABLE_DURATION = prefs.getString("discovery_time", 60.toString())?.toIntOrNull() // Considera il doppio del tempo per scomparire, ad esempio se DISCOVERABLE_DURATION=30, il dispositivo verra' nascosto dopo 60 secondi circa (DA VERIFICARE).
+
 
         foundDevices = mutableListOf()
         newFoundDevices = mutableListOf()
@@ -316,7 +322,7 @@ class SwapActivity : AppCompatActivity() {
                     Log.d("FILE", file.toString())
                     mapper.writeValue(file, measures)
                     withContext(Dispatchers.Main) {
-                        val toast = Toast.makeText(applicationContext, "Ho esportato ${measures.last().id} misure con successo!", Toast.LENGTH_SHORT)
+                        val toast = Toast.makeText(applicationContext, "Ho esportato ${measures.size} misure con successo!", Toast.LENGTH_SHORT)
                         toast.show()
                     }
                     val i = Intent(Intent.ACTION_SEND)
@@ -358,7 +364,8 @@ class SwapActivity : AppCompatActivity() {
             try {
                 var i = 0
                 while (importedMeasures[i].get("imported").toString().toBoolean()) { i++ } // Ottiene l'indice per la prima misura non importata
-                val senderId = importedMeasures[i].get("user_id").toString()
+                var senderId = importedMeasures[i].get("user_id").toString()
+                senderId = senderId.substring( 1, senderId.length - 1 )
                 measureDao.deleteMeasuresFrom(senderId)
                 var measureCounter = 0
                 for (measure in importedMeasures) {

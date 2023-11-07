@@ -46,6 +46,13 @@
             android:key="periodic_fetch_interval"
             android:title="Intervallo di scansione"
             app:useSimpleSummaryProvider="true" />
+        <ListPreference
+            android:defaultValue="60"
+            android:entries="@array/discovery_time"
+            android:entryValues="@array/discovery_time_value"
+            android:key="discovery_time"
+            android:title="Durata discoverabilità"
+            app:useSimpleSummaryProvider="true" />
 
     </PreferenceCategory>
     <PreferenceCategory

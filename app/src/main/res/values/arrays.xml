@@ -38,4 +38,20 @@
         <item>1</item>
         <item>2</item>
     </string-array>
+
+    <string-array name="discovery_time">
+        <item>30 secondi</item>
+        <item>1 minuto</item>
+        <item>2 minuti</item>
+        <item>5 minuti</item>
+        <item>10 minuti</item>
+    </string-array>
+
+    <string-array name="discovery_time_value">
+        <item>30</item>
+        <item>60</item>
+        <item>120</item>
+        <item>300</item>
+        <item>600</item>
+    </string-array>
 </resources>
