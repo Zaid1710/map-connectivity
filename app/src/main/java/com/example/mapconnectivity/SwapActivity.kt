@@ -20,7 +20,6 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.os.Message
 import android.util.Log
 import android.view.View
 import android.widget.ArrayAdapter
@@ -52,7 +51,6 @@ import java.io.File
 import java.io.IOException
 import java.io.InputStream
 import java.io.InputStreamReader
-import java.io.OutputStream
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.UUID
@@ -60,6 +58,8 @@ import java.util.UUID
 /**
  * TODO:
  *  MOSTRARE ANCHE I DISPOSITIVI GIÀ CONNESSI SE NO ESPLODE TUTTO
+ *  CONTROLLARE SE CHIUDENDO IL CLIENT SI CHIUDE PURE IL SERVER (CHIEDERE A MANU)
+ *  SISTEMA DI NOTIFICA AL SERVER QUANDO IL CLIENT HA FINITO DI IMPORTARE PER CHIUDERE LA CONNESSIONE E TORNARE ALLA MAPPA
  * */
 
 class SwapActivity : AppCompatActivity() {
@@ -92,8 +92,6 @@ class SwapActivity : AppCompatActivity() {
     private lateinit var devicesArrayNamesAdapter: ArrayAdapter<String?>
     private val bluetooth_UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
     private val bluetooth_NAME = "mapConnectivity"
-    private lateinit var messageHandler: Handler
-    private var receivedText: String = ""
     private lateinit var dialog: Dialog
 
     private lateinit var prefs : SharedPreferences
@@ -212,7 +210,6 @@ class SwapActivity : AppCompatActivity() {
         prefs = PreferenceManager.getDefaultSharedPreferences(this)
         DISCOVERABLE_DURATION = prefs.getString("discovery_time", 60.toString())?.toIntOrNull() // Considera il doppio del tempo per scomparire, ad esempio se DISCOVERABLE_DURATION=30, il dispositivo verra' nascosto dopo 60 secondi circa (DA VERIFICARE).
 
-
         foundDevices = mutableListOf()
         newFoundDevices = mutableListOf()
         devicesArrayNames = mutableListOf()
@@ -244,8 +241,6 @@ class SwapActivity : AppCompatActivity() {
         mBundle = Bundle()
         loadingFragment = Loading()
 
-
-
 //        var stopBtn : Button = findViewById(R.id.loadingFragment)
 
         importBtn.setOnClickListener {
@@ -273,10 +268,11 @@ class SwapActivity : AppCompatActivity() {
                         toast.show()
                     }
                 } else {
-                    btInit(false)
+                    withContext(Dispatchers.Main) {
+                        btInit(false)
+                    }
                 }
             }
-
         }
 
 //        stopExportBtBtn.setOnClickListener {
@@ -444,49 +440,31 @@ class SwapActivity : AppCompatActivity() {
         }
     }
 
-//    @SuppressLint("MissingPermission")
-//    private fun getPairedDevices(): Set<BluetoothDevice>? {
-//        val pairedDevices: Set<BluetoothDevice>? = bluetoothAdapter.bondedDevices
-//        Log.d("PAIREDDEVICE", "BEGIN")
-//        pairedDevices?.forEach { device ->
-//            val deviceName = device.name
-//            val deviceHardwareAddress = device.address // MAC address
-//            Log.d("PAIREDDEVICE", "$deviceName - $deviceHardwareAddress")
-//        }
-//        Log.d("PAIREDDEVICE", "END")
-//        return pairedDevices
-//    }
-
-    private fun manageData() {
-        var data = receivedText
-        receivedText = ""
-        data = data.replace("-- END --", "")
-        Log.d("TRANSMISSION", data)
-        Log.d("TRANSMISSION", "Trasmissione finita, buonanotte")
+    @SuppressLint("MissingPermission")
+    private fun getPairedDevices(): Set<BluetoothDevice>? {
+        val pairedDevices: Set<BluetoothDevice>? = bluetoothAdapter.bondedDevices
+        Log.d("PAIREDDEVICE", "BEGIN")
+        pairedDevices?.forEach { device ->
+            val deviceName = device.name
+            val deviceHardwareAddress = device.address // MAC address
+            Log.d("PAIREDDEVICE", "$deviceName - $deviceHardwareAddress")
+        }
+        Log.d("PAIREDDEVICE", "END")
+        return pairedDevices
     }
+
+//    private fun manageData() {
+//        var data = receivedText
+//        receivedText = ""
+//        data = data.replace("-- END --", "")
+//        Log.d("TRANSMISSION", data)
+//        Log.d("TRANSMISSION", "Trasmissione finita, buonanotte")
+//    }
 
     @RequiresApi(Build.VERSION_CODES.S)
     private fun btInit(isReceiver: Boolean) {
         bluetoothManager = getSystemService(BluetoothManager::class.java)
         bluetoothAdapter = bluetoothManager.adapter
-//        messageHandler = Handler(Looper.getMainLooper())
-        receivedText = ""
-
-        messageHandler = object : Handler(Looper.getMainLooper()) {
-
-            override fun handleMessage(msg: Message) {
-//                val numBytes = msg.arg1
-//                val byteArray = msg.obj as ByteArray
-//                var text = String(byteArray, Charsets.UTF_8)
-//                text = text.substring(0, numBytes)
-////                Log.d("TRANSMISSION", "DOPO: $text")
-//                receivedText += text
-//
-//                if (text.contains("-- END --")) {
-//                    manageData()
-//                }
-            }
-        }
 
         val permissionsToRequest = mutableListOf<String>()
         if (!checkPermission(Manifest.permission.ACCESS_FINE_LOCATION)) {
@@ -596,10 +574,8 @@ class SwapActivity : AppCompatActivity() {
         discoverableIntent.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, DISCOVERABLE_DURATION)
         enableDiscoverabilityLauncher.launch(discoverableIntent)
 
-        CoroutineScope(Dispatchers.IO).launch {
-            val serverSocket = AcceptThread()
-            serverSocket.start()
-        }
+        val serverSocket = AcceptThread()
+        serverSocket.start()
     }
 
     @SuppressLint("MissingPermission")
@@ -616,8 +592,12 @@ class SwapActivity : AppCompatActivity() {
         listView.setOnItemClickListener { _, _, position, _ ->
             val selectedDevice = devicesArrayAdapter.getItem(position)
 
+            if (getPairedDevices()?.contains(selectedDevice) == true) {
+                Log.d("BLUETOOTH", "${selectedDevice?.name} già pairato!")
+            }
+
             if (selectedDevice != null) {
-                Log.d("BLUETOOTH", selectedDevice.toString())
+                Log.d("BLUETOOTH", "HAI SELEZIONATO: $selectedDevice")
                 dialog.dismiss()
                 showFragment("Connessione in corso a ${selectedDevice.name}", true)
                 val clientSocket = ConnectThread(selectedDevice)
@@ -692,102 +672,93 @@ class SwapActivity : AppCompatActivity() {
                 socket?.also {
                     Log.d("BLUETOOTH", "Accept() ha avuto successo")
                     manageSocket(it)
+                    Log.d("BLUETOOTH", "DOPO MANAGESOCKET")
                     mmServerSocket?.close()
+                    Log.d("BLUETOOTH", "DOPO mmServerSocket?.close()")
                     shouldLoop = false
                 }
             }
         }
 
-        // Chiude il socket e termina la connessione
-        fun cancel() {
-            try {
-                mmServerSocket?.close()
-            } catch (e: IOException) {
-                Log.e("BLUETOOTH", "Non è stato possibile chiudere il socket server", e)
-            }
-        }
+//        // Chiude il socket e termina la connessione
+//        fun cancel() {
+//            try {
+//                mmServerSocket?.close()
+//            } catch (e: IOException) {
+//                Log.e("BLUETOOTH", "Non è stato possibile chiudere il socket server", e)
+//            }
+//        }
 
         // Send data
         fun manageSocket(socket: BluetoothSocket) {
-//            var longString = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed sed accumsan neque. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Morbi vel tristique nisl. Suspendisse commodo suscipit sem, in eleifend leo vestibulum sit amet. Aliquam vel finibus odio. Nunc ut laoreet dui, et interdum metus. Nulla facilisi. Morbi suscipit euismod ex, eget tincidunt enim semper a. Ut dictum rhoncus risus, a convallis purus dictum eget. Aenean elementum venenatis rutrum. Ut fermentum in diam a eleifend. Morbi eget maximus mi. Praesent cursus ligula nunc, eget imperdiet est laoreet id. Cras mauris urna, eleifend ut leo ac, molestie feugiat eros. Nulla ac lobortis dui, at placerat ex. Duis vestibulum suscipit dictum.\n" +
-//                    "\n" +
-//                    "In porta justo finibus orci imperdiet placerat. Sed pellentesque sit amet velit et ultricies. Donec mollis magna at quam condimentum mattis. Fusce malesuada, tellus id suscipit ullamcorper, ligula est finibus risus, a ornare sapien magna nec libero. Sed sagittis augue neque, sit amet sodales urna posuere non. Vestibulum aliquam, ligula vitae porttitor pellentesque, tellus metus mattis lorem, in venenatis massa metus vitae libero. Nunc et tristique arcu. Suspendisse potenti.\n" +
-//                    "\n" +
-//                    "Nam ornare felis eros, nec auctor tellus congue eu. Mauris sagittis lacinia pulvinar. Curabitur sit amet ultrices magna, a pellentesque ex. Sed hendrerit tempus euismod. In hac habitasse platea dictumst. Nullam pulvinar tellus vitae semper scelerisque. Donec urna tortor, finibus ac cursus in, dictum vitae ipsum. Fusce consequat efficitur diam. Curabitur massa elit, fermentum vel pulvinar a, lacinia in nunc.\n" +
-//                    "\n" +
-//                    "Sed ac pretium libero, a ultricies justo. Nunc non magna ullamcorper, dapibus mauris vitae, feugiat risus. Aliquam bibendum pretium neque, ut semper est. Proin vestibulum nisl velit, at posuere quam faucibus ut. Sed ipsum urna, fringilla non malesuada nec, faucibus sed erat. Donec ultricies sapien vitae nisl tincidunt, vitae pulvinar lacus auctor. In accumsan dui vitae erat lobortis, in pellentesque purus pellentesque. Duis dictum lacus ex. Pellentesque malesuada odio nec neque hendrerit dictum. Nam velit diam, imperdiet ac neque id, rutrum varius erat. Nullam rutrum convallis massa cursus laoreet. Sed nunc tortor, congue ac nibh sed, pellentesque imperdiet purus. Praesent a consequat nulla. Curabitur condimentum feugiat metus. Aenean bibendum consequat sollicitudin. Nulla eleifend tristique justo, nec interdum leo vehicula accumsan.\n" +
-//                    "\n" +
-//                    "Ut eros lacus, mattis nec lacinia a, imperdiet sit amet lorem. Morbi eget lorem purus. Proin semper metus in libero ornare aliquam. Ut pellentesque a nulla quis consectetur. Integer venenatis metus sit amet orci molestie, non placerat nibh posuere. Sed pellentesque ligula et faucibus tincidunt. Maecenas at leo quis felis porta tincidunt. Orci varius natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus. Morbi suscipit tempor lobortis. Aliquam imperdiet eu quam eu dignissim. Nulla eget libero."
-            val thread = ConnectedThread(socket)
+            try {
+                mapper = jacksonObjectMapper()
+                var payload = mapper.writeValueAsString(measureDao.getAllMeasures())
+                payload += "-- END --"
+                Log.d("BLUETOOTH", "payload: $payload")
 
-            mapper = jacksonObjectMapper()
-            var payload = mapper.writeValueAsString(measureDao.getAllMeasures())
+                // Calcola la lunghezza in byte utilizzando l'encoding UTF-8
+                val byteLength = payload.toByteArray(Charsets.UTF_8).size
+                Log.d("TRANSMISSION", "Lunghezza in byte: $byteLength")
 
-            payload += "-- END --"
-//            Log.d("LONGSTRING", longString)
+                val payloadByteArray = payload.toByteArray()
 
-//            val shortString = "CIAO"
+                socket.outputStream.flush()
+                socket.outputStream.write(payloadByteArray)
+                socket.outputStream.flush()
 
-            // Calcola la lunghezza in byte utilizzando l'encoding UTF-8
-            val byteLength = payload.toByteArray(Charsets.UTF_8).size
-            Log.d("TRANSMISSION", "Lunghezza in byte: $byteLength")
+//                socket.outputStream.close()
+//                socket.inputStream.close()
+//                socket.close()
+                Log.d("BLUETOOTH", "socket is connected? ${socket.isConnected}")
+            } catch (e: IOException) {
+                Log.e("BLUETOOTH", "ERRORE NELL'INVIO DEI DATI DA PARTE DEL SERVER", e)
+            }
 
-//            val messageBytes = longString.toByteArray()
-//            for (i in messageBytes.indices step 1024) {
-//                val endIndex = minOf(i + 1024, messageBytes.size)
-//                val block = messageBytes.copyOfRange(i, endIndex)
-//                Handler(Looper.getMainLooper()).postDelayed(
-//                    {
-//                        thread.write(block)
-//                    },
-//                    100
-//                )
-//
-//            }
-
-            thread.write(payload.toByteArray())
         }
     }
 
     // CLIENT //
     @SuppressLint("MissingPermission")
     private inner class ConnectThread(device: BluetoothDevice) : Thread() {
-        private val mmSocket: BluetoothSocket? by lazy(LazyThreadSafetyMode.NONE) {
-            device.createInsecureRfcommSocketToServiceRecord(bluetooth_UUID)
+        private val mmSocket: BluetoothSocket by lazy(LazyThreadSafetyMode.NONE) {
+            device.createRfcommSocketToServiceRecord(bluetooth_UUID)
         }
 
         @RequiresApi(Build.VERSION_CODES.S)
         override fun run() {
+            if (this.isInterrupted) {
+                return
+            }
             // Cancella la ricerca perchè non più necessaria
             stopScanning()
 
-            mmSocket?.let { socket ->
+            mmSocket.let { socket ->
                 // Si connette al dispositivo remoto tramite il socket.
                 Log.d("VEDIAMO", "A")
-                try {
-                    if (!socket.isConnected) {
-                        socket.connect()
-                        manageSocket(socket)
-                    }
-                } catch (e: IOException) {
-                    Log.e("ERRORAZZO", "Si è verificato un errore", e)
+                if (socket.isConnected) {
+                    Log.d("BLUETOOTH", "IL SOCKET E' ANCORA APERTO, PROVO A CHIUDERLO.")
+                    cancel()
                 }
-                Log.d("VEDIAMO", "B")
-//                manageSocket(socket)
-                Log.d("VEDIAMO", "C")
+                socket.connect()
+                manageSocket(socket)
+                Log.d("VEDIAMO", "B e C")
                 // La connessione è stata effettuata con successo.
-                Log.d("BLUETOOTH", "Connessione effettuata con successo")
-//                } else {
-//                    val toast = Toast.makeText(applicationContext, "Qualcosa è andato storto!", Toast.LENGTH_SHORT)
-//                    toast.show()
-//                }
+        //                Log.d("BLUETOOTH", "Connessione effettuata con successo")
+        //                } else {
+        //                    val toast = Toast.makeText(applicationContext, "Qualcosa è andato storto!", Toast.LENGTH_SHORT)
+        //                    toast.show()
+        //                }
             }
         }
 
         // Chiude il socket e termina la connessione
         fun cancel() {
             try {
-                mmSocket?.close()
+                Log.d("BLUETOOTH", "Chiusura socket ConnectThread")
+//                mmSocket?.inputStream?.close()
+//                mmSocket?.outputStream?.close()
+                mmSocket.close()
             } catch (e: IOException) {
                 Log.e("BLUETOOTH", "Non è stato possibile chiudere il socket client", e)
             }
@@ -795,101 +766,77 @@ class SwapActivity : AppCompatActivity() {
 
         // Receive data
         fun manageSocket(socket: BluetoothSocket) {
-            val thread = ConnectedThread(socket)
-            Log.d("VEDIAMO", "D")
-            thread.start()
-            Log.d("VEDIAMO", "E")
-//            Log.d("TRANSMISSION", messageHandler.obtainMessage().toString())
-        }
-    }
+//            Log.d("VEDIAMO", "D")
+//            thread.start()
+//            Log.d("VEDIAMO", "E")
+//            thread.join()
+//            Log.d("VEDIAMO", "E2")
+//            cancel()
+//            Log.d("VEDIAMO", "E3")
+//            this.interrupt()
+//            Log.d("VEDIAMO", "E4")
+////            Log.d("TRANSMISSION", messageHandler.obtainMessage().toString())
 
-    private inner class ConnectedThread(private val mmSocket: BluetoothSocket) : Thread() {
+            val mmInStream: InputStream = socket.inputStream
+            val mmBuffer = ByteArray(1024) // mmBuffer store for the stream
 
-        private val mmInStream: InputStream = mmSocket.inputStream
-        private val mmOutStream: OutputStream = mmSocket.outputStream
-        private val mmBuffer = ByteArray(1024) // mmBuffer store for the stream
+            if (this.isInterrupted) {
+                return
+            }
 
-        override fun run() {
             var fullMsg = ""
             Log.d("VEDIAMO", "F")
             var numBytes: Int // bytes returned from read()
 //            var receivedData = ""
-            // Keep listening to the InputStream until an exception occurs.
-            while (true) {
-                // Read from the InputStream.
-                if ( mmInStream.available() > 0 ) {
-                    try {
-                        Log.d("VEDIAMO", "G")
-                        numBytes = mmInStream.read(mmBuffer)
-                        fullMsg += String(mmBuffer.copyOf(numBytes), Charsets.UTF_8)
-                    } catch (e: IOException) {
-                        Log.d("VEDIAMO", "H")
-                        Log.d("BLUETOOTH", "Input stream was disconnected", e)
-                        break
-                    }
 
-                }
+            try {
+                // Keep listening to the InputStream until an exception occurs.
+                while (true) {
+                    Log.d("MIAORIZIO", "BEFORE: $fullMsg")
+
+                    // Read from the InputStream.
+//                if ( mmInStream.available() > 0 ) {
+                    Log.d("VEDIAMO", "G")
+                    numBytes = mmInStream.read(mmBuffer)
+                    fullMsg += String(mmBuffer.copyOf(numBytes), Charsets.UTF_8)
+
+                    Log.d("MIAORIZIO", "AFTER: $fullMsg")
+
+//                }
 //                else {
 //                    SystemClock.sleep(100)
 //                }
 
-                Log.d("VEDIAMO", "I")
-                // Send the obtained bytes to the UI activity.
+                    Log.d("VEDIAMO", "I")
+                    // Send the obtained bytes to the UI activity.
 //                val readMsg = messageHandler.obtainMessage(MESSAGE_READ, numBytes, -1, mmBuffer)
 //                readMsg.sendToTarget()
 //                Log.d("TRANSMISSION", "PRIMA: ${String(mmBuffer, Charsets.UTF_8)}")
-                Log.d("VEDIAMO", "J")
+                    Log.d("VEDIAMO", "J")
 //                receivedData += String(mmBuffer, 0, numBytes)
 
-                if (fullMsg.contains("-- END --")) {
-                    fullMsg = fullMsg.replace("-- END --", "")
-                    break
-                }
+                    if (fullMsg.contains("-- END --")) {
+                        fullMsg = fullMsg.replace("-- END --", "")
+                        break
+                    }
 
+                }
+            } catch (e: IOException) {
+                Log.e("BLUETOOTH", "Error reading from InputStream", e)
+            } finally {
+                try {
+//                    mmInStream.close()
+                    mmSocket.close()
+                } catch (e: IOException) {
+                    Log.e("BLUETOOTH", "Error closing InputStream or socket", e)
+                }
             }
             Log.d("TRANSMISSION", fullMsg)
 
             mapper = jacksonObjectMapper()
             val json = mapper.readTree(fullMsg)
             importData(json)
-        }
-
-        // Call this from the main activity to send data to the remote device.
-        fun write(bytes: ByteArray) {
-            try {
-//                for (i in bytes.indices step mmBuffer.size) {
-//                    val endIndex = minOf(i + mmBuffer.size, bytes.size)
-//                    val block = bytes.copyOfRange(i, endIndex)
-//                    mmOutStream.write(block)
-//                }
-                mmOutStream.write(bytes)
-            } catch (e: IOException) {
-                Log.e("BLUETOOTH", "Error occurred when sending data", e)
-
-//                // Send a failure message back to the activity.
-//                val writeErrorMsg = bluetoothHandler.obtainMessage(MESSAGE_TOAST)
-//                val bundle = Bundle().apply {
-//                    putString("toast", "Couldn't send data to the other device")
-//                }
-//                writeErrorMsg.data = bundle
-//                bluetoothHandler.sendMessage(writeErrorMsg)
-                return
-            }
-
-
-//            // Share the sent message with the UI activity.
-//            val writtenMsg = messageHandler.obtainMessage(
-//                MESSAGE_WRITE, -1, -1, mmBuffer)
-//            writtenMsg.sendToTarget()
-        }
-
-        // Call this method from the main activity to shut down the connection.
-        fun cancel() {
-            try {
-                mmSocket.close()
-            } catch (e: IOException) {
-                Log.e("BLUETOOTH", "Could not close the connect socket", e)
-            }
+            cancel()
         }
     }
 
