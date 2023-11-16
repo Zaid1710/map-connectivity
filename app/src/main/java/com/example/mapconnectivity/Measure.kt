@@ -24,6 +24,9 @@ interface MeasureDao {
     @Query("SELECT * FROM measures")
     fun getAllMeasures(): List<Measure>
 
+    @Query("SELECT * FROM measures WHERE imported = 0")
+    fun getOwnMeasures(): List<Measure>
+
     @Query("SELECT * FROM measures WHERE :lat1 >= lat AND :lat2 <= lat AND :lon1 >= lon AND :lon2 <= lon AND (imported = 0 OR imported = :imported)")
     fun getMeasuresInPolygon(lat1: Double, lon1: Double, lat2: Double, lon2: Double, imported: Boolean): List<Measure>
 
@@ -32,6 +35,9 @@ interface MeasureDao {
 
     @Query("SELECT COUNT(*) FROM measures WHERE :lat1 >= lat AND :lat2 <= lat AND :lon1 >= lon AND :lon2 <= lon AND imported = 1")
     fun countImportedMeasuresInPolygon(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Int
+
+    @Query("SELECT COUNT(*) FROM measures WHERE user_id = :user_id AND timestamp = :timestamp AND lat = :lat AND lon = :lon")
+    fun countSameMeasures(user_id: String, timestamp: String, lat: Double, lon: Double): Int
 
     @Insert
     fun insertMeasure(measure: Measure): Long
@@ -43,7 +49,7 @@ interface MeasureDao {
     fun deleteMeasuresFrom(user_id: String)
 }
 
-@Database(entities = [Measure::class], version = 12)
+@Database(entities = [Measure::class], version = 15)
 abstract class MeasureDB: RoomDatabase() {
     abstract fun measureDao(): MeasureDao
 }

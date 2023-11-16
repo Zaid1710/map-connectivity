@@ -44,6 +44,8 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.BufferedReader
@@ -58,8 +60,8 @@ import java.util.UUID
 /**
  * TODO:
  *  MOSTRARE ANCHE I DISPOSITIVI GIÀ CONNESSI SE NO ESPLODE TUTTO
- *  CONTROLLARE SE CHIUDENDO IL CLIENT SI CHIUDE PURE IL SERVER (CHIEDERE A MANU)
- *  SISTEMA DI NOTIFICA AL SERVER QUANDO IL CLIENT HA FINITO DI IMPORTARE PER CHIUDERE LA CONNESSIONE E TORNARE ALLA MAPPA
+ *  GESTIRE USCITA DALLA VIEW DEL CARICAMENTO DURANTE IMPORT/EXPORT
+ *  FUSO ORARIO
  * */
 
 class SwapActivity : AppCompatActivity() {
@@ -257,12 +259,12 @@ class SwapActivity : AppCompatActivity() {
 
         exportBtBtn.setOnClickListener {
             CoroutineScope(Dispatchers.IO).launch {
-                val measures = measureDao.getAllMeasures()
+                val measures = measureDao.getOwnMeasures()
                 if (measures.isEmpty()) {
                     withContext(Dispatchers.Main) {
                         val toast = Toast.makeText(
                             applicationContext,
-                            "Nessuna misura presente",
+                            "Nessuna misura da esportare",
                             Toast.LENGTH_SHORT
                         )
                         toast.show()
@@ -302,11 +304,11 @@ class SwapActivity : AppCompatActivity() {
                 exportProgressBar.visibility = View.VISIBLE
             }
             mapper = jacksonObjectMapper()
-            val measures = measureDao.getAllMeasures()
+            val measures = measureDao.getOwnMeasures()
 
             if (measures.isEmpty()) {
                 withContext(Dispatchers.Main) {
-                    val toast = Toast.makeText(applicationContext, "Nessuna misura presente", Toast.LENGTH_SHORT)
+                    val toast = Toast.makeText(applicationContext, "Nessuna misura da esportare", Toast.LENGTH_SHORT)
                     toast.show()
                 }
             } else {
@@ -358,18 +360,18 @@ class SwapActivity : AppCompatActivity() {
     private fun importData(importedMeasures: JsonNode) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                var i = 0
-                while (importedMeasures[i].get("imported").toString().toBoolean()) { i++ } // Ottiene l'indice per la prima misura non importata
-                var senderId = importedMeasures[i].get("user_id").toString()
+//                var i = 0
+//                while (importedMeasures[i].get("imported").toString().toBoolean()) { i++ } // Ottiene l'indice per la prima misura non importata
+                var senderId = importedMeasures[0].get("user_id").toString()
                 senderId = senderId.substring( 1, senderId.length - 1 )
-                measureDao.deleteMeasuresFrom(senderId)
+//                measureDao.deleteMeasuresFrom(senderId)
                 var measureCounter = 0
                 for (measure in importedMeasures) {
-                    if (!measure.get("imported").toString().toBoolean()) {
+                    var timestamp = measure.get("timestamp").toString()
+                    timestamp = timestamp.removeRange(timestamp.length - 1, timestamp.length)
+                    timestamp = timestamp.removeRange(0, 1)
+                    if (measureDao.countSameMeasures(senderId, timestamp, measure.get("lat").toString().toDouble(), measure.get("lon").toString().toDouble()).toString().toInt() == 0) {
                         measureCounter++
-                        var timestamp = measure.get("timestamp").toString()
-                        timestamp = timestamp.removeRange(timestamp.length - 1, timestamp.length)
-                        timestamp = timestamp.removeRange(0, 1)
 
                         var userId = measure.get("user_id").toString()
                         userId = userId.removeRange(userId.length - 1, userId.length)
@@ -693,7 +695,7 @@ class SwapActivity : AppCompatActivity() {
         fun manageSocket(socket: BluetoothSocket) {
             try {
                 mapper = jacksonObjectMapper()
-                var payload = mapper.writeValueAsString(measureDao.getAllMeasures())
+                var payload = mapper.writeValueAsString(measureDao.getOwnMeasures())
                 payload += "-- END --"
                 Log.d("BLUETOOTH", "payload: $payload")
 
@@ -703,18 +705,31 @@ class SwapActivity : AppCompatActivity() {
 
                 val payloadByteArray = payload.toByteArray()
 
-                socket.outputStream.flush()
+//                socket.use {
                 socket.outputStream.write(payloadByteArray)
-                socket.outputStream.flush()
+                CoroutineScope(Dispatchers.Main).launch {
+                    hideFragment()
+                    val toast = Toast.makeText(applicationContext, "Esportazione effettuata", Toast.LENGTH_SHORT)
+                    toast.show()
+                }
+//                }
+
+//                while (socket.isConnected) {
+//                    Log.d("SOCKETTONE", "socket.isConnected = ${socket.isConnected}")
+//                }
+//                socket.outputStream.flush()
+
+                // Altro codice qui
+
+//                socket.outputStream.flush()
 
 //                socket.outputStream.close()
 //                socket.inputStream.close()
 //                socket.close()
-                Log.d("BLUETOOTH", "socket is connected? ${socket.isConnected}")
+
             } catch (e: IOException) {
                 Log.e("BLUETOOTH", "ERRORE NELL'INVIO DEI DATI DA PARTE DEL SERVER", e)
             }
-
         }
     }
 
@@ -740,7 +755,19 @@ class SwapActivity : AppCompatActivity() {
                     Log.d("BLUETOOTH", "IL SOCKET E' ANCORA APERTO, PROVO A CHIUDERLO.")
                     cancel()
                 }
-                socket.connect()
+                try {
+                    socket.connect()
+                } catch (e: IOException) {
+                    CoroutineScope(Dispatchers.Main).launch {
+                        val toast = Toast.makeText(
+                            applicationContext,
+                            "Qualcosa è andato storto! Prova a richiedere l'esportazione",
+                            Toast.LENGTH_LONG
+                        )
+                        toast.show()
+                        hideFragment()
+                    }
+                }
                 manageSocket(socket)
                 Log.d("VEDIAMO", "B e C")
                 // La connessione è stata effettuata con successo.

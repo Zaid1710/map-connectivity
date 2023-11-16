@@ -18,6 +18,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class Loading : Fragment() {
+
+    private var timer : MaterialTextView? = null
+
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
@@ -33,6 +36,7 @@ class Loading : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         val cancelBtn : Button? = getView()?.findViewById(R.id.cancelBtn)
 //        changeTimer("")
+        timer = view.findViewById(R.id.timerTxt)
         var countdown: CountDownTimer? = null
         val swapActivity = activity as SwapActivity
         val bundle = arguments
@@ -44,9 +48,11 @@ class Loading : Fragment() {
             val mode = bundle.getBoolean("mode")
             if (mode) {
                 cancelBtn?.visibility = View.GONE
+                timer?.visibility = View.GONE
                 Log.d("BOTTONE", "Import")
             } else {
                 cancelBtn?.visibility = View.VISIBLE
+                timer?.visibility = View.VISIBLE
                 cancelBtn?.setOnClickListener {
                     swapActivity.stopDiscoverable()
                     countdown?.cancel()
@@ -77,9 +83,8 @@ class Loading : Fragment() {
     }
 
     private fun changeTimer(newText: String) {
-        val timer : MaterialTextView? = view?.findViewById(R.id.timerTxt)
         if (timer != null) {
-            timer.text = newText
+            timer?.text = newText
         }
     }
 }
