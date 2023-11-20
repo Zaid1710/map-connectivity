@@ -44,8 +44,6 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.BufferedReader
@@ -59,9 +57,6 @@ import java.util.UUID
 
 /**
  * TODO:
- *  MOSTRARE ANCHE I DISPOSITIVI GIÀ CONNESSI SE NO ESPLODE TUTTO
- *  GESTIRE USCITA DALLA VIEW DEL CARICAMENTO DURANTE IMPORT/EXPORT
- *  FUSO ORARIO
  * */
 
 class SwapActivity : AppCompatActivity() {

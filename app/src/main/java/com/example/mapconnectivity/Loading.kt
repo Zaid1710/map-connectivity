@@ -11,6 +11,9 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
 import android.widget.TextView
+import androidx.activity.addCallback
+import androidx.fragment.app.FragmentManager
+import androidx.fragment.app.FragmentTransaction
 import com.google.android.material.textview.MaterialTextView
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -41,16 +44,22 @@ class Loading : Fragment() {
         val swapActivity = activity as SwapActivity
         val bundle = arguments
         if (bundle != null) {
+
             val message = bundle.getString("swap")
             if (message != null) {
                 changeTitle(message)
             }
             val mode = bundle.getBoolean("mode")
             if (mode) {
+                requireActivity().onBackPressedDispatcher.addCallback(this) {}
                 cancelBtn?.visibility = View.GONE
                 timer?.visibility = View.GONE
                 Log.d("BOTTONE", "Import")
             } else {
+                requireActivity().onBackPressedDispatcher.addCallback(this) {
+                    swapActivity.stopDiscoverable()
+                    countdown?.cancel()
+                }
                 cancelBtn?.visibility = View.VISIBLE
                 timer?.visibility = View.VISIBLE
                 cancelBtn?.setOnClickListener {
@@ -86,5 +95,9 @@ class Loading : Fragment() {
         if (timer != null) {
             timer?.text = newText
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
     }
 }
