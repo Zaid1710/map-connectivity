@@ -12,6 +12,7 @@ import android.view.View
 import android.widget.Button
 import android.widget.ImageButton
 import android.widget.ProgressBar
+import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
@@ -191,6 +192,7 @@ class MainActivity : AppCompatActivity() {
             withContext(Dispatchers.Main) {
                 measureBtn.visibility = View.VISIBLE
                 measureProgressBar.visibility = View.GONE
+                Toast.makeText(applicationContext, "Misura fatta", Toast.LENGTH_SHORT).show()
                 if (!isOutside) {
                     mapView.getMapAsync { googleMap ->
                         map.deleteGrid()

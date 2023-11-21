@@ -3,6 +3,7 @@ package com.example.mapconnectivity
 import android.annotation.SuppressLint
 import android.app.AlertDialog
 import android.content.Context
+import android.content.Intent
 import android.content.res.Configuration
 import android.graphics.Color
 import android.graphics.Rect
@@ -371,26 +372,29 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
     }
 
     @SuppressLint("MissingPermission")
-    private fun periodicFetch() {
+    fun periodicFetch() {
         val periodic = prefs.getBoolean("periodic_fetch", false)
 
-        if (this::periodicLocationCallback.isInitialized) {
-            mFusedLocationClient.removeLocationUpdates(periodicLocationCallback)
-        }
-
-        periodicLocationCallback = object : LocationCallback() {
-            @RequiresApi(Build.VERSION_CODES.S)
-            override fun onLocationResult(locationResult: LocationResult) {
-                super.onLocationResult(locationResult)
-
-                activity.manageMeasurePermissions(false)
-            }
-        }
+//        if (this::periodicLocationCallback.isInitialized) {
+//            mFusedLocationClient.removeLocationUpdates(periodicLocationCallback)
+//        }
+//
+//        periodicLocationCallback = object : LocationCallback() {
+//            @RequiresApi(Build.VERSION_CODES.S)
+//            override fun onLocationResult(locationResult: LocationResult) {
+//                super.onLocationResult(locationResult)
+//
+//                activity.manageMeasurePermissions(false)
+//            }
+//        }
         val seconds = prefs.getString("periodic_fetch_interval", 10.toString())!!.toInt()
 
         if (periodic) {
-            val mLocationRequest = LocationRequest.Builder(Priority.PRIORITY_BALANCED_POWER_ACCURACY, (seconds * 1000).toLong()).build()
-            mFusedLocationClient.requestLocationUpdates(mLocationRequest, periodicLocationCallback, Looper.myLooper())
+            val i = Intent(activity, PeriodicFetchService::class.java)
+            i.putExtra("seconds", seconds)
+            activity.startService(i)
+//            val mLocationRequest = LocationRequest.Builder(Priority.PRIORITY_BALANCED_POWER_ACCURACY, (seconds * 1000).toLong()).build()
+//            mFusedLocationClient.requestLocationUpdates(mLocationRequest, periodicLocationCallback, Looper.myLooper())
         }
     }
 
