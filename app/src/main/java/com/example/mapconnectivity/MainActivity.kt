@@ -1,12 +1,14 @@
 package com.example.mapconnectivity
 
 import android.Manifest
-import android.bluetooth.BluetoothAdapter
-import android.bluetooth.BluetoothManager
+import android.content.ComponentName
+import android.content.Context
 import android.content.Intent
+import android.content.ServiceConnection
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.os.IBinder
 import android.util.Log
 import android.view.View
 import android.widget.Button
@@ -15,7 +17,6 @@ import android.widget.ProgressBar
 import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
-import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentManager
 import androidx.preference.PreferenceManager
@@ -30,21 +31,22 @@ import java.time.format.DateTimeFormatter
 
 /**
  * TODO: !!!!!!!!!!!!!!!!!!!!!!!!!!!!VMMV MODEL VIEW ECC!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
- *       FIX RICHIESTA PERMESSI (riguardare)
+ *       FIX RICHIESTA PERMESSI (riguardare) ESEMPIO: audio non chiede permessi se fa direttamente periodic fetch
  *       PULIZIA CODICE (abbiamo spostato le funzioni relative ai sensori)
  *       ORA CHE L'EXPORT HA UN NOME DIVERSO PER OGNI FILE (timestamp), BISOGNA CANCELLARE I FILE PRIMA CHE DIVENTINO TROPPI
  *       DA VALUTARE: PER ORA SE SI CLICCA SU UN FILE .mapc PORTA A SWAP_ACTIVITY, VALUTARE SE CONTINUARE CON L'IMPLEMENTAZIONE DELL'IMPORTAZIONE AUTOMATICA O MENO
  *       QUANTO SONO GRANDI I QUADRATI QUANDO L'APP E' SPENTA? :3
  *       SE ELIMINI UNA MISURA IMPORTATA LA PUOI REIMPORTARE????
+ *       QUANDO C'� PERIODICFETCH TOGLI PULSANTE MISURA
  *
  *       BUGS:
  *       A ZOOM MINIMO NON VIENE SPAWNATA LA GRIGLIA (ne su emulatore ne su telefono)
- *       SE IL TELEFONO È LENTO CARICA GRIGLIE ALL'INFINITO
- *       SE IL TELEFONO È LENTO LA PRIMA MISURA DOPO AVER ABILITATO AUTOMATIC/PERIODIC FETCH È LOCALIZZATA AL GOOGLEPLEX
+ *       SE IL TELEFONO � LENTO CARICA GRIGLIE ALL'INFINITO
+ *       SE IL TELEFONO � LENTO LA PRIMA MISURA DOPO AVER ABILITATO AUTOMATIC/PERIODIC FETCH � LOCALIZZATA AL GOOGLEPLEX
  *       SE UNO PROVA A IMPORTARE DA BLUETOOTH SENZA AVER DATO PRIMA I PERMESSI DA ERRORE
  * */
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : AppCompatActivity(), ServiceCallbacks {
     val PERMISSION_INIT = 0
     val PERMISSION_MEASUREMENTS = 1
     val PERMISSION_OUTSIDE_MEASUREMENTS = 2
@@ -61,6 +63,23 @@ class MainActivity : AppCompatActivity() {
     private lateinit var settingsBtn: ImageButton
     private lateinit var swapBtn: ImageButton
     private var mode: Int = 0
+
+    private lateinit var periodicFetchService: PeriodicFetchService
+    private var bound = false
+
+    val serviceConnection: ServiceConnection = object : ServiceConnection {
+        override fun onServiceConnected(className: ComponentName?, service: IBinder) {
+            // cast the IBinder and get MyService instance
+            val binder: PeriodicFetchService.LocalBinder = service as PeriodicFetchService.LocalBinder
+            periodicFetchService = binder.getService()
+            bound = true
+            periodicFetchService.setCallbacks(this@MainActivity) // register
+        }
+
+        override fun onServiceDisconnected(arg0: ComponentName?) {
+            bound = false
+        }
+    }
 
     @RequiresApi(Build.VERSION_CODES.S)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -83,6 +102,10 @@ class MainActivity : AppCompatActivity() {
 
         swapBtn = findViewById(R.id.swapBtn)
 
+        periodicFetchService = PeriodicFetchService()
+
+        Log.d("INIZIALIZZAZIONE", "HO INIZIALIZZATO TUTTO, SOPRATTUTTO $map")
+
         val permissionsToRequest = mutableListOf<String>()
         if (!checkPermission(Manifest.permission.ACCESS_FINE_LOCATION)) {
             permissionsToRequest.add(Manifest.permission.ACCESS_FINE_LOCATION)
@@ -92,7 +115,7 @@ class MainActivity : AppCompatActivity() {
             Log.d("PERMISSIONS", "SOMETHING'S MISSING 1")
             requestPermissions(permissionsToRequest.toTypedArray(), PERMISSION_INIT)
         } else {
-            // Tutti i permessi sono stati gi� concessi
+            // Tutti i permessi sono stati gi? concessi
             Log.d("PERMISSIONS", "ALL PERMISSIONS GRANTED")
             initMeasureBtn()
 
@@ -107,6 +130,16 @@ class MainActivity : AppCompatActivity() {
             val swap = Intent(this, SwapActivity::class.java)
             startActivity(swap)
         }
+
+        val periodic = intent.getStringExtra("periodic")
+        if (periodic == "start") {
+             periodicFetchStart()
+        } else if (periodic == "stop") {
+            periodicFetchStop()
+        } else {
+            // TODO: GESTIRE PERIODICFETCH ATTIVA AL PRIMO AVVIO
+        }
+
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
@@ -147,9 +180,18 @@ class MainActivity : AppCompatActivity() {
                     addMeasurement(true)
                 }
             } else {
-                // Almeno uno dei permessi � stato negato
+                // Almeno uno dei permessi ? stato negato
                 Log.d("PERMISSIONS", "ONE OR MORE PERMISSIONS MISSING")
             }
+    }
+
+    override fun onStop() {
+        super.onStop()
+        if (bound) {
+            periodicFetchService.setCallbacks(null) // unregister
+            unbindService(serviceConnection)
+            bound = false
+        }
     }
 
 
@@ -170,11 +212,14 @@ class MainActivity : AppCompatActivity() {
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
-    fun addMeasurement(isOutside: Boolean) {
+    override fun addMeasurement(isOutside: Boolean) {
         CoroutineScope(Dispatchers.IO).launch {
             withContext(Dispatchers.Main) {
-                measureBtn.visibility = View.GONE
-                measureProgressBar.visibility = View.VISIBLE
+                if (::measureBtn.isInitialized && ::measureProgressBar.isInitialized) {
+                    measureBtn.visibility = View.GONE
+                    measureProgressBar.visibility = View.VISIBLE
+                }
+
             }
             var measurements = Measure(
                 timestamp = DateTimeFormatter.ISO_INSTANT.format(Instant.now()),
@@ -190,8 +235,10 @@ class MainActivity : AppCompatActivity() {
             Log.d("MEASURE", measurements.toString())
             Log.d("DB", measureDao.getAllMeasures().toString())
             withContext(Dispatchers.Main) {
-                measureBtn.visibility = View.VISIBLE
-                measureProgressBar.visibility = View.GONE
+                if (::measureBtn.isInitialized && ::measureProgressBar.isInitialized) {
+                    measureBtn.visibility = View.VISIBLE
+                    measureProgressBar.visibility = View.GONE
+                }
                 Toast.makeText(applicationContext, "Misura fatta", Toast.LENGTH_SHORT).show()
                 if (!isOutside) {
                     mapView.getMapAsync { googleMap ->
@@ -224,6 +271,24 @@ class MainActivity : AppCompatActivity() {
                 addMeasurement(isOutside)
             }
         }
+    }
+
+    private fun periodicFetchStart() {
+        Log.d("SERVIZIO", "STO AVVIANDO IL SERVIZIO")
+        val seconds = PreferenceManager.getDefaultSharedPreferences(this).getString("periodic_fetch_interval", 10.toString())!!.toInt()
+
+        var serviceIntent = Intent(this, PeriodicFetchService::class.java)
+        serviceIntent.putExtra("seconds", seconds)
+        this.bindService(serviceIntent, this.serviceConnection, Context.BIND_AUTO_CREATE)
+        this.startService(serviceIntent)
+    }
+
+    private fun periodicFetchStop() {
+//        unbindService(serviceConnection)
+        this.stopService(Intent(this, PeriodicFetchService::class.java))
+//        this.stopService(periodicFetchService)
+
+        Log.d("SERVIZIO", "HO INTERROTTO IL SERVIZIO")
     }
 
 }

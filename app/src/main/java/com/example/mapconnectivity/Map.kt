@@ -11,11 +11,13 @@ import android.location.Location
 import android.location.LocationManager
 import android.os.Build
 import android.os.Looper
+import android.os.Parcelable
 import android.util.Log
 import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.preference.PreferenceManager
+import androidx.preference.SwitchPreference
 import androidx.room.Room
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationCallback
@@ -34,6 +36,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.Serializable
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import kotlin.math.ceil
@@ -45,6 +48,8 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
     private var activity: MainActivity = activity
     private val gridPolygons: MutableList<Polygon> = mutableListOf()
     private var lastLocation: Location? = null
+
+
 
     private lateinit var database: MeasureDB
 
@@ -210,15 +215,15 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
                 withContext(Dispatchers.Main) { automaticFetch(googleMap, meters.toFloat()) }
             }
 
-            val periodic = prefs.getBoolean("periodic_fetch", false)
-            val seconds = prefs.getString("periodic_fetch_interval", 10.toString())!!.toInt()
-            if (periodic != lastPeriodic || seconds != lastSeconds) {
-                withContext(Dispatchers.Main) { periodicFetch() }
-            }
+//            val periodic = prefs.getBoolean("periodic_fetch", false)
+//            val seconds = prefs.getString("periodic_fetch_interval", 10.toString())!!.toInt()
+//            if (periodic != lastPeriodic || seconds != lastSeconds) {
+//                withContext(Dispatchers.Main) { periodicFetch() }
+//            }
             lastZoomValue = zoom
             lastAutomatic = automatic
-            lastPeriodic = periodic
-            lastSeconds = seconds
+//            lastPeriodic = periodic
+//            lastSeconds = seconds
         }
     }
 
@@ -290,15 +295,15 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
     @SuppressLint("MissingPermission")
     fun getPosition(): Location? {
         val locationManager = activity.getSystemService(Context.LOCATION_SERVICE) as LocationManager
-        val networkLocation = locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
+//        val networkLocation = locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
         val gpsLocation = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER)
-
+        return gpsLocation
         // Confronta le due posizioni e restituisce quella più recente
-        return if (networkLocation != null && gpsLocation != null) {
-            if (networkLocation.time > gpsLocation.time) networkLocation else gpsLocation
-        } else {
-            networkLocation ?: gpsLocation
-        }
+//        return if (networkLocation != null && gpsLocation != null) {
+//            if (networkLocation.time > gpsLocation.time) networkLocation else gpsLocation
+//        } else {
+//            networkLocation ?: gpsLocation
+//        }
     }
 
     private fun getPolygon(currentPos: Location?): Polygon? {
@@ -368,33 +373,6 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
         if (automatic) {
             val mLocationRequest = LocationRequest.Builder(Priority.PRIORITY_BALANCED_POWER_ACCURACY, 5000).setMinUpdateDistanceMeters(meters/4).build()
             mFusedLocationClient.requestLocationUpdates(mLocationRequest, automaticLocationCallback, Looper.myLooper())
-        }
-    }
-
-    @SuppressLint("MissingPermission")
-    fun periodicFetch() {
-        val periodic = prefs.getBoolean("periodic_fetch", false)
-
-//        if (this::periodicLocationCallback.isInitialized) {
-//            mFusedLocationClient.removeLocationUpdates(periodicLocationCallback)
-//        }
-//
-//        periodicLocationCallback = object : LocationCallback() {
-//            @RequiresApi(Build.VERSION_CODES.S)
-//            override fun onLocationResult(locationResult: LocationResult) {
-//                super.onLocationResult(locationResult)
-//
-//                activity.manageMeasurePermissions(false)
-//            }
-//        }
-        val seconds = prefs.getString("periodic_fetch_interval", 10.toString())!!.toInt()
-
-        if (periodic) {
-            val i = Intent(activity, PeriodicFetchService::class.java)
-            i.putExtra("seconds", seconds)
-            activity.startService(i)
-//            val mLocationRequest = LocationRequest.Builder(Priority.PRIORITY_BALANCED_POWER_ACCURACY, (seconds * 1000).toLong()).build()
-//            mFusedLocationClient.requestLocationUpdates(mLocationRequest, periodicLocationCallback, Looper.myLooper())
         }
     }
 

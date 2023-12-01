@@ -1,5 +1,6 @@
 package com.example.mapconnectivity
 
+import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
@@ -41,6 +42,8 @@ class SettingsActivity : AppCompatActivity() {
 
             val theme = findPreference<ListPreference>("theme_preference")
 
+            val periodic = findPreference<SwitchPreference>("periodic_fetch")
+
             val prefs = PreferenceManager.getDefaultSharedPreferences(requireContext())
             val editor = prefs.edit()
 
@@ -68,6 +71,21 @@ class SettingsActivity : AppCompatActivity() {
                         bad_lte?.text = prefs.getString("last_bad_lte", resources.getString(R.string.bad_lte_defaultValue))
                         optimal_wifi?.text = prefs.getString("last_optimal_wifi", resources.getString(R.string.opt_wifi_defaultValue))
                         bad_wifi?.text = prefs.getString("last_bad_wifi", resources.getString(R.string.bad_wifi_defaultValue))
+                    }
+                    true
+                }
+
+            periodic?.onPreferenceChangeListener =
+                Preference.OnPreferenceChangeListener {_, newValue ->
+                    if (newValue == true) {
+//                        periodicFetchStart()
+                        val i = Intent(context, MainActivity::class.java)
+                        i.putExtra("periodic", "start")
+                        startActivity(i)
+                    } else {
+                        val i = Intent(context, MainActivity::class.java)
+                        i.putExtra("periodic", "stop")
+                        startActivity(i)
                     }
                     true
                 }
