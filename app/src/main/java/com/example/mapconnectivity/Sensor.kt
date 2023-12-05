@@ -1,6 +1,7 @@
 package com.example.mapconnectivity
 
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.content.Context
 import android.hardware.Sensor
 import android.hardware.SensorEvent
@@ -15,8 +16,7 @@ import androidx.annotation.RequiresApi
 import java.io.File
 import kotlin.math.log10
 
-class Sensor(activity: MainActivity) {
-    private var activity: MainActivity = activity
+class Sensor(private var context: Context) {
     private lateinit var pressureSensorListener: PressureSensorListener
 
     /* Restituisce la potenza del segnale Wifi */
@@ -29,7 +29,7 @@ class Sensor(activity: MainActivity) {
 //
 //            }
         val wfm2: WifiManager =
-            activity.getSystemService(Context.WIFI_SERVICE) as WifiManager
+            context.getSystemService(Context.WIFI_SERVICE) as WifiManager
         var maxLevel = -200
         for (scanResult in wfm2.scanResults) {
             if (scanResult.level > maxLevel) {
@@ -42,7 +42,7 @@ class Sensor(activity: MainActivity) {
 
     /* Ottiene la potenza del segnale LTE */
     fun getLteSignalStrength(): Double {
-        val telephonyManager = activity.getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
+        val telephonyManager = context.getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
 
         try {
             val cellInfoList = telephonyManager.allCellInfo
@@ -68,8 +68,8 @@ class Sensor(activity: MainActivity) {
         val SECONDS_TO_FETCH = 1
         var avgAmplitude = 0.0
         var amplitudes = arrayOf<Double>()
-        val recorder = MediaRecorder(activity)
-        val outputFile = File(activity.filesDir, "temp.3gp")
+        val recorder = MediaRecorder(context)
+        val outputFile = File(context.filesDir, "temp.3gp")
         outputFile.createNewFile()
 
         recorder.setAudioSource(MediaRecorder.AudioSource.MIC)

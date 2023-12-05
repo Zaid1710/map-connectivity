@@ -46,7 +46,7 @@ import java.time.format.DateTimeFormatter
  *       SE UNO PROVA A IMPORTARE DA BLUETOOTH SENZA AVER DATO PRIMA I PERMESSI DA ERRORE
  * */
 
-class MainActivity : AppCompatActivity(), ServiceCallbacks {
+class MainActivity : AppCompatActivity() {
     val PERMISSION_INIT = 0
     val PERMISSION_MEASUREMENTS = 1
     val PERMISSION_OUTSIDE_MEASUREMENTS = 2
@@ -67,19 +67,19 @@ class MainActivity : AppCompatActivity(), ServiceCallbacks {
     private lateinit var periodicFetchService: PeriodicFetchService
     private var bound = false
 
-    val serviceConnection: ServiceConnection = object : ServiceConnection {
-        override fun onServiceConnected(className: ComponentName?, service: IBinder) {
-            // cast the IBinder and get MyService instance
-            val binder: PeriodicFetchService.LocalBinder = service as PeriodicFetchService.LocalBinder
-            periodicFetchService = binder.getService()
-            bound = true
-            periodicFetchService.setCallbacks(this@MainActivity) // register
-        }
-
-        override fun onServiceDisconnected(arg0: ComponentName?) {
-            bound = false
-        }
-    }
+//    val serviceConnection: ServiceConnection = object : ServiceConnection {
+//        override fun onServiceConnected(className: ComponentName?, service: IBinder) {
+//            // cast the IBinder and get MyService instance
+//            val binder: PeriodicFetchService.LocalBinder = service as PeriodicFetchService.LocalBinder
+//            periodicFetchService = binder.getService()
+//            bound = true
+////            periodicFetchService.setCallbacks(this@MainActivity) // register
+//        }
+//
+//        override fun onServiceDisconnected(arg0: ComponentName?) {
+//            bound = false
+//        }
+//    }
 
     @RequiresApi(Build.VERSION_CODES.S)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -188,8 +188,7 @@ class MainActivity : AppCompatActivity(), ServiceCallbacks {
     override fun onStop() {
         super.onStop()
         if (bound) {
-            periodicFetchService.setCallbacks(null) // unregister
-            unbindService(serviceConnection)
+//            unbindService(serviceConnection)
             bound = false
         }
     }
@@ -211,8 +210,26 @@ class MainActivity : AppCompatActivity(), ServiceCallbacks {
         }
     }
 
+//    @RequiresApi(Build.VERSION_CODES.S)
+//    fun tmpAddMeasurement(): Measure {
+//        Log.d("SERVIZIO", "sono un servizio")
+//        val measurements = Measure(
+//            timestamp = "sdoigsdg",
+//            lat = 23.0,
+//            lon = 44.0,
+//            lte = 12.3,
+//            wifi = 1.6,
+//            db = 45.0,
+//            user_id = "sdogkjlgksdj",
+//            imported = false
+//        )
+//        CoroutineScope(Dispatchers.IO).launch { measureDao.insertMeasure(measurements) }
+//
+//        return measurements
+//    }
+
     @RequiresApi(Build.VERSION_CODES.S)
-    override fun addMeasurement(isOutside: Boolean) {
+    fun addMeasurement(isOutside: Boolean) {
         CoroutineScope(Dispatchers.IO).launch {
             withContext(Dispatchers.Main) {
                 if (::measureBtn.isInitialized && ::measureProgressBar.isInitialized) {
@@ -221,7 +238,7 @@ class MainActivity : AppCompatActivity(), ServiceCallbacks {
                 }
 
             }
-            var measurements = Measure(
+            val measurements = Measure(
                 timestamp = DateTimeFormatter.ISO_INSTANT.format(Instant.now()),
                 lat = map.getPosition()?.latitude,
                 lon = map.getPosition()?.longitude,
@@ -279,7 +296,7 @@ class MainActivity : AppCompatActivity(), ServiceCallbacks {
 
         var serviceIntent = Intent(this, PeriodicFetchService::class.java)
         serviceIntent.putExtra("seconds", seconds)
-        this.bindService(serviceIntent, this.serviceConnection, Context.BIND_AUTO_CREATE)
+//        this.bindService(serviceIntent, this.serviceConnection, Context.BIND_AUTO_CREATE)
         this.startService(serviceIntent)
     }
 
