@@ -50,7 +50,8 @@ class MainActivity : AppCompatActivity() {
     val PERMISSION_INIT = 0
     val PERMISSION_MEASUREMENTS = 1
     val PERMISSION_OUTSIDE_MEASUREMENTS = 2
-    val PERMISSION_BT = 3
+//    val PERMISSION_BT = 3
+    val PERMISSION_NOTIFICATIONS = 4
 
     private lateinit var fm: FragmentManager
     private lateinit var mapView: SupportMapFragment
@@ -133,7 +134,20 @@ class MainActivity : AppCompatActivity() {
 
         val periodic = intent.getStringExtra("periodic")
         if (periodic == "start") {
-             periodicFetchStart()
+            // CONTROLLO POST_NOTIFICATION
+            val permissionsToRequest = mutableListOf<String>()
+            if (!checkPermission(Manifest.permission.POST_NOTIFICATIONS)) {
+                permissionsToRequest.add(Manifest.permission.POST_NOTIFICATIONS)
+            }
+
+            if (permissionsToRequest.isNotEmpty()) {
+                Log.d("PERMISSIONS", "SOMETHING'S MISSING 1")
+                requestPermissions(permissionsToRequest.toTypedArray(), PERMISSION_NOTIFICATIONS)
+            } else {
+                // Tutti i permessi sono stati gi? concessi
+                Log.d("PERMISSIONS", "ALL PERMISSIONS GRANTED")
+                periodicFetchStart()
+            }
         } else if (periodic == "stop") {
             periodicFetchStop()
         } else {
@@ -178,6 +192,8 @@ class MainActivity : AppCompatActivity() {
                     addMeasurement(false)
                 } else if (requestCode == PERMISSION_OUTSIDE_MEASUREMENTS) {
                     addMeasurement(true)
+                } else if (requestCode == PERMISSION_NOTIFICATIONS) {
+                    periodicFetchStart()
                 }
             } else {
                 // Almeno uno dei permessi ? stato negato

@@ -1,17 +1,22 @@
 package com.example.mapconnectivity
 
 import android.annotation.SuppressLint
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.location.LocationManager
-import android.os.Binder
 import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.util.Log
 import androidx.annotation.RequiresApi
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import androidx.room.Room
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -35,6 +40,9 @@ class PeriodicFetchService : Service() {
     private lateinit var database: MeasureDB
     private lateinit var measureDao: MeasureDao
 
+    private val CHANNEL_ID = "PeriodicFetchChannel"
+    private val SERVICE_NOTIFICATION_ID = 0
+
     // Class used for the client Binder.
 //    inner class LocalBinder : Binder() {
 //        fun getService(): PeriodicFetchService {
@@ -55,6 +63,8 @@ class PeriodicFetchService : Service() {
 
     @RequiresApi(Build.VERSION_CODES.S)
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        val notification = createNotification()
+        startForeground(SERVICE_NOTIFICATION_ID, notification)
         Log.d("SERVIZIO", "Sono partito")
 
         isOn = true
@@ -81,6 +91,7 @@ class PeriodicFetchService : Service() {
                     e.printStackTrace()
                 }
             }
+            stopForeground(STOP_FOREGROUND_REMOVE)
         }
 
 //        return super.onStartCommand(intent, flags, startId)
@@ -117,5 +128,67 @@ class PeriodicFetchService : Service() {
 
 
         return measurements
+    }
+
+//    @SuppressLint("NotificationPermission")
+    @RequiresApi(Build.VERSION_CODES.O)
+    private fun createNotification(): Notification {
+        val notificationManager = NotificationManagerCompat.from(this)
+        val name = "nome"
+        val description = "descrizione"
+        val importance = NotificationManager.IMPORTANCE_DEFAULT
+        val channel = NotificationChannel(CHANNEL_ID, name, importance)
+        channel.description = description
+        notificationManager.createNotificationChannel(channel)
+
+        val mBuilder = NotificationCompat.Builder(this, CHANNEL_ID)
+        mBuilder
+            .setContentTitle("Picture Download")
+            .setContentText("Download in progress")
+            .setSmallIcon(R.mipmap.ic_launcher_round)
+            .priority = NotificationCompat.PRIORITY_DEFAULT
+
+//        notificationManager.notify(SERVICE_NOTIFICATION_ID, mBuilder.build())
+
+//        val newIntent = Intent(this, MainActivity::class.java)
+//        newIntent.flags =
+//            Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+//        newIntent.putExtra("CALLER", "notifyService")
+//        val pendingIntent: PendingIntent =
+//            PendingIntent.getActivity(this, 0, newIntent, PendingIntent.FLAG_IMMUTABLE)
+//
+//        mBuilder.setContentIntent(pendingIntent)
+
+        val notification = mBuilder.build()
+        notificationManager.notify(0, notification)
+
+
+//        val notificationIntent = Intent(this, MainActivity::class.java)
+//        val pendingIntent = PendingIntent.getActivity(
+//            this,
+//            SERVICE_NOTIFICATION_ID,
+//            notificationIntent,
+//            PendingIntent.FLAG_IMMUTABLE
+//        )
+//
+//        val notification = NotificationCompat.Builder(this, CHANNEL_ID)
+//            .setContentTitle("Servizio di ricerca periodica")
+//            .setContentText("Il servizio è in esecuzione in background")
+//            .setSmallIcon(R.mipmap.ic_launcher_round)
+//            .setContentIntent(pendingIntent)
+//            .build()
+//
+//        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+//            val channel = NotificationChannel(
+//                CHANNEL_ID,
+//                "Periodic Fetch Service Channel",
+//                NotificationManager.IMPORTANCE_DEFAULT
+//            )
+//            val manager = getSystemService(NotificationManager::class.java)
+//            manager.createNotificationChannel(channel)
+//
+//            manager.notify(SERVICE_NOTIFICATION_ID, notification)
+//        }
+        return notification
     }
 }
