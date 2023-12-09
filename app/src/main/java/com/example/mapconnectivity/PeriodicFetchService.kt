@@ -4,7 +4,6 @@ import android.annotation.SuppressLint
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
-import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
@@ -36,12 +35,12 @@ class PeriodicFetchService : Service() {
 //    lateinit var mainActivity: MainActivity
 //    private val binder: IBinder = LocalBinder()
     private var isOn = false
-    private lateinit var sensors: Sensor
+//    private lateinit var sensors: Sensor
     private lateinit var database: MeasureDB
     private lateinit var measureDao: MeasureDao
 
     private val CHANNEL_ID = "PeriodicFetchChannel"
-    private val SERVICE_NOTIFICATION_ID = 0
+    private val SERVICE_NOTIFICATION_ID = 1
 
     // Class used for the client Binder.
 //    inner class LocalBinder : Binder() {
@@ -55,17 +54,22 @@ class PeriodicFetchService : Service() {
         TODO("Return the communication channel to the service.")
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate() {
         super.onCreate()
         handler = Handler(Looper.getMainLooper())
+
 //        mainActivity = MainActivity() NON SI FA
     }
 
+//    private var measurementJob: Job? = null
+
     @RequiresApi(Build.VERSION_CODES.S)
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        Log.d("SERVIZIO", "Sono partito")
         val notification = createNotification()
         startForeground(SERVICE_NOTIFICATION_ID, notification)
-        Log.d("SERVIZIO", "Sono partito")
+        val sensor = Sensor(this)
 
         isOn = true
 
@@ -80,9 +84,8 @@ class PeriodicFetchService : Service() {
                         if (isOn) {
                             handler?.post {
                                 Log.d("SERVIZIO", "Sto facendo una misura, $isOn")
-                                val pippo = addMeasurement()
+                                val pippo = addMeasurement(sensor)
                                 Log.d("SERVIZIO", "$pippo")
-//                            Toast.makeText(applicationContext, "ciaooooooooooooo", Toast.LENGTH_SHORT).show()
                             }
                         }
                     }
@@ -91,7 +94,6 @@ class PeriodicFetchService : Service() {
                     e.printStackTrace()
                 }
             }
-            stopForeground(STOP_FOREGROUND_REMOVE)
         }
 
 //        return super.onStartCommand(intent, flags, startId)
@@ -101,15 +103,19 @@ class PeriodicFetchService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         isOn = false
+        this.stopForeground(STOP_FOREGROUND_REMOVE)
+        val notificationManager = NotificationManagerCompat.from(this)
+        notificationManager.deleteNotificationChannel(CHANNEL_ID)
+        stopSelf()
         Log.d("SERVIZIO", "sono stato distrutto")
     }
 
     @SuppressLint("MissingPermission")
     @RequiresApi(Build.VERSION_CODES.S)
-    private fun addMeasurement(): Measure {
+    private fun addMeasurement(sensors: Sensor): Measure {
         val locationManager = this.getSystemService(Context.LOCATION_SERVICE) as LocationManager
         val gpsLocation = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER)
-        sensors = Sensor(this)
+//        sensors = Sensor(this)
 
         database = Room.databaseBuilder(this, MeasureDB::class.java, "measuredb").fallbackToDestructiveMigration().build()
         measureDao = database.measureDao()
@@ -146,10 +152,11 @@ class PeriodicFetchService : Service() {
             .setContentTitle("Picture Download")
             .setContentText("Download in progress")
             .setSmallIcon(R.mipmap.ic_launcher_round)
-            .priority = NotificationCompat.PRIORITY_DEFAULT
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setOngoing(true)
 
 //        notificationManager.notify(SERVICE_NOTIFICATION_ID, mBuilder.build())
-
+//
 //        val newIntent = Intent(this, MainActivity::class.java)
 //        newIntent.flags =
 //            Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
@@ -160,7 +167,7 @@ class PeriodicFetchService : Service() {
 //        mBuilder.setContentIntent(pendingIntent)
 
         val notification = mBuilder.build()
-        notificationManager.notify(0, notification)
+        notificationManager.notify(SERVICE_NOTIFICATION_ID, notification)
 
 
 //        val notificationIntent = Intent(this, MainActivity::class.java)

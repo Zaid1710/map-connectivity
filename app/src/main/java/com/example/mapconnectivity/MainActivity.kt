@@ -82,7 +82,7 @@ class MainActivity : AppCompatActivity() {
 //        }
 //    }
 
-    @RequiresApi(Build.VERSION_CODES.S)
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -138,6 +138,9 @@ class MainActivity : AppCompatActivity() {
             val permissionsToRequest = mutableListOf<String>()
             if (!checkPermission(Manifest.permission.POST_NOTIFICATIONS)) {
                 permissionsToRequest.add(Manifest.permission.POST_NOTIFICATIONS)
+            }
+            if (!checkPermission(Manifest.permission.FOREGROUND_SERVICE)) {
+                permissionsToRequest.add(Manifest.permission.FOREGROUND_SERVICE)
             }
 
             if (permissionsToRequest.isNotEmpty()) {
@@ -292,6 +295,9 @@ class MainActivity : AppCompatActivity() {
         if (!this.checkPermission(Manifest.permission.RECORD_AUDIO)) {
             permissionsToRequest.add(Manifest.permission.RECORD_AUDIO)
         }
+        if (!this.checkPermission(Manifest.permission.ACCESS_BACKGROUND_LOCATION)) {
+            permissionsToRequest.add(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+        }
 
         if (permissionsToRequest.isNotEmpty()) {
             if (isOutside) {
@@ -306,6 +312,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
     private fun periodicFetchStart() {
         Log.d("SERVIZIO", "STO AVVIANDO IL SERVIZIO")
         val seconds = PreferenceManager.getDefaultSharedPreferences(this).getString("periodic_fetch_interval", 10.toString())!!.toInt()
@@ -313,7 +320,7 @@ class MainActivity : AppCompatActivity() {
         var serviceIntent = Intent(this, PeriodicFetchService::class.java)
         serviceIntent.putExtra("seconds", seconds)
 //        this.bindService(serviceIntent, this.serviceConnection, Context.BIND_AUTO_CREATE)
-        this.startService(serviceIntent)
+        this.startForegroundService(serviceIntent)
     }
 
     private fun periodicFetchStop() {
