@@ -1,11 +1,14 @@
 package com.example.mapconnectivity
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
 import android.content.pm.PackageManager
+import android.location.Location
+import android.location.LocationManager
 import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
@@ -21,6 +24,7 @@ import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentManager
 import androidx.preference.PreferenceManager
 import androidx.room.Room
+import com.google.android.gms.location.LocationListener
 import com.google.android.gms.maps.SupportMapFragment
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -35,7 +39,6 @@ import java.time.format.DateTimeFormatter
  *       PULIZIA CODICE (abbiamo spostato le funzioni relative ai sensori)
  *       ORA CHE L'EXPORT HA UN NOME DIVERSO PER OGNI FILE (timestamp), BISOGNA CANCELLARE I FILE PRIMA CHE DIVENTINO TROPPI
  *       DA VALUTARE: PER ORA SE SI CLICCA SU UN FILE .mapc PORTA A SWAP_ACTIVITY, VALUTARE SE CONTINUARE CON L'IMPLEMENTAZIONE DELL'IMPORTAZIONE AUTOMATICA O MENO
- *       QUANTO SONO GRANDI I QUADRATI QUANDO L'APP E' SPENTA? :3
  *       SE ELIMINI UNA MISURA IMPORTATA LA PUOI REIMPORTARE????
  *       QUANDO C'� PERIODICFETCH TOGLI PULSANTE MISURA
  *
@@ -134,6 +137,7 @@ class MainActivity : AppCompatActivity() {
 
         val periodic = intent.getStringExtra("periodic")
         if (periodic == "start") {
+            intent.removeExtra("periodic")
             // CONTROLLO POST_NOTIFICATION
             val permissionsToRequest = mutableListOf<String>()
             if (!checkPermission(Manifest.permission.POST_NOTIFICATIONS)) {
@@ -152,8 +156,10 @@ class MainActivity : AppCompatActivity() {
                 periodicFetchStart()
             }
         } else if (periodic == "stop") {
+            intent.removeExtra("periodic")
             periodicFetchStop()
         } else {
+            intent.removeExtra("periodic")
             // TODO: GESTIRE PERIODICFETCH ATTIVA AL PRIMO AVVIO
         }
 
@@ -199,8 +205,9 @@ class MainActivity : AppCompatActivity() {
                     periodicFetchStart()
                 }
             } else {
-                // Almeno uno dei permessi ? stato negato
+                // Almeno uno dei permessi è stato negato
                 Log.d("PERMISSIONS", "ONE OR MORE PERMISSIONS MISSING")
+
             }
     }
 
@@ -295,9 +302,9 @@ class MainActivity : AppCompatActivity() {
         if (!this.checkPermission(Manifest.permission.RECORD_AUDIO)) {
             permissionsToRequest.add(Manifest.permission.RECORD_AUDIO)
         }
-        if (!this.checkPermission(Manifest.permission.ACCESS_BACKGROUND_LOCATION)) {
-            permissionsToRequest.add(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
-        }
+//        if (!this.checkPermission(Manifest.permission.ACCESS_BACKGROUND_LOCATION)) {
+//            permissionsToRequest.add(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+//        }
 
         if (permissionsToRequest.isNotEmpty()) {
             if (isOutside) {
