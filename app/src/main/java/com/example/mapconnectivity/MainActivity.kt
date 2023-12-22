@@ -146,6 +146,9 @@ class MainActivity : AppCompatActivity() {
             if (!checkPermission(Manifest.permission.FOREGROUND_SERVICE)) {
                 permissionsToRequest.add(Manifest.permission.FOREGROUND_SERVICE)
             }
+            if (!checkPermission(Manifest.permission.RECORD_AUDIO)) {
+                permissionsToRequest.add(Manifest.permission.RECORD_AUDIO)
+            }
 
             if (permissionsToRequest.isNotEmpty()) {
                 Log.d("PERMISSIONS", "SOMETHING'S MISSING 1")
