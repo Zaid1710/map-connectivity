@@ -34,6 +34,7 @@ import com.google.android.gms.maps.model.Polygon
 import com.google.android.gms.maps.model.PolygonOptions
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.Serializable
@@ -48,8 +49,6 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
     private var activity: MainActivity = activity
     private val gridPolygons: MutableList<Polygon> = mutableListOf()
     private var lastLocation: Location? = null
-
-
 
     private lateinit var database: MeasureDB
 
@@ -154,6 +153,9 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
     @RequiresApi(Build.VERSION_CODES.S)
     @SuppressLint("MissingPermission")
     fun drawGridOnMap(googleMap: GoogleMap, mode: Int) {
+        googleMap.uiSettings.isZoomControlsEnabled = false
+        googleMap.uiSettings.isZoomGesturesEnabled = false
+
         CoroutineScope(Dispatchers.IO).launch {
             Log.d("PERCHE", "Sono entrato nella draw grid")
             val zoom: Float = withContext(Dispatchers.Main) { googleMap.cameraPosition.zoom }
@@ -176,7 +178,6 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
 
             val offset = 500
             val screen = Rect(0 - offset,0 - offset, activity.resources.displayMetrics.widthPixels + offset, activity.resources.displayMetrics.heightPixels + offset)
-
 
             while (screen.contains(bl.x, bl.y)) {
                 val firstPolygon = lastGeneratedPolygon
@@ -209,21 +210,28 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
 
             val automatic = prefs.getBoolean("automatic_fetch", false)
             if (zoom != lastZoomValue || automatic != lastAutomatic) {
-                if (zoom == lastZoomValue && automatic) {
-                    activity.manageMeasurePermissions(false)
+                if (zoom == lastZoomValue && automatic) { // Fa la prima misura appena attivi automatic fetch
+                        activity.manageMeasurePermissions(false)
                 }
                 withContext(Dispatchers.Main) { automaticFetch(googleMap, meters.toFloat()) }
             }
+
 
 //            val periodic = prefs.getBoolean("periodic_fetch", false)
 //            val seconds = prefs.getString("periodic_fetch_interval", 10.toString())!!.toInt()
 //            if (periodic != lastPeriodic || seconds != lastSeconds) {
 //                withContext(Dispatchers.Main) { periodicFetch() }
 //            }
+//            Log.d("ZOOM", "Last = $lastZoomValue, Actual = $zoom")
+
             lastZoomValue = zoom
             lastAutomatic = automatic
 //            lastPeriodic = periodic
 //            lastSeconds = seconds
+            withContext(Dispatchers.Main) {
+                googleMap.uiSettings.isZoomControlsEnabled = true
+                googleMap.uiSettings.isZoomGesturesEnabled = true
+            }
         }
     }
 
