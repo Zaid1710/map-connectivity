@@ -1,7 +1,6 @@
 package com.example.mapconnectivity
 
 import android.annotation.SuppressLint
-import android.app.Activity
 import android.content.Context
 import android.hardware.Sensor
 import android.hardware.SensorEvent

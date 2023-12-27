@@ -1,11 +1,14 @@
 package com.example.mapconnectivity
 
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
-import android.util.Log
 import android.widget.Toast
+import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
+import androidx.core.content.ContextCompat
 import androidx.preference.EditTextPreference
 import androidx.preference.ListPreference
 import androidx.preference.Preference
@@ -29,6 +32,7 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     class SettingsFragment : PreferenceFragmentCompat() {
+        @RequiresApi(Build.VERSION_CODES.TIRAMISU)
         override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
             setPreferencesFromResource(R.xml.root_preferences, rootKey)
 
@@ -43,6 +47,7 @@ class SettingsActivity : AppCompatActivity() {
             val theme = findPreference<ListPreference>("theme_preference")
 
             val periodic = findPreference<SwitchPreference>("periodic_fetch")
+            val automatic = findPreference<SwitchPreference>("automatic_fetch")
 
             val prefs = PreferenceManager.getDefaultSharedPreferences(requireContext())
             val editor = prefs.edit()
@@ -75,6 +80,7 @@ class SettingsActivity : AppCompatActivity() {
                     true
                 }
 
+
             periodic?.onPreferenceChangeListener =
                 Preference.OnPreferenceChangeListener {_, newValue ->
                     if (newValue == true) {
@@ -87,6 +93,14 @@ class SettingsActivity : AppCompatActivity() {
                         i.putExtra("periodic", "stop")
                         startActivity(i)
                     }
+
+                    true
+                }
+
+            automatic?.onPreferenceChangeListener =
+                Preference.OnPreferenceChangeListener {_, _ ->
+                    val i = Intent(context, MainActivity::class.java)
+                    startActivity(i)
                     true
                 }
 
@@ -182,6 +196,10 @@ class SettingsActivity : AppCompatActivity() {
 
         private fun isNumber(input: String): Boolean {
             return input.toIntOrNull() != null
+        }
+
+        private fun checkPermission(permission: String): Boolean {
+            return (ContextCompat.checkSelfPermission(requireContext(), permission) == PackageManager.PERMISSION_GRANTED)
         }
 
     }

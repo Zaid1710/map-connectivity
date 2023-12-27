@@ -3,7 +3,6 @@ package com.example.mapconnectivity
 import android.annotation.SuppressLint
 import android.app.AlertDialog
 import android.content.Context
-import android.content.Intent
 import android.content.res.Configuration
 import android.graphics.Color
 import android.graphics.Rect
@@ -11,13 +10,10 @@ import android.location.Location
 import android.location.LocationManager
 import android.os.Build
 import android.os.Looper
-import android.os.Parcelable
 import android.util.Log
 import android.widget.Toast
 import androidx.annotation.RequiresApi
-import androidx.appcompat.app.AppCompatDelegate
 import androidx.preference.PreferenceManager
-import androidx.preference.SwitchPreference
 import androidx.room.Room
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationCallback
@@ -34,10 +30,8 @@ import com.google.android.gms.maps.model.Polygon
 import com.google.android.gms.maps.model.PolygonOptions
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.Serializable
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import kotlin.math.ceil
@@ -73,8 +67,6 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
 
     private var lastZoomValue: Float = -1.0f
     private var lastAutomatic: Boolean = prefs.getBoolean("automatic_fetch", false)
-    private var lastPeriodic: Boolean = prefs.getBoolean("periodic_fetch", false)
-    private var lastSeconds: Int = prefs.getString("periodic_fetch_interval", 10.toString())!!.toInt()
 
     @RequiresApi(Build.VERSION_CODES.S)
     @SuppressLint("MissingPermission")

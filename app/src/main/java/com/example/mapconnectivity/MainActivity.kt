@@ -1,17 +1,10 @@
 package com.example.mapconnectivity
 
 import android.Manifest
-import android.annotation.SuppressLint
-import android.content.ComponentName
-import android.content.Context
 import android.content.Intent
-import android.content.ServiceConnection
 import android.content.pm.PackageManager
-import android.location.Location
-import android.location.LocationManager
 import android.os.Build
 import android.os.Bundle
-import android.os.IBinder
 import android.util.Log
 import android.view.View
 import android.widget.Button
@@ -24,7 +17,6 @@ import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentManager
 import androidx.preference.PreferenceManager
 import androidx.room.Room
-import com.google.android.gms.location.LocationListener
 import com.google.android.gms.maps.SupportMapFragment
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -32,6 +24,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.Instant
 import java.time.format.DateTimeFormatter
+import android.content.SharedPreferences
 
 /**
  * TODO: !!!!!!!!!!!!!!!!!!!!!!!!!!!!VMMV MODEL VIEW ECC!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -40,8 +33,8 @@ import java.time.format.DateTimeFormatter
  *       ORA CHE L'EXPORT HA UN NOME DIVERSO PER OGNI FILE (timestamp), BISOGNA CANCELLARE I FILE PRIMA CHE DIVENTINO TROPPI
  *       DA VALUTARE: PER ORA SE SI CLICCA SU UN FILE .mapc PORTA A SWAP_ACTIVITY, VALUTARE SE CONTINUARE CON L'IMPLEMENTAZIONE DELL'IMPORTAZIONE AUTOMATICA O MENO
  *       SE ELIMINI UNA MISURA IMPORTATA LA PUOI REIMPORTARE????
- *       QUANDO C'E' PERIODICFETCH TOGLI PULSANTE MISURA
  *       VALUTARE SE USARE IL LOCLISTENER PER TUTTO IL PROGETTO E NON SOLO PER PERIODICFETCHSERVICE
+ *       MAGARI SEPARARE PERIODIC BACKGROUND E NON
  *
  *       BUGS:
  *       A ZOOM MINIMO NON VIENE SPAWNATA LA GRIGLIA (ne su emulatore ne su telefono)
@@ -53,7 +46,7 @@ class MainActivity : AppCompatActivity() {
     val PERMISSION_MEASUREMENTS = 1
     val PERMISSION_OUTSIDE_MEASUREMENTS = 2
 //    val PERMISSION_BT = 3
-    val PERMISSION_NOTIFICATIONS = 4
+    val PERMISSION_PERIODIC_FETCH = 4
 
     private lateinit var fm: FragmentManager
     private lateinit var mapView: SupportMapFragment
@@ -137,7 +130,7 @@ class MainActivity : AppCompatActivity() {
         val periodic = intent.getStringExtra("periodic")
         if (periodic == "start") {
             intent.removeExtra("periodic")
-            // CONTROLLO POST_NOTIFICATION
+            // Controllo permessi
             val permissionsToRequest = mutableListOf<String>()
             if (!checkPermission(Manifest.permission.POST_NOTIFICATIONS)) {
                 permissionsToRequest.add(Manifest.permission.POST_NOTIFICATIONS)
@@ -150,11 +143,13 @@ class MainActivity : AppCompatActivity() {
             }
 
             if (permissionsToRequest.isNotEmpty()) {
-                Log.d("PERMISSIONS", "SOMETHING'S MISSING 1")
-                requestPermissions(permissionsToRequest.toTypedArray(), PERMISSION_NOTIFICATIONS)
+                // Qualche permesso non è stato dato
+                Log.d("PERMISSIONS", "SOMETHING'S MISSING WITH PERIODIC FETCH PERMISSIONS")
+                requestPermissions(permissionsToRequest.toTypedArray(), PERMISSION_PERIODIC_FETCH)
+
             } else {
-                // Tutti i permessi sono stati gi? concessi
-                Log.d("PERMISSIONS", "ALL PERMISSIONS GRANTED")
+                // Tutti i permessi sono stati già concessi
+                Log.d("PERMISSIONS", "ALL PERIODIC FETCH PERMISSIONS GRANTED")
                 periodicFetchStart()
             }
         } else if (periodic == "stop") {
@@ -203,13 +198,20 @@ class MainActivity : AppCompatActivity() {
                     addMeasurement(false)
                 } else if (requestCode == PERMISSION_OUTSIDE_MEASUREMENTS) {
                     addMeasurement(true)
-                } else if (requestCode == PERMISSION_NOTIFICATIONS) {
+                } else if (requestCode == PERMISSION_PERIODIC_FETCH) {
                     periodicFetchStart()
                 }
             } else {
-                // Almeno uno dei permessi è stato negato
-                Log.d("PERMISSIONS", "ONE OR MORE PERMISSIONS MISSING")
+                if (requestCode == PERMISSION_PERIODIC_FETCH) {
+                    val preferences: SharedPreferences =
+                        PreferenceManager.getDefaultSharedPreferences(this)
+                    val editor: SharedPreferences.Editor = preferences.edit()
+                    editor.putBoolean("periodic_fetch", false)
+                    editor.apply()
+                }
 
+                // Almeno uno dei permessi è stato negato
+                Log.d("PERMISSIONS", "ONE OR MORE PERMISSIONS MISSING IN $requestCode")
             }
     }
 
@@ -299,9 +301,11 @@ class MainActivity : AppCompatActivity() {
     fun manageMeasurePermissions(isOutside: Boolean) {
         val permissionsToRequest = mutableListOf<String>()
         if (!this.checkPermission(Manifest.permission.ACCESS_FINE_LOCATION)) {
+            Log.d("MEASUREPERMISSIONS", "Mi manca ACCESS_FINE_LOCATION")
             permissionsToRequest.add(Manifest.permission.ACCESS_FINE_LOCATION)
         }
         if (!this.checkPermission(Manifest.permission.RECORD_AUDIO)) {
+            Log.d("MEASUREPERMISSIONS", "Mi manca RECORD_AUDIO")
             permissionsToRequest.add(Manifest.permission.RECORD_AUDIO)
         }
 //        if (!this.checkPermission(Manifest.permission.ACCESS_BACKGROUND_LOCATION)) {
@@ -309,12 +313,14 @@ class MainActivity : AppCompatActivity() {
 //        }
 
         if (permissionsToRequest.isNotEmpty()) {
+            Log.d("MEASUREPERMISSIONS", "Mi manca qualche permesso per le misure")
             if (isOutside) {
                 this.requestPermissions(permissionsToRequest.toTypedArray(), this.PERMISSION_OUTSIDE_MEASUREMENTS)
             } else {
                 this.requestPermissions(permissionsToRequest.toTypedArray(), this.PERMISSION_MEASUREMENTS)
             }
         } else {
+            Log.d("MEASUREPERMISSIONS", "Ho tutti i permessi per le misure")
             CoroutineScope(Dispatchers.IO).launch {
                 addMeasurement(isOutside)
             }
@@ -324,6 +330,8 @@ class MainActivity : AppCompatActivity() {
     @RequiresApi(Build.VERSION_CODES.O)
     private fun periodicFetchStart() {
         Log.d("SERVIZIO", "STO AVVIANDO IL SERVIZIO")
+        measureBtn.visibility = View.GONE
+        measureProgressBar.visibility = View.VISIBLE
         val seconds = PreferenceManager.getDefaultSharedPreferences(this).getString("periodic_fetch_interval", 10.toString())!!.toInt()
 
         var serviceIntent = Intent(this, PeriodicFetchService::class.java)
@@ -333,6 +341,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun periodicFetchStop() {
+        measureBtn.visibility = View.VISIBLE
+        measureProgressBar.visibility = View.GONE
 //        unbindService(serviceConnection)
         this.stopService(Intent(this, PeriodicFetchService::class.java))
 //        this.stopService(periodicFetchService)

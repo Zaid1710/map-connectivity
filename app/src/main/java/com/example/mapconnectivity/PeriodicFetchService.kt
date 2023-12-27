@@ -5,12 +5,10 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
-import android.content.Context
 import android.content.Intent
 import android.location.Location
 import android.location.LocationManager
 import android.os.Build
-import android.os.Bundle
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
@@ -19,8 +17,6 @@ import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.room.Room
-import com.google.android.gms.location.LocationListener
-import com.google.android.gms.location.LocationServices
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -31,7 +27,6 @@ import java.time.format.DateTimeFormatter
 /**
  * TODO:
  * - STATUS BAR PER DIRTI QUANTE NE HA FATTE
- * - IL MICROFONO NON VIENE RILEVATO IN BACKGROUND
  * */
 
 class PeriodicFetchService : Service() {
