@@ -4,6 +4,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
@@ -98,10 +99,18 @@ class SettingsActivity : AppCompatActivity() {
                 }
 
             automatic?.onPreferenceChangeListener =
-                Preference.OnPreferenceChangeListener {_, _ ->
-                    val i = Intent(context, MainActivity::class.java)
-                    startActivity(i)
-                    true
+                Preference.OnPreferenceChangeListener {_, newValue ->
+                    if (newValue == true) {
+                        val i = Intent(context, MainActivity::class.java)
+                        i.putExtra("automatic", "start")
+                        startActivity(i)
+                        false
+                    } else {
+                        val i = Intent(context, MainActivity::class.java)
+                        i.putExtra("automatic", "stop")
+                        startActivity(i)
+                        true
+                    }
                 }
 
 

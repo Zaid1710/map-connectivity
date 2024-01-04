@@ -7,6 +7,7 @@ import android.app.NotificationManager
 import android.app.Service
 import android.content.Intent
 import android.location.Location
+import android.location.LocationListener
 import android.location.LocationManager
 import android.os.Build
 import android.os.Handler
@@ -52,15 +53,14 @@ class PeriodicFetchService : Service() {
 
 
     // Listener per la posizione
-    private val locationListener: android.location.LocationListener = object : android.location.LocationListener {
-        override fun onLocationChanged(location: Location) {
+    private val locationListener: LocationListener =
+        LocationListener { location ->
             Log.d("LOCLISTENER", "${location.latitude}, ${location.longitude}")
             lastLocation = location
         }
-//            override fun onStatusChanged(provider: String, status: Int, extras: Bundle) {}
+    //            override fun onStatusChanged(provider: String, status: Int, extras: Bundle) {}
 //            override fun onProviderEnabled(provider: String) {}
 //            override fun onProviderDisabled(provider: String) {}
-    }
 
     @SuppressLint("MissingPermission")
     @RequiresApi(Build.VERSION_CODES.S)

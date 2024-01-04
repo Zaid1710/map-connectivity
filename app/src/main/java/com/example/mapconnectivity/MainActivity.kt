@@ -33,20 +33,25 @@ import android.content.SharedPreferences
  *       ORA CHE L'EXPORT HA UN NOME DIVERSO PER OGNI FILE (timestamp), BISOGNA CANCELLARE I FILE PRIMA CHE DIVENTINO TROPPI
  *       DA VALUTARE: PER ORA SE SI CLICCA SU UN FILE .mapc PORTA A SWAP_ACTIVITY, VALUTARE SE CONTINUARE CON L'IMPLEMENTAZIONE DELL'IMPORTAZIONE AUTOMATICA O MENO
  *       SE ELIMINI UNA MISURA IMPORTATA LA PUOI REIMPORTARE????
- *       VALUTARE SE USARE IL LOCLISTENER PER TUTTO IL PROGETTO E NON SOLO PER PERIODICFETCHSERVICE
+ *       VALUTARE SE USARE IL LOCLISTENER PER TUTTO IL PROGETTO E NON SOLO PER PERIODICFETCHSERVICE - NO
  *       MAGARI SEPARARE PERIODIC BACKGROUND E NON
+ *       Creare funzione per generare permissionToRequest per pulizia codice
+ *
  *
  *       BUGS:
  *       A ZOOM MINIMO NON VIENE SPAWNATA LA GRIGLIA (ne su emulatore ne su telefono)
  *       SE UNO PROVA A IMPORTARE DA BLUETOOTH SENZA AVER DATO PRIMA I PERMESSI DA ERRORE
+ *       SE NON DAI PERMESSI DI POSIZIONE ALL'INIZIO CAPITANO ERRORI, MAGARI CHIUDERE L'APP SE NON LI DAI O BLOCCA TUTTO E NOTIFICA LA MANCANZA
+ *       AUTOMATIC FETCH NON AGGIORNA LA MAPPA DOPO UNA MISURA
  * */
 
 class MainActivity : AppCompatActivity() {
-    val PERMISSION_INIT = 0
-    val PERMISSION_MEASUREMENTS = 1
-    val PERMISSION_OUTSIDE_MEASUREMENTS = 2
+    private val PERMISSION_INIT = 0
+    private val PERMISSION_MEASUREMENTS = 1
+    private val PERMISSION_OUTSIDE_MEASUREMENTS = 2
 //    val PERMISSION_BT = 3
-    val PERMISSION_PERIODIC_FETCH = 4
+    private val PERMISSION_PERIODIC_FETCH = 4
+    private val PERMISSION_AUTOMATIC_FETCH = 5
 
     private lateinit var fm: FragmentManager
     private lateinit var mapView: SupportMapFragment
@@ -108,13 +113,13 @@ class MainActivity : AppCompatActivity() {
         }
 
         if (permissionsToRequest.isNotEmpty()) {
-            Log.d("PERMISSIONS", "SOMETHING'S MISSING 1")
+            Log.d("PERMISSIONS", "LOCATION PERMISSION MISSING")
             requestPermissions(permissionsToRequest.toTypedArray(), PERMISSION_INIT)
         } else {
-            // Tutti i permessi sono stati gi? concessi
-            Log.d("PERMISSIONS", "ALL PERMISSIONS GRANTED")
-            initMeasureBtn()
+            // Tutti i permessi sono stati già concessi
+            Log.d("PERMISSIONS", "LOCATION PERMISSION GRANTED")
 
+            initMeasureBtn()
         }
 
         settingsBtn.setOnClickListener {
@@ -125,6 +130,38 @@ class MainActivity : AppCompatActivity() {
         swapBtn.setOnClickListener {
             val swap = Intent(this, SwapActivity::class.java)
             startActivity(swap)
+        }
+
+        val auto = intent.getStringExtra("automatic")
+        if (auto == "start") {
+            intent.removeExtra("automatic")
+            // Controllo permessi
+            val permissionsToRequest = mutableListOf<String>()
+            if (!checkPermission(Manifest.permission.RECORD_AUDIO)) {
+                permissionsToRequest.add(Manifest.permission.RECORD_AUDIO)
+            }
+
+            if (permissionsToRequest.isNotEmpty()) {
+                // Qualche permesso non è stato dato
+                Log.d("PERMISSIONS", "SOMETHING'S MISSING WITH AUTOMATIC FETCH PERMISSIONS")
+                requestPermissions(permissionsToRequest.toTypedArray(), PERMISSION_AUTOMATIC_FETCH)
+
+            } else {
+                // Tutti i permessi sono stati già concessi
+                Log.d("PERMISSIONS", "ALL AUTOMATIC FETCH PERMISSIONS GRANTED")
+                val preferences: SharedPreferences =
+                    PreferenceManager.getDefaultSharedPreferences(this)
+                val editor: SharedPreferences.Editor = preferences.edit()
+                editor.putBoolean("automatic_fetch", true)
+                editor.apply()
+
+                mapView.getMapAsync { googleMap ->
+                    map.initAutomaticFetch(googleMap)
+                }
+            }
+        } else if (auto == "stop") {
+            intent.removeExtra("automatic")
+            map.stopAutomaticFetch()
         }
 
         val periodic = intent.getStringExtra("periodic")
@@ -200,6 +237,16 @@ class MainActivity : AppCompatActivity() {
                     addMeasurement(true)
                 } else if (requestCode == PERMISSION_PERIODIC_FETCH) {
                     periodicFetchStart()
+                } else if (requestCode == PERMISSION_AUTOMATIC_FETCH) {
+                    val preferences: SharedPreferences =
+                        PreferenceManager.getDefaultSharedPreferences(this)
+                    val editor: SharedPreferences.Editor = preferences.edit()
+                    editor.putBoolean("automatic_fetch", true)
+                    editor.apply()
+
+                    mapView.getMapAsync { googleMap ->
+                        map.initAutomaticFetch(googleMap)
+                    }
                 }
             } else {
                 if (requestCode == PERMISSION_PERIODIC_FETCH) {

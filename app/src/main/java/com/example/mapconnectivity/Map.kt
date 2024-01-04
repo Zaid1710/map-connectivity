@@ -7,20 +7,18 @@ import android.content.res.Configuration
 import android.graphics.Color
 import android.graphics.Rect
 import android.location.Location
+import android.location.LocationListener
 import android.location.LocationManager
 import android.os.Build
-import android.os.Looper
 import android.util.Log
 import android.widget.Toast
 import androidx.annotation.RequiresApi
+import androidx.appcompat.app.AppCompatActivity
 import androidx.preference.PreferenceManager
 import androidx.room.Room
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationCallback
-import com.google.android.gms.location.LocationRequest
-import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
-import com.google.android.gms.location.Priority
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.SupportMapFragment
@@ -30,10 +28,12 @@ import com.google.android.gms.maps.model.Polygon
 import com.google.android.gms.maps.model.PolygonOptions
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+import java.util.concurrent.Semaphore
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.pow
@@ -42,7 +42,11 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
     private var mapView: SupportMapFragment? = mapView
     private var activity: MainActivity = activity
     private val gridPolygons: MutableList<Polygon> = mutableListOf()
-    private var lastLocation: Location? = null
+    private var locationManager: LocationManager? = null
+    private var locationListener: LocationListener? = null
+    private var locationFromListener: Location? = null
+    private var semaphore = Semaphore(1)
+    private var meters = 0.0
 
     private lateinit var database: MeasureDB
 
@@ -57,9 +61,11 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
     private var DB_BAD = -80.0
     private var DB_OPT = -60.0
 
+    private var MILLIS = 1000L
+
     private val mFusedLocationClient: FusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(activity)
     private lateinit var automaticLocationCallback: LocationCallback
-    private lateinit var periodicLocationCallback: LocationCallback
+//    private lateinit var periodicLocationCallback: LocationCallback
 
     private val prefs = PreferenceManager.getDefaultSharedPreferences(activity)
 
@@ -153,7 +159,7 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
             val zoom: Float = withContext(Dispatchers.Main) { googleMap.cameraPosition.zoom }
 
             val bounds = withContext(Dispatchers.Main) { googleMap.projection.visibleRegion.latLngBounds }
-            val meters = calculateGridSize(zoom)
+            meters = calculateGridSize(zoom)
             Log.d("METERS", "METERS: $meters, ZOOM: $zoom")
 
             val tlPoint = generateTopLeftPoint(meters, bounds.northeast.latitude, bounds.southwest.longitude) // tl significa Top Left
@@ -200,26 +206,7 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
                 }
             }
 
-            val automatic = prefs.getBoolean("automatic_fetch", false)
-            if (zoom != lastZoomValue || automatic != lastAutomatic) {
-                if (zoom == lastZoomValue && automatic) { // Fa la prima misura appena attivi automatic fetch
-                        activity.manageMeasurePermissions(false)
-                }
-                withContext(Dispatchers.Main) { automaticFetch(googleMap, meters.toFloat()) }
-            }
 
-
-//            val periodic = prefs.getBoolean("periodic_fetch", false)
-//            val seconds = prefs.getString("periodic_fetch_interval", 10.toString())!!.toInt()
-//            if (periodic != lastPeriodic || seconds != lastSeconds) {
-//                withContext(Dispatchers.Main) { periodicFetch() }
-//            }
-//            Log.d("ZOOM", "Last = $lastZoomValue, Actual = $zoom")
-
-            lastZoomValue = zoom
-            lastAutomatic = automatic
-//            lastPeriodic = periodic
-//            lastSeconds = seconds
             withContext(Dispatchers.Main) {
                 googleMap.uiSettings.isZoomControlsEnabled = true
                 googleMap.uiSettings.isZoomGesturesEnabled = true
@@ -331,49 +318,69 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
         }
     }
 
-    @SuppressLint("MissingPermission")
-    private fun automaticFetch(googleMap: GoogleMap, meters: Float) {
+    // SIAMO ARRIVATI QUI, BISOGNA IMPLEMENTARE LA LOGICA DELL'AUTOMATIC FETCH
+    @RequiresApi(Build.VERSION_CODES.S)
+    private fun automaticFetch(googleMap: GoogleMap) {
+        var automatic = prefs.getBoolean("automatic_fetch", false)
+//        if (!automatic) { return }
+        Log.d("LOCLISTENER", "Sono entrato in automaticFetch")
+        var lastLocation = locationFromListener
 
-        val automatic = prefs.getBoolean("automatic_fetch", false)
+        CoroutineScope(Dispatchers.IO).launch {
+            while(automatic) {
+                Log.d("LOCLISTENER", "Sono entrato nel while di automaticFetch")
+                delay(MILLIS)
+                automatic = prefs.getBoolean("automatic_fetch", false)
 
-        if (this::automaticLocationCallback.isInitialized) {
-            mFusedLocationClient.removeLocationUpdates(automaticLocationCallback)
-        }
+                withContext(Dispatchers.IO) {
+                    semaphore.acquire()
+                }
 
-        automaticLocationCallback = object : LocationCallback() {
-            @RequiresApi(Build.VERSION_CODES.S)
-            override fun onLocationResult(locationResult: LocationResult) {
-                super.onLocationResult(locationResult)
-                val mLastLocation = locationResult.lastLocation
+                semaphore.release()
+                Log.d("LOCLISTENER", "${locationFromListener?.latitude}, ${locationFromListener?.longitude}. METERS = $meters")
 
-                if (getPolygon(mLastLocation) == null) {
-                    if (mLastLocation != null) {
-                        CoroutineScope(Dispatchers.IO).launch {
-                            val newPolygon = createPolygon(
-                                generateTopLeftPoint(
-                                    meters.toDouble(),
-                                    mLastLocation.latitude,
-                                    mLastLocation.longitude
-                                ), meters.toDouble(), 0
-                            )
-                            withContext(Dispatchers.Main) {
-                                val polygon = googleMap.addPolygon(newPolygon)
-                                gridPolygons.add(polygon)
-                            }
+                if ((withContext(Dispatchers.Main) { getPolygon(lastLocation) }) == null && lastLocation != null) {
+                    CoroutineScope(Dispatchers.IO).launch {
+                        val newPolygon = createPolygon(
+                            generateTopLeftPoint(
+                                meters,
+                                lastLocation!!.latitude,
+                                lastLocation!!.longitude
+                            ), meters, 0
+                        )
+                        withContext(Dispatchers.Main) {
+                            val polygon = googleMap.addPolygon(newPolygon)
+                            gridPolygons.add(polygon)
                         }
                     }
                 }
-                if (lastLocation != null && !areInTheSamePolygon(mLastLocation, lastLocation)) {
+
+                if (lastLocation != null && (withContext(Dispatchers.Main) { !areInTheSamePolygon(locationFromListener, lastLocation) })) {
                     activity.manageMeasurePermissions(true)
                 }
-                lastLocation = mLastLocation
+                lastLocation = locationFromListener
             }
         }
+    }
 
-        if (automatic) {
-            val mLocationRequest = LocationRequest.Builder(Priority.PRIORITY_BALANCED_POWER_ACCURACY, 5000).setMinUpdateDistanceMeters(meters/4).build()
-            mFusedLocationClient.requestLocationUpdates(mLocationRequest, automaticLocationCallback, Looper.myLooper())
-        }
+    @RequiresApi(Build.VERSION_CODES.S)
+    @SuppressLint("MissingPermission")
+    fun initAutomaticFetch(googleMap: GoogleMap) {
+        locationListener =
+            LocationListener { location ->
+                semaphore.acquire()
+                locationFromListener = location
+                semaphore.release()
+            }
+        locationManager = activity.getSystemService(AppCompatActivity.LOCATION_SERVICE) as LocationManager?
+        locationManager?.requestLocationUpdates(LocationManager.GPS_PROVIDER, MILLIS, 0f, locationListener!!)
+        Log.d("LOCLISTENER", "Listener avviato")
+        automaticFetch(googleMap)
+    }
+
+    fun stopAutomaticFetch() {
+        locationManager?.removeUpdates(locationListener!!)
+        Log.d("LOCLISTENER", "Ho interrotto il listener")
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
