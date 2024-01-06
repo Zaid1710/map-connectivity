@@ -37,12 +37,11 @@ import android.content.SharedPreferences
  *       MAGARI SEPARARE PERIODIC BACKGROUND E NON
  *       Creare funzione per generare permissionToRequest per pulizia codice
  *
- *
  *       BUGS:
- *       A ZOOM MINIMO NON VIENE SPAWNATA LA GRIGLIA (ne su emulatore ne su telefono)
- *       SE UNO PROVA A IMPORTARE DA BLUETOOTH SENZA AVER DATO PRIMA I PERMESSI DA ERRORE
+ *       A ZOOM MINIMO NON VIENE SPAWNATA LA GRIGLIA (ne su emulatore ne su telefono) - NON LA GESTIAMO
+ *       SE UNO PROVA A IMPORTARE DA BLUETOOTH SENZA AVER DATO PRIMA I PERMESSI DA ERRORE - NON RIUSCIAMO A RIPRODURLO
  *       SE NON DAI PERMESSI DI POSIZIONE ALL'INIZIO CAPITANO ERRORI, MAGARI CHIUDERE L'APP SE NON LI DAI O BLOCCA TUTTO E NOTIFICA LA MANCANZA
- *       AUTOMATIC FETCH NON AGGIORNA LA MAPPA DOPO UNA MISURA
+ *       GESTIRE PERIODICFETCH (E AUTOMATIC FETCH) ATTIVA AL PRIMO AVVIO
  * */
 
 class MainActivity : AppCompatActivity() {
@@ -118,7 +117,7 @@ class MainActivity : AppCompatActivity() {
         } else {
             // Tutti i permessi sono stati già concessi
             Log.d("PERMISSIONS", "LOCATION PERMISSION GRANTED")
-
+            map.loadMap(mode)
             initMeasureBtn()
         }
 
@@ -156,7 +155,7 @@ class MainActivity : AppCompatActivity() {
                 editor.apply()
 
                 mapView.getMapAsync { googleMap ->
-                    map.initAutomaticFetch(googleMap)
+                    map.automaticFetch(googleMap)
                 }
             }
         } else if (auto == "stop") {
@@ -194,7 +193,6 @@ class MainActivity : AppCompatActivity() {
             periodicFetchStop()
         } else {
             intent.removeExtra("periodic")
-            // TODO: GESTIRE PERIODICFETCH ATTIVA AL PRIMO AVVIO
         }
 
     }
@@ -313,8 +311,8 @@ class MainActivity : AppCompatActivity() {
                     measureBtn.visibility = View.GONE
                     measureProgressBar.visibility = View.VISIBLE
                 }
-
             }
+
             val measurements = Measure(
                 timestamp = DateTimeFormatter.ISO_INSTANT.format(Instant.now()),
                 lat = map.getPosition()?.latitude,

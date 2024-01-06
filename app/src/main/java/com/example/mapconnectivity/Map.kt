@@ -17,7 +17,6 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.preference.PreferenceManager
 import androidx.room.Room
 import com.google.android.gms.location.FusedLocationProviderClient
-import com.google.android.gms.location.LocationCallback
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
@@ -64,15 +63,10 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
     private var MILLIS = 1000L
 
     private val mFusedLocationClient: FusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(activity)
-    private lateinit var automaticLocationCallback: LocationCallback
-//    private lateinit var periodicLocationCallback: LocationCallback
 
     private val prefs = PreferenceManager.getDefaultSharedPreferences(activity)
 
     private val gridInARow = 5.0
-
-    private var lastZoomValue: Float = -1.0f
-    private var lastAutomatic: Boolean = prefs.getBoolean("automatic_fetch", false)
 
     @RequiresApi(Build.VERSION_CODES.S)
     @SuppressLint("MissingPermission")
@@ -97,6 +91,8 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
             DB_BAD = -80.0
             DB_OPT = -60.0
         }
+
+//        initLocListener(mode)
 
         mFusedLocationClient.lastLocation
             .addOnSuccessListener(activity) { location ->
@@ -305,7 +301,12 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
     }
 
     private fun areInTheSamePolygon(pos1: Location?, pos2: Location?): Boolean {
-        return getPolygon(pos1)?.equals(getPolygon(pos2)) ?: false
+        return if (pos1 == null || pos2 == null) {
+            true
+        } else {
+//            getPolygon(pos1)?.equals(getPolygon(pos2)) ?: true
+            generateTopLeftPoint(meters, pos1.latitude, pos1.longitude) == generateTopLeftPoint(meters, pos2.latitude, pos2.longitude)
+        }
     }
 
     private fun getQuality(value: Double, bad: Double, optimal: Double): Int {
@@ -320,7 +321,7 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
 
     // SIAMO ARRIVATI QUI, BISOGNA IMPLEMENTARE LA LOGICA DELL'AUTOMATIC FETCH
     @RequiresApi(Build.VERSION_CODES.S)
-    private fun automaticFetch(googleMap: GoogleMap) {
+    fun automaticFetch(googleMap: GoogleMap) {
         var automatic = prefs.getBoolean("automatic_fetch", false)
 //        if (!automatic) { return }
         Log.d("LOCLISTENER", "Sono entrato in automaticFetch")
@@ -335,17 +336,17 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
                 withContext(Dispatchers.IO) {
                     semaphore.acquire()
                 }
-
                 semaphore.release()
-                Log.d("LOCLISTENER", "${locationFromListener?.latitude}, ${locationFromListener?.longitude}. METERS = $meters")
 
-                if ((withContext(Dispatchers.Main) { getPolygon(lastLocation) }) == null && lastLocation != null) {
+                val isOutside = withContext(Dispatchers.Main) { getPolygon(locationFromListener) } == null
+                Log.d("LOCLISTENER", "${locationFromListener?.latitude}, ${locationFromListener?.longitude}. METERS = $meters")
+                if (isOutside && lastLocation != null) {
                     CoroutineScope(Dispatchers.IO).launch {
                         val newPolygon = createPolygon(
                             generateTopLeftPoint(
                                 meters,
-                                lastLocation!!.latitude,
-                                lastLocation!!.longitude
+                                locationFromListener!!.latitude,
+                                locationFromListener!!.longitude
                             ), meters, 0
                         )
                         withContext(Dispatchers.Main) {
@@ -356,8 +357,10 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
                 }
 
                 if (lastLocation != null && (withContext(Dispatchers.Main) { !areInTheSamePolygon(locationFromListener, lastLocation) })) {
-                    activity.manageMeasurePermissions(true)
+                    withContext(Dispatchers.Main) {Log.d("PIPPO", "SONO NELL'IF, poligono1: ${getPolygon(locationFromListener)}, poligono2: ${getPolygon(lastLocation)}")}
+                    activity.manageMeasurePermissions(isOutside)
                 }
+
                 lastLocation = locationFromListener
             }
         }
@@ -371,6 +374,12 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
                 semaphore.acquire()
                 locationFromListener = location
                 semaphore.release()
+
+                Log.d(
+                    "LOCATION",
+                    "LAT: ${location.latitude}, LONG: ${location.longitude}"
+                )
+
             }
         locationManager = activity.getSystemService(AppCompatActivity.LOCATION_SERVICE) as LocationManager?
         locationManager?.requestLocationUpdates(LocationManager.GPS_PROVIDER, MILLIS, 0f, locationListener!!)
