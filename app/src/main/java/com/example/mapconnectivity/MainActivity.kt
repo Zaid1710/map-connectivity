@@ -28,7 +28,6 @@ import android.content.SharedPreferences
 
 /**
  * TODO: !!!!!!!!!!!!!!!!!!!!!!!!!!!!VMMV MODEL VIEW ECC!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
- *       FIX RICHIESTA PERMESSI (riguardare) ESEMPIO: audio non chiede permessi se fa direttamente periodic fetch
  *       PULIZIA CODICE (abbiamo spostato le funzioni relative ai sensori)
  *       ORA CHE L'EXPORT HA UN NOME DIVERSO PER OGNI FILE (timestamp), BISOGNA CANCELLARE I FILE PRIMA CHE DIVENTINO TROPPI
  *       DA VALUTARE: PER ORA SE SI CLICCA SU UN FILE .mapc PORTA A SWAP_ACTIVITY, VALUTARE SE CONTINUARE CON L'IMPLEMENTAZIONE DELL'IMPORTAZIONE AUTOMATICA O MENO
@@ -41,7 +40,6 @@ import android.content.SharedPreferences
  *       A ZOOM MINIMO NON VIENE SPAWNATA LA GRIGLIA (ne su emulatore ne su telefono) - NON LA GESTIAMO
  *       SE UNO PROVA A IMPORTARE DA BLUETOOTH SENZA AVER DATO PRIMA I PERMESSI DA ERRORE - NON RIUSCIAMO A RIPRODURLO
  *       SE NON DAI PERMESSI DI POSIZIONE ALL'INIZIO CAPITANO ERRORI, MAGARI CHIUDERE L'APP SE NON LI DAI O BLOCCA TUTTO E NOTIFICA LA MANCANZA
- *       GESTIRE PERIODICFETCH (E AUTOMATIC FETCH) ATTIVA AL PRIMO AVVIO
  * */
 
 class MainActivity : AppCompatActivity() {
@@ -104,6 +102,13 @@ class MainActivity : AppCompatActivity() {
 
         periodicFetchService = PeriodicFetchService()
 
+        val preferences: SharedPreferences =
+            PreferenceManager.getDefaultSharedPreferences(this)
+        val editor: SharedPreferences.Editor = preferences.edit()
+        editor.putBoolean("automatic_fetch", false)
+        editor.putBoolean("periodic_fetch", false)
+        editor.apply()
+
         Log.d("INIZIALIZZAZIONE", "HO INIZIALIZZATO TUTTO, SOPRATTUTTO $map")
 
         val permissionsToRequest = mutableListOf<String>()
@@ -132,6 +137,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         val auto = intent.getStringExtra("automatic")
+        Log.d("AUTOINTENT", auto.toString())
         if (auto == "start") {
             intent.removeExtra("automatic")
             // Controllo permessi
@@ -155,7 +161,7 @@ class MainActivity : AppCompatActivity() {
                 editor.apply()
 
                 mapView.getMapAsync { googleMap ->
-                    map.automaticFetch(googleMap)
+                    map.initAutomaticFetch(googleMap)
                 }
             }
         } else if (auto == "stop") {

@@ -88,6 +88,12 @@ class SettingsActivity : AppCompatActivity() {
 //                        periodicFetchStart()
                         val i = Intent(context, MainActivity::class.java)
                         i.putExtra("periodic", "start")
+
+                        if (automatic?.isChecked == true) {
+                            automatic.isChecked = false
+                            i.putExtra("automatic", "stop")
+                        }
+
                         startActivity(i)
                     } else {
                         val i = Intent(context, MainActivity::class.java)
@@ -103,6 +109,12 @@ class SettingsActivity : AppCompatActivity() {
                     if (newValue == true) {
                         val i = Intent(context, MainActivity::class.java)
                         i.putExtra("automatic", "start")
+
+                        if (periodic?.isChecked == true) {
+                            periodic.isChecked = false
+                            i.putExtra("periodic", "stop")
+                        }
+
                         startActivity(i)
                         false
                     } else {

@@ -319,13 +319,15 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
         }
     }
 
-    // SIAMO ARRIVATI QUI, BISOGNA IMPLEMENTARE LA LOGICA DELL'AUTOMATIC FETCH
     @RequiresApi(Build.VERSION_CODES.S)
     fun automaticFetch(googleMap: GoogleMap) {
         var automatic = prefs.getBoolean("automatic_fetch", false)
 //        if (!automatic) { return }
         Log.d("LOCLISTENER", "Sono entrato in automaticFetch")
+        semaphore.acquire()
         var lastLocation = locationFromListener
+        semaphore.release()
+//        var lastLocation: Location? = null
 
         CoroutineScope(Dispatchers.IO).launch {
             while(automatic) {
@@ -336,7 +338,6 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
                 withContext(Dispatchers.IO) {
                     semaphore.acquire()
                 }
-                semaphore.release()
 
                 val isOutside = withContext(Dispatchers.Main) { getPolygon(locationFromListener) } == null
                 Log.d("LOCLISTENER", "${locationFromListener?.latitude}, ${locationFromListener?.longitude}. METERS = $meters")
@@ -362,6 +363,7 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
                 }
 
                 lastLocation = locationFromListener
+                semaphore.release()
             }
         }
     }
@@ -377,8 +379,12 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
 
                 Log.d(
                     "LOCATION",
-                    "LAT: ${location.latitude}, LONG: ${location.longitude}"
+                    "AAAA LAT: ${locationFromListener?.latitude}, LONG: ${locationFromListener?.longitude}"
                 )
+//                Log.d(
+//                    "LOCATION",
+//                    "LAT: ${location.latitude}, LONG: ${location.longitude}"
+//                )
 
             }
         locationManager = activity.getSystemService(AppCompatActivity.LOCATION_SERVICE) as LocationManager?
