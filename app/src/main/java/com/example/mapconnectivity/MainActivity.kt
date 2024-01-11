@@ -1,6 +1,7 @@
 package com.example.mapconnectivity
 
 import android.Manifest
+import android.app.AlertDialog
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
@@ -26,6 +27,7 @@ import java.time.Instant
 import java.time.format.DateTimeFormatter
 import android.content.SharedPreferences
 
+
 /**
  * TODO: !!!!!!!!!!!!!!!!!!!!!!!!!!!!VMMV MODEL VIEW ECC!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
  *       PULIZIA CODICE (abbiamo spostato le funzioni relative ai sensori)
@@ -34,12 +36,10 @@ import android.content.SharedPreferences
  *       SE ELIMINI UNA MISURA IMPORTATA LA PUOI REIMPORTARE????
  *       VALUTARE SE USARE IL LOCLISTENER PER TUTTO IL PROGETTO E NON SOLO PER PERIODICFETCHSERVICE - NO
  *       MAGARI SEPARARE PERIODIC BACKGROUND E NON
- *       Creare funzione per generare permissionToRequest per pulizia codice
  *
  *       BUGS:
  *       A ZOOM MINIMO NON VIENE SPAWNATA LA GRIGLIA (ne su emulatore ne su telefono) - NON LA GESTIAMO
  *       SE UNO PROVA A IMPORTARE DA BLUETOOTH SENZA AVER DATO PRIMA I PERMESSI DA ERRORE - NON RIUSCIAMO A RIPRODURLO
- *       SE NON DAI PERMESSI DI POSIZIONE ALL'INIZIO CAPITANO ERRORI, MAGARI CHIUDERE L'APP SE NON LI DAI O BLOCCA TUTTO E NOTIFICA LA MANCANZA
  * */
 
 class MainActivity : AppCompatActivity() {
@@ -102,19 +102,19 @@ class MainActivity : AppCompatActivity() {
 
         periodicFetchService = PeriodicFetchService()
 
-        val preferences: SharedPreferences =
-            PreferenceManager.getDefaultSharedPreferences(this)
-        val editor: SharedPreferences.Editor = preferences.edit()
-        editor.putBoolean("automatic_fetch", false)
-        editor.putBoolean("periodic_fetch", false)
-        editor.apply()
+//        val preferences: SharedPreferences =
+//            PreferenceManager.getDefaultSharedPreferences(this)
+//        val editor: SharedPreferences.Editor = preferences.edit()
+//        editor.putBoolean("automatic_fetch", false)
+//        editor.putBoolean("periodic_fetch", false)
+//        editor.apply()
 
         Log.d("INIZIALIZZAZIONE", "HO INIZIALIZZATO TUTTO, SOPRATTUTTO $map")
 
-        val permissionsToRequest = mutableListOf<String>()
-        if (!checkPermission(Manifest.permission.ACCESS_FINE_LOCATION)) {
-            permissionsToRequest.add(Manifest.permission.ACCESS_FINE_LOCATION)
-        }
+        val permissionsToRequest = generatePermissionRequest(mutableListOf(Manifest.permission.ACCESS_FINE_LOCATION))
+//        if (!checkPermission(Manifest.permission.ACCESS_FINE_LOCATION)) {
+//            permissionsToRequest.add(Manifest.permission.ACCESS_FINE_LOCATION)
+//        }
 
         if (permissionsToRequest.isNotEmpty()) {
             Log.d("PERMISSIONS", "LOCATION PERMISSION MISSING")
@@ -141,10 +141,10 @@ class MainActivity : AppCompatActivity() {
         if (auto == "start") {
             intent.removeExtra("automatic")
             // Controllo permessi
-            val permissionsToRequest = mutableListOf<String>()
-            if (!checkPermission(Manifest.permission.RECORD_AUDIO)) {
-                permissionsToRequest.add(Manifest.permission.RECORD_AUDIO)
-            }
+            val permissionsToRequest = generatePermissionRequest(mutableListOf(Manifest.permission.RECORD_AUDIO))
+//            if (!checkPermission(Manifest.permission.RECORD_AUDIO)) {
+//                permissionsToRequest.add(Manifest.permission.RECORD_AUDIO)
+//            }
 
             if (permissionsToRequest.isNotEmpty()) {
                 // Qualche permesso non è stato dato
@@ -167,22 +167,29 @@ class MainActivity : AppCompatActivity() {
         } else if (auto == "stop") {
             intent.removeExtra("automatic")
             map.stopAutomaticFetch()
+        } else {
+            val preferences: SharedPreferences =
+                PreferenceManager.getDefaultSharedPreferences(this)
+            val editor: SharedPreferences.Editor = preferences.edit()
+            editor.putBoolean("automatic_fetch", false)
+            editor.apply()
         }
 
         val periodic = intent.getStringExtra("periodic")
+        Log.d("PERIODICINTENT", periodic.toString())
         if (periodic == "start") {
             intent.removeExtra("periodic")
             // Controllo permessi
-            val permissionsToRequest = mutableListOf<String>()
-            if (!checkPermission(Manifest.permission.POST_NOTIFICATIONS)) {
-                permissionsToRequest.add(Manifest.permission.POST_NOTIFICATIONS)
-            }
-            if (!checkPermission(Manifest.permission.FOREGROUND_SERVICE)) {
-                permissionsToRequest.add(Manifest.permission.FOREGROUND_SERVICE)
-            }
-            if (!checkPermission(Manifest.permission.RECORD_AUDIO)) {
-                permissionsToRequest.add(Manifest.permission.RECORD_AUDIO)
-            }
+            val permissionsToRequest = generatePermissionRequest(mutableListOf(Manifest.permission.POST_NOTIFICATIONS, Manifest.permission.FOREGROUND_SERVICE, Manifest.permission.RECORD_AUDIO))
+//            if (!checkPermission(Manifest.permission.POST_NOTIFICATIONS)) {
+//                permissionsToRequest.add(Manifest.permission.POST_NOTIFICATIONS)
+//            }
+//            if (!checkPermission(Manifest.permission.FOREGROUND_SERVICE)) {
+//                permissionsToRequest.add(Manifest.permission.FOREGROUND_SERVICE)
+//            }
+//            if (!checkPermission(Manifest.permission.RECORD_AUDIO)) {
+//                permissionsToRequest.add(Manifest.permission.RECORD_AUDIO)
+//            }
 
             if (permissionsToRequest.isNotEmpty()) {
                 // Qualche permesso non è stato dato
@@ -198,7 +205,12 @@ class MainActivity : AppCompatActivity() {
             intent.removeExtra("periodic")
             periodicFetchStop()
         } else {
-            intent.removeExtra("periodic")
+//            intent.removeExtra("periodic")
+            val preferences: SharedPreferences =
+                PreferenceManager.getDefaultSharedPreferences(this)
+            val editor: SharedPreferences.Editor = preferences.edit()
+            editor.putBoolean("periodic_fetch", false)
+            editor.apply()
         }
 
     }
@@ -232,27 +244,59 @@ class MainActivity : AppCompatActivity() {
             if (allPermissionsGranted) {
                 // Tutti i permessi sono stati concessi
                 Log.d("PERMISSIONS", "ALL OK")
-                if (requestCode == PERMISSION_INIT) {
-                    map.loadMap(mode)
-                    initMeasureBtn()
-                } else if (requestCode == PERMISSION_MEASUREMENTS) {
-                    addMeasurement(false)
-                } else if (requestCode == PERMISSION_OUTSIDE_MEASUREMENTS) {
-                    addMeasurement(true)
-                } else if (requestCode == PERMISSION_PERIODIC_FETCH) {
-                    periodicFetchStart()
-                } else if (requestCode == PERMISSION_AUTOMATIC_FETCH) {
-                    val preferences: SharedPreferences =
-                        PreferenceManager.getDefaultSharedPreferences(this)
-                    val editor: SharedPreferences.Editor = preferences.edit()
-                    editor.putBoolean("automatic_fetch", true)
-                    editor.apply()
+                when (requestCode) {
+                    PERMISSION_INIT -> {
+                        map.loadMap(mode)
+                        initMeasureBtn()
+                    }
+                    PERMISSION_MEASUREMENTS -> {
+                        addMeasurement(false)
+                    }
+                    PERMISSION_OUTSIDE_MEASUREMENTS -> {
+                        addMeasurement(true)
+                    }
+                    PERMISSION_PERIODIC_FETCH -> {
+                        periodicFetchStart()
+                    }
+                    PERMISSION_AUTOMATIC_FETCH -> {
+                        val preferences: SharedPreferences =
+                            PreferenceManager.getDefaultSharedPreferences(this)
+                        val editor: SharedPreferences.Editor = preferences.edit()
+                        editor.putBoolean("automatic_fetch", true)
+                        editor.apply()
 
-                    mapView.getMapAsync { googleMap ->
-                        map.initAutomaticFetch(googleMap)
+                        mapView.getMapAsync { googleMap ->
+                            map.initAutomaticFetch(googleMap)
+                        }
                     }
                 }
+
             } else {
+                if (requestCode == PERMISSION_INIT) {
+                    val dialogBuilder = AlertDialog.Builder(this, R.style.DialogTheme)
+                    dialogBuilder.setTitle("Permessi di posizione mancanti")
+                    dialogBuilder.setMessage("L'applicazione ha bisogno dei permessi di posizione. \nPer favore autorizzane l'utilizzo per proseguire.")
+                    dialogBuilder.setNegativeButton("Prosegui") { _, _ -> }
+                    dialogBuilder.setOnDismissListener {
+//                        val permissionsToRequest = mutableListOf<String>()
+                        val permissionsToRequest = generatePermissionRequest(mutableListOf(Manifest.permission.ACCESS_FINE_LOCATION))
+//                        if (!checkPermission(Manifest.permission.ACCESS_FINE_LOCATION)) {
+//                            permissionsToRequest.add(Manifest.permission.ACCESS_FINE_LOCATION)
+//                        }
+
+                        if (permissionsToRequest.isNotEmpty()) {
+                            Log.d("PERMISSIONS", "LOCATION PERMISSION MISSING")
+                            requestPermissions(permissionsToRequest.toTypedArray(), PERMISSION_INIT)
+                        } else {
+                            // Tutti i permessi sono stati già concessi
+                            Log.d("PERMISSIONS", "LOCATION PERMISSION GRANTED")
+                            map.loadMap(mode)
+                            initMeasureBtn()
+                        }
+                    }
+                    dialogBuilder.create().show()
+                }
+
                 if (requestCode == PERMISSION_PERIODIC_FETCH) {
                     val preferences: SharedPreferences =
                         PreferenceManager.getDefaultSharedPreferences(this)
@@ -350,17 +394,15 @@ class MainActivity : AppCompatActivity() {
 
     @RequiresApi(Build.VERSION_CODES.S)
     fun manageMeasurePermissions(isOutside: Boolean) {
-        val permissionsToRequest = mutableListOf<String>()
-        if (!this.checkPermission(Manifest.permission.ACCESS_FINE_LOCATION)) {
-            Log.d("MEASUREPERMISSIONS", "Mi manca ACCESS_FINE_LOCATION")
-            permissionsToRequest.add(Manifest.permission.ACCESS_FINE_LOCATION)
-        }
-        if (!this.checkPermission(Manifest.permission.RECORD_AUDIO)) {
-            Log.d("MEASUREPERMISSIONS", "Mi manca RECORD_AUDIO")
-            permissionsToRequest.add(Manifest.permission.RECORD_AUDIO)
-        }
-//        if (!this.checkPermission(Manifest.permission.ACCESS_BACKGROUND_LOCATION)) {
-//            permissionsToRequest.add(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+//        val permissionsToRequest = mutableListOf<String>()
+        val permissionsToRequest = generatePermissionRequest(mutableListOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.RECORD_AUDIO))
+//        if (!this.checkPermission(Manifest.permission.ACCESS_FINE_LOCATION)) {
+//            Log.d("MEASUREPERMISSIONS", "Mi manca ACCESS_FINE_LOCATION")
+//            permissionsToRequest.add(Manifest.permission.ACCESS_FINE_LOCATION)
+//        }
+//        if (!this.checkPermission(Manifest.permission.RECORD_AUDIO)) {
+//            Log.d("MEASUREPERMISSIONS", "Mi manca RECORD_AUDIO")
+//            permissionsToRequest.add(Manifest.permission.RECORD_AUDIO)
 //        }
 
         if (permissionsToRequest.isNotEmpty()) {
@@ -399,6 +441,17 @@ class MainActivity : AppCompatActivity() {
 //        this.stopService(periodicFetchService)
 
         Log.d("SERVIZIO", "HO INTERROTTO IL SERVIZIO")
+    }
+
+    private fun generatePermissionRequest(requests: MutableList<String>) : MutableList<String> {
+        val permissionsToRequest = mutableListOf<String>()
+        for (request in requests) {
+            if (!checkPermission(request)) {
+                permissionsToRequest.add(request)
+            }
+        }
+
+        return permissionsToRequest
     }
 
 }

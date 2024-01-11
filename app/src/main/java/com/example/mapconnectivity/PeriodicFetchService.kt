@@ -55,7 +55,7 @@ class PeriodicFetchService : Service() {
     // Listener per la posizione
     private val locationListener: LocationListener =
         LocationListener { location ->
-            Log.d("LOCLISTENER", "${location.latitude}, ${location.longitude}")
+            Log.d("LOCLISTENER", "BBBB ${location.latitude}, ${location.longitude}")
             lastLocation = location
         }
     //            override fun onStatusChanged(provider: String, status: Int, extras: Bundle) {}

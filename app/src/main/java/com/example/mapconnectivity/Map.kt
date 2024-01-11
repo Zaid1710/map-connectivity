@@ -37,7 +37,8 @@ import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.pow
 
-class Map(mapView: SupportMapFragment?, activity: MainActivity) {
+class Map (mapView: SupportMapFragment?,activity: MainActivity) {
+
     private var mapView: SupportMapFragment? = mapView
     private var activity: MainActivity = activity
     private val gridPolygons: MutableList<Polygon> = mutableListOf()
@@ -60,7 +61,7 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
     private var DB_BAD = -80.0
     private var DB_OPT = -60.0
 
-    private var MILLIS = 1000L
+    private var MILLIS = 2000L
 
     private val mFusedLocationClient: FusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(activity)
 
@@ -381,20 +382,20 @@ class Map(mapView: SupportMapFragment?, activity: MainActivity) {
                     "LOCATION",
                     "AAAA LAT: ${locationFromListener?.latitude}, LONG: ${locationFromListener?.longitude}"
                 )
-//                Log.d(
-//                    "LOCATION",
-//                    "LAT: ${location.latitude}, LONG: ${location.longitude}"
-//                )
-
             }
         locationManager = activity.getSystemService(AppCompatActivity.LOCATION_SERVICE) as LocationManager?
         locationManager?.requestLocationUpdates(LocationManager.GPS_PROVIDER, MILLIS, 0f, locationListener!!)
         Log.d("LOCLISTENER", "Listener avviato")
+        Log.d("AAAA", "$locationListener")
         automaticFetch(googleMap)
     }
 
+    // TODO: Non funziona perché locationListener qui è null dato che esco e rientro
     fun stopAutomaticFetch() {
+        Log.d("AAAA", "$locationListener")
         locationManager?.removeUpdates(locationListener!!)
+        locationManager = null
+        locationListener = null
         Log.d("LOCLISTENER", "Ho interrotto il listener")
     }
 
