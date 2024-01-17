@@ -48,6 +48,7 @@ class SettingsActivity : AppCompatActivity() {
             val theme = findPreference<ListPreference>("theme_preference")
 
             val periodic = findPreference<SwitchPreference>("periodic_fetch")
+            val background_periodic = findPreference<SwitchPreference>("background_periodic_fetch")
             val automatic = findPreference<SwitchPreference>("automatic_fetch")
 
             val prefs = PreferenceManager.getDefaultSharedPreferences(requireContext())
@@ -93,11 +94,38 @@ class SettingsActivity : AppCompatActivity() {
                             automatic.isChecked = false
                             i.putExtra("automatic", "stop")
                         }
+                        if (background_periodic?.isChecked == true) {
+                            background_periodic.isChecked = false
+                            i.putExtra("automatic", "stop")
+                        }
 
                         startActivity(i)
                     } else {
                         val i = Intent(context, MainActivity::class.java)
                         i.putExtra("periodic", "stop")
+                        startActivity(i)
+                    }
+
+                    true
+                }
+
+            background_periodic?.onPreferenceChangeListener =
+                Preference.OnPreferenceChangeListener {_, newValue ->
+                    if (newValue == true) {
+                        val i = Intent(context, MainActivity::class.java)
+                        i.putExtra("background_periodic", "start")
+
+                        if (periodic?.isChecked == true) {
+                            periodic.isChecked = false
+                            i.putExtra("periodic", "stop")
+                        }
+                        if (automatic?.isChecked == true) {
+                            automatic.isChecked = false
+                            i.putExtra("automatic", "stop")
+                        }
+                    } else {
+                        val i = Intent(context, MainActivity::class.java)
+                        i.putExtra("background_periodic", "stop")
                         startActivity(i)
                     }
 
@@ -113,6 +141,10 @@ class SettingsActivity : AppCompatActivity() {
                         if (periodic?.isChecked == true) {
                             periodic.isChecked = false
                             i.putExtra("periodic", "stop")
+                        }
+                        if (background_periodic?.isChecked == true) {
+                            background_periodic.isChecked = false
+                            i.putExtra("automatic", "stop")
                         }
 
                         startActivity(i)

@@ -382,6 +382,11 @@ class Map (mapView: SupportMapFragment?,activity: MainActivity) {
                     "LOCATION",
                     "AAAA LAT: ${locationFromListener?.latitude}, LONG: ${locationFromListener?.longitude}"
                 )
+
+                if (!prefs.getBoolean("automatic_fetch", false)) {
+                    Log.d("AAAA", "AutomaticFetch is off")
+                    stopAutomaticFetch()
+                }
             }
         locationManager = activity.getSystemService(AppCompatActivity.LOCATION_SERVICE) as LocationManager?
         locationManager?.requestLocationUpdates(LocationManager.GPS_PROVIDER, MILLIS, 0f, locationListener!!)
@@ -392,7 +397,7 @@ class Map (mapView: SupportMapFragment?,activity: MainActivity) {
 
     // TODO: Non funziona perché locationListener qui è null dato che esco e rientro
     fun stopAutomaticFetch() {
-        Log.d("AAAA", "$locationListener")
+        Log.d("AAAA", "$locationListener, $locationManager")
         locationManager?.removeUpdates(locationListener!!)
         locationManager = null
         locationListener = null

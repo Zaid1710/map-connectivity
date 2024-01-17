@@ -36,6 +36,7 @@ import android.content.SharedPreferences
  *       SE ELIMINI UNA MISURA IMPORTATA LA PUOI REIMPORTARE????
  *       VALUTARE SE USARE IL LOCLISTENER PER TUTTO IL PROGETTO E NON SOLO PER PERIODICFETCHSERVICE - NO
  *       MAGARI SEPARARE PERIODIC BACKGROUND E NON
+ *          RICORDARSI DI METTERE LA SPUNTA DI BACKGROUND_PERIODIC A FALSE A INIZIALIZZAZIONE (COME PERIODIC E AUTOMATIC)
  *
  *       BUGS:
  *       A ZOOM MINIMO NON VIENE SPAWNATA LA GRIGLIA (ne su emulatore ne su telefono) - NON LA GESTIAMO
@@ -201,9 +202,6 @@ class MainActivity : AppCompatActivity() {
                 Log.d("PERMISSIONS", "ALL PERIODIC FETCH PERMISSIONS GRANTED")
                 periodicFetchStart()
             }
-        } else if (periodic == "stop") {
-            intent.removeExtra("periodic")
-            periodicFetchStop()
         } else {
 //            intent.removeExtra("periodic")
             val preferences: SharedPreferences =

@@ -38,6 +38,10 @@
             android:defaultValue="false"
             android:key="periodic_fetch"
             android:title="Scansione periodica" />
+        <SwitchPreference
+            android:defaultValue="false"
+            android:key="background_periodic_fetch"
+            android:title="Scansione periodica in background" />
         <ListPreference
             android:dependency="periodic_fetch"
             android:defaultValue="10"
