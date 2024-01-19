@@ -43,7 +43,6 @@
             android:key="background_periodic_fetch"
             android:title="Scansione periodica in background" />
         <ListPreference
-            android:dependency="periodic_fetch"
             android:defaultValue="10"
             android:entries="@array/time"
             android:entryValues="@array/time_value"

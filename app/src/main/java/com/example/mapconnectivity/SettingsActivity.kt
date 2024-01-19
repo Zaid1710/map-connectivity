@@ -54,6 +54,9 @@ class SettingsActivity : AppCompatActivity() {
             val prefs = PreferenceManager.getDefaultSharedPreferences(requireContext())
             val editor = prefs.edit()
 
+            findPreference<ListPreference>("periodic_fetch_interval")?.isEnabled =
+                !(periodic?.isChecked!! || background_periodic?.isChecked!!)
+
             manual?.onPreferenceChangeListener =
                 Preference.OnPreferenceChangeListener { _, newValue ->
                     if (newValue == false) {
@@ -87,6 +90,8 @@ class SettingsActivity : AppCompatActivity() {
                 Preference.OnPreferenceChangeListener {_, newValue ->
                     if (newValue == true) {
 //                        periodicFetchStart()
+                        findPreference<ListPreference>("periodic_fetch_interval")?.isEnabled = false
+
                         val i = Intent(context, MainActivity::class.java)
                         i.putExtra("periodic", "start")
 
@@ -101,6 +106,7 @@ class SettingsActivity : AppCompatActivity() {
 
                         startActivity(i)
                     } else {
+                        findPreference<ListPreference>("periodic_fetch_interval")?.isEnabled = true
                         val i = Intent(context, MainActivity::class.java)
                         i.putExtra("periodic", "stop")
                         startActivity(i)
@@ -112,6 +118,8 @@ class SettingsActivity : AppCompatActivity() {
             background_periodic?.onPreferenceChangeListener =
                 Preference.OnPreferenceChangeListener {_, newValue ->
                     if (newValue == true) {
+                        findPreference<ListPreference>("periodic_fetch_interval")?.isEnabled = false
+
                         val i = Intent(context, MainActivity::class.java)
                         i.putExtra("background_periodic", "start")
 
@@ -123,7 +131,9 @@ class SettingsActivity : AppCompatActivity() {
                             automatic.isChecked = false
                             i.putExtra("automatic", "stop")
                         }
+                        startActivity(i)
                     } else {
+                        findPreference<ListPreference>("periodic_fetch_interval")?.isEnabled = true
                         val i = Intent(context, MainActivity::class.java)
                         i.putExtra("background_periodic", "stop")
                         startActivity(i)

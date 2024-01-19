@@ -34,9 +34,7 @@ import android.content.SharedPreferences
  *       ORA CHE L'EXPORT HA UN NOME DIVERSO PER OGNI FILE (timestamp), BISOGNA CANCELLARE I FILE PRIMA CHE DIVENTINO TROPPI
  *       DA VALUTARE: PER ORA SE SI CLICCA SU UN FILE .mapc PORTA A SWAP_ACTIVITY, VALUTARE SE CONTINUARE CON L'IMPLEMENTAZIONE DELL'IMPORTAZIONE AUTOMATICA O MENO
  *       SE ELIMINI UNA MISURA IMPORTATA LA PUOI REIMPORTARE????
- *       VALUTARE SE USARE IL LOCLISTENER PER TUTTO IL PROGETTO E NON SOLO PER PERIODICFETCHSERVICE - NO
- *       MAGARI SEPARARE PERIODIC BACKGROUND E NON
- *          RICORDARSI DI METTERE LA SPUNTA DI BACKGROUND_PERIODIC A FALSE A INIZIALIZZAZIONE (COME PERIODIC E AUTOMATIC)
+ *       DURANTE BACKGROUND PERIODIC FETCH COPRIRE MAPPA
  *
  *       BUGS:
  *       A ZOOM MINIMO NON VIENE SPAWNATA LA GRIGLIA (ne su emulatore ne su telefono) - NON LA GESTIAMO
@@ -47,8 +45,8 @@ class MainActivity : AppCompatActivity() {
     private val PERMISSION_INIT = 0
     private val PERMISSION_MEASUREMENTS = 1
     private val PERMISSION_OUTSIDE_MEASUREMENTS = 2
-//    val PERMISSION_BT = 3
-    private val PERMISSION_PERIODIC_FETCH = 4
+    private val PERMISSION_PERIODIC_FETCH = 3
+    private val PERMISSION_BACKGROUND_PERIODIC_FETCH = 4
     private val PERMISSION_AUTOMATIC_FETCH = 5
 
     private lateinit var fm: FragmentManager
@@ -103,12 +101,8 @@ class MainActivity : AppCompatActivity() {
 
         periodicFetchService = PeriodicFetchService()
 
-//        val preferences: SharedPreferences =
-//            PreferenceManager.getDefaultSharedPreferences(this)
-//        val editor: SharedPreferences.Editor = preferences.edit()
-//        editor.putBoolean("automatic_fetch", false)
-//        editor.putBoolean("periodic_fetch", false)
-//        editor.apply()
+//        findPreference<ListPreference>("periodic_fetch_interval")?.isEnabled = false
+
 
         Log.d("INIZIALIZZAZIONE", "HO INIZIALIZZATO TUTTO, SOPRATTUTTO $map")
 
@@ -162,12 +156,9 @@ class MainActivity : AppCompatActivity() {
                 editor.apply()
 
                 mapView.getMapAsync { googleMap ->
-                    map.initAutomaticFetch(googleMap)
+                    map.initLocationListener(googleMap, map.AUTOMATIC)
                 }
             }
-        } else if (auto == "stop") {
-            intent.removeExtra("automatic")
-            map.stopAutomaticFetch()
         } else {
             val preferences: SharedPreferences =
                 PreferenceManager.getDefaultSharedPreferences(this)
@@ -180,6 +171,42 @@ class MainActivity : AppCompatActivity() {
         Log.d("PERIODICINTENT", periodic.toString())
         if (periodic == "start") {
             intent.removeExtra("periodic")
+            // Controllo permessi
+            val permissionsToRequest = generatePermissionRequest(mutableListOf(Manifest.permission.RECORD_AUDIO))
+//            if (!checkPermission(Manifest.permission.RECORD_AUDIO)) {
+//                permissionsToRequest.add(Manifest.permission.RECORD_AUDIO)
+//            }
+
+            if (permissionsToRequest.isNotEmpty()) {
+                // Qualche permesso non è stato dato
+                Log.d("PERMISSIONS", "SOMETHING'S MISSING WITH PERIODIC FETCH PERMISSIONS")
+                requestPermissions(permissionsToRequest.toTypedArray(), PERMISSION_PERIODIC_FETCH)
+
+            } else {
+                // Tutti i permessi sono stati già concessi
+                Log.d("PERMISSIONS", "ALL PERIODIC FETCH PERMISSIONS GRANTED")
+                val preferences: SharedPreferences =
+                    PreferenceManager.getDefaultSharedPreferences(this)
+                val editor: SharedPreferences.Editor = preferences.edit()
+                editor.putBoolean("periodic_fetch", true)
+                editor.apply()
+
+                mapView.getMapAsync { googleMap ->
+                    map.initLocationListener(googleMap, map.PERIODIC)
+                }
+            }
+        } else {
+            val preferences: SharedPreferences =
+                PreferenceManager.getDefaultSharedPreferences(this)
+            val editor: SharedPreferences.Editor = preferences.edit()
+            editor.putBoolean("periodic_fetch", false)
+            editor.apply()
+        }
+
+        val backgroundPeriodic = intent.getStringExtra("background_periodic")
+        Log.d("BACKGROUNDPERIODICINTENT", backgroundPeriodic.toString())
+        if (backgroundPeriodic == "start") {
+            intent.removeExtra("background_periodic")
             // Controllo permessi
             val permissionsToRequest = generatePermissionRequest(mutableListOf(Manifest.permission.POST_NOTIFICATIONS, Manifest.permission.FOREGROUND_SERVICE, Manifest.permission.RECORD_AUDIO))
 //            if (!checkPermission(Manifest.permission.POST_NOTIFICATIONS)) {
@@ -195,22 +222,24 @@ class MainActivity : AppCompatActivity() {
             if (permissionsToRequest.isNotEmpty()) {
                 // Qualche permesso non è stato dato
                 Log.d("PERMISSIONS", "SOMETHING'S MISSING WITH PERIODIC FETCH PERMISSIONS")
-                requestPermissions(permissionsToRequest.toTypedArray(), PERMISSION_PERIODIC_FETCH)
+                requestPermissions(permissionsToRequest.toTypedArray(), PERMISSION_BACKGROUND_PERIODIC_FETCH)
 
             } else {
                 // Tutti i permessi sono stati già concessi
                 Log.d("PERMISSIONS", "ALL PERIODIC FETCH PERMISSIONS GRANTED")
                 periodicFetchStart()
             }
+        } else if (backgroundPeriodic == "stop") {
+            intent.removeExtra("background_periodic")
+            periodicFetchStop()
         } else {
 //            intent.removeExtra("periodic")
             val preferences: SharedPreferences =
                 PreferenceManager.getDefaultSharedPreferences(this)
             val editor: SharedPreferences.Editor = preferences.edit()
-            editor.putBoolean("periodic_fetch", false)
+            editor.putBoolean("background_periodic_fetch", false)
             editor.apply()
         }
-
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
@@ -253,7 +282,7 @@ class MainActivity : AppCompatActivity() {
                     PERMISSION_OUTSIDE_MEASUREMENTS -> {
                         addMeasurement(true)
                     }
-                    PERMISSION_PERIODIC_FETCH -> {
+                    PERMISSION_BACKGROUND_PERIODIC_FETCH -> {
                         periodicFetchStart()
                     }
                     PERMISSION_AUTOMATIC_FETCH -> {
@@ -264,7 +293,18 @@ class MainActivity : AppCompatActivity() {
                         editor.apply()
 
                         mapView.getMapAsync { googleMap ->
-                            map.initAutomaticFetch(googleMap)
+                            map.initLocationListener(googleMap, map.AUTOMATIC)
+                        }
+                    }
+                    PERMISSION_PERIODIC_FETCH -> {
+                        val preferences: SharedPreferences =
+                            PreferenceManager.getDefaultSharedPreferences(this)
+                        val editor: SharedPreferences.Editor = preferences.edit()
+                        editor.putBoolean("periodic_fetch", true)
+                        editor.apply()
+
+                        mapView.getMapAsync { googleMap ->
+                            map.initLocationListener(googleMap, map.PERIODIC)
                         }
                     }
                 }
@@ -295,11 +335,11 @@ class MainActivity : AppCompatActivity() {
                     dialogBuilder.create().show()
                 }
 
-                if (requestCode == PERMISSION_PERIODIC_FETCH) {
+                if (requestCode == PERMISSION_BACKGROUND_PERIODIC_FETCH) {
                     val preferences: SharedPreferences =
                         PreferenceManager.getDefaultSharedPreferences(this)
                     val editor: SharedPreferences.Editor = preferences.edit()
-                    editor.putBoolean("periodic_fetch", false)
+                    editor.putBoolean("background_periodic_fetch", false)
                     editor.apply()
                 }
 

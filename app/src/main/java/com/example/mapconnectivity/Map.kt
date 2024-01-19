@@ -48,6 +48,9 @@ class Map (mapView: SupportMapFragment?,activity: MainActivity) {
     private var semaphore = Semaphore(1)
     private var meters = 0.0
 
+    val PERIODIC = 1
+    val AUTOMATIC = 2
+
     private lateinit var database: MeasureDB
 
     val LTE = 0
@@ -370,8 +373,35 @@ class Map (mapView: SupportMapFragment?,activity: MainActivity) {
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
+    fun periodicFetch() {
+        var periodic = prefs.getBoolean("periodic_fetch", false)
+        val seconds = prefs.getString("periodic_fetch_interval", 10.toString())!!.toInt()
+//        if (!automatic) { return }
+        Log.d("LOCLISTENER", "Sono entrato in periodicFetch")
+//        var lastLocation: Location? = null
+
+        CoroutineScope(Dispatchers.IO).launch {
+            while(periodic) {
+                Log.d("LOCLISTENER", "Sono entrato nel while di automaticFetch")
+                delay(seconds * 1000L)
+                periodic = prefs.getBoolean("periodic_fetch", false)
+
+                withContext(Dispatchers.IO) {
+                    semaphore.acquire()
+                }
+
+                val isOutside = withContext(Dispatchers.Main) { getPolygon(locationFromListener) } == null
+                activity.manageMeasurePermissions(isOutside)
+
+                semaphore.release()
+            }
+        }
+    }
+
+
+    @RequiresApi(Build.VERSION_CODES.S)
     @SuppressLint("MissingPermission")
-    fun initAutomaticFetch(googleMap: GoogleMap) {
+    fun initLocationListener(googleMap: GoogleMap, mode: Int) {
         locationListener =
             LocationListener { location ->
                 semaphore.acquire()
@@ -383,20 +413,24 @@ class Map (mapView: SupportMapFragment?,activity: MainActivity) {
                     "AAAA LAT: ${locationFromListener?.latitude}, LONG: ${locationFromListener?.longitude}"
                 )
 
-                if (!prefs.getBoolean("automatic_fetch", false)) {
-                    Log.d("AAAA", "AutomaticFetch is off")
-                    stopAutomaticFetch()
+                if (!prefs.getBoolean("automatic_fetch", false) &&
+                    !prefs.getBoolean("periodic_fetch", false) ) {
+                    Log.d("AAAA", "fetch is off")
+                    stopLocationListener()
                 }
             }
         locationManager = activity.getSystemService(AppCompatActivity.LOCATION_SERVICE) as LocationManager?
         locationManager?.requestLocationUpdates(LocationManager.GPS_PROVIDER, MILLIS, 0f, locationListener!!)
         Log.d("LOCLISTENER", "Listener avviato")
         Log.d("AAAA", "$locationListener")
-        automaticFetch(googleMap)
+        if (mode == AUTOMATIC) {
+            automaticFetch(googleMap)
+        } else if (mode == PERIODIC) {
+            periodicFetch()
+        }
     }
 
-    // TODO: Non funziona perché locationListener qui è null dato che esco e rientro
-    fun stopAutomaticFetch() {
+    private fun stopLocationListener() {
         Log.d("AAAA", "$locationListener, $locationManager")
         locationManager?.removeUpdates(locationListener!!)
         locationManager = null
