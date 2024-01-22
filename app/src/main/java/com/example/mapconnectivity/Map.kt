@@ -106,8 +106,8 @@ class Map (mapView: SupportMapFragment?,activity: MainActivity) {
 
                         var style = MapStyleOptions.loadRawResourceStyle(activity, R.raw.default_theme)
                         when (prefs.getString("theme_preference", 2.toString())) {
-                            "0" -> { style = MapStyleOptions.loadRawResourceStyle(activity, R.raw.default_theme) }
-                            "1" -> { style = MapStyleOptions.loadRawResourceStyle(activity, R.raw.dark_theme) }
+                            "0" -> { Log.d("style", "sono in 0"); style = MapStyleOptions.loadRawResourceStyle(activity, R.raw.default_theme) }
+                            "1" -> { Log.d("style", "sono in 1"); style = MapStyleOptions.loadRawResourceStyle(activity, R.raw.dark_theme) }
                             "2" -> {
                                 when (activity.resources?.configuration?.uiMode?.and(Configuration.UI_MODE_NIGHT_MASK)) {
                                     Configuration.UI_MODE_NIGHT_YES -> {style = MapStyleOptions.loadRawResourceStyle(activity, R.raw.dark_theme)}
@@ -117,7 +117,8 @@ class Map (mapView: SupportMapFragment?,activity: MainActivity) {
                             }
                         }
 
-                        googleMap.setMapStyle(style)
+                        val success = googleMap.setMapStyle(style)
+                        Log.d("style", success.toString())
 
                         googleMap.uiSettings.isZoomControlsEnabled = true
                         googleMap.isMyLocationEnabled = true

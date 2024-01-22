@@ -36,6 +36,7 @@ import android.widget.ImageView
 import android.widget.PopupWindow
 import android.widget.RelativeLayout
 import android.widget.TextView
+import androidx.appcompat.app.AppCompatDelegate
 import com.google.android.gms.maps.MapView
 
 
@@ -116,6 +117,24 @@ class MainActivity : AppCompatActivity() {
 
         loadingText = findViewById(R.id.loadingText)
         loadingBar = findViewById(R.id.loadingBar)
+
+        val prefs = PreferenceManager.getDefaultSharedPreferences(this)
+
+        val theme = prefs.getString("theme_preference", 0.toString())
+        when (theme) {
+            "0" -> {
+                AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
+            }
+
+            "1" -> {
+                AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES)
+            }
+
+            "2" -> {
+                AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM)
+            }
+        }
+
 
         Log.d("INIZIALIZZAZIONE", "HO INIZIALIZZATO TUTTO, SOPRATTUTTO $map")
 
