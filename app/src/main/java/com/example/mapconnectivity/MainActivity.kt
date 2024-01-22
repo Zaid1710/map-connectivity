@@ -2,6 +2,7 @@ package com.example.mapconnectivity
 
 import android.Manifest
 import android.app.AlertDialog
+import android.app.Dialog
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
@@ -26,6 +27,16 @@ import kotlinx.coroutines.withContext
 import java.time.Instant
 import java.time.format.DateTimeFormatter
 import android.content.SharedPreferences
+import android.opengl.Visibility
+import android.view.Gravity
+import android.view.LayoutInflater
+import android.view.Window
+import android.view.WindowManager
+import android.widget.ImageView
+import android.widget.PopupWindow
+import android.widget.RelativeLayout
+import android.widget.TextView
+import com.google.android.gms.maps.MapView
 
 
 /**
@@ -34,7 +45,6 @@ import android.content.SharedPreferences
  *       ORA CHE L'EXPORT HA UN NOME DIVERSO PER OGNI FILE (timestamp), BISOGNA CANCELLARE I FILE PRIMA CHE DIVENTINO TROPPI
  *       DA VALUTARE: PER ORA SE SI CLICCA SU UN FILE .mapc PORTA A SWAP_ACTIVITY, VALUTARE SE CONTINUARE CON L'IMPLEMENTAZIONE DELL'IMPORTAZIONE AUTOMATICA O MENO
  *       SE ELIMINI UNA MISURA IMPORTATA LA PUOI REIMPORTARE????
- *       DURANTE BACKGROUND PERIODIC FETCH COPRIRE MAPPA
  *
  *       BUGS:
  *       A ZOOM MINIMO NON VIENE SPAWNATA LA GRIGLIA (ne su emulatore ne su telefono) - NON LA GESTIAMO
@@ -63,6 +73,9 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var periodicFetchService: PeriodicFetchService
     private var bound = false
+
+    private lateinit var loadingText: TextView
+    private lateinit var loadingBar: ProgressBar
 
 //    val serviceConnection: ServiceConnection = object : ServiceConnection {
 //        override fun onServiceConnected(className: ComponentName?, service: IBinder) {
@@ -101,8 +114,8 @@ class MainActivity : AppCompatActivity() {
 
         periodicFetchService = PeriodicFetchService()
 
-//        findPreference<ListPreference>("periodic_fetch_interval")?.isEnabled = false
-
+        loadingText = findViewById(R.id.loadingText)
+        loadingBar = findViewById(R.id.loadingBar)
 
         Log.d("INIZIALIZZAZIONE", "HO INIZIALIZZATO TUTTO, SOPRATTUTTO $map")
 
@@ -207,6 +220,7 @@ class MainActivity : AppCompatActivity() {
         Log.d("BACKGROUNDPERIODICINTENT", backgroundPeriodic.toString())
         if (backgroundPeriodic == "start") {
             intent.removeExtra("background_periodic")
+
             // Controllo permessi
             val permissionsToRequest = generatePermissionRequest(mutableListOf(Manifest.permission.POST_NOTIFICATIONS, Manifest.permission.FOREGROUND_SERVICE, Manifest.permission.RECORD_AUDIO))
 //            if (!checkPermission(Manifest.permission.POST_NOTIFICATIONS)) {
@@ -462,7 +476,8 @@ class MainActivity : AppCompatActivity() {
     private fun periodicFetchStart() {
         Log.d("SERVIZIO", "STO AVVIANDO IL SERVIZIO")
         measureBtn.visibility = View.GONE
-        measureProgressBar.visibility = View.VISIBLE
+        showLoading()
+//        measureProgressBar.visibility = View.VISIBLE
         val seconds = PreferenceManager.getDefaultSharedPreferences(this).getString("periodic_fetch_interval", 10.toString())!!.toInt()
 
         var serviceIntent = Intent(this, PeriodicFetchService::class.java)
@@ -473,9 +488,10 @@ class MainActivity : AppCompatActivity() {
 
     private fun periodicFetchStop() {
         measureBtn.visibility = View.VISIBLE
-        measureProgressBar.visibility = View.GONE
+//        measureProgressBar.visibility = View.GONE
 //        unbindService(serviceConnection)
         this.stopService(Intent(this, PeriodicFetchService::class.java))
+        hideLoading()
 //        this.stopService(periodicFetchService)
 
         Log.d("SERVIZIO", "HO INTERROTTO IL SERVIZIO")
@@ -492,4 +508,16 @@ class MainActivity : AppCompatActivity() {
         return permissionsToRequest
     }
 
+    private fun showLoading() {
+        mapView.view?.visibility = View.GONE
+        loadingText.visibility = View.VISIBLE
+        loadingBar.visibility = View.VISIBLE
+    }
+
+
+    private fun hideLoading() {
+        mapView.view?.visibility = View.VISIBLE
+        loadingText.visibility = View.GONE
+        loadingBar.visibility = View.GONE
+    }
 }

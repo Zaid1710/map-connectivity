@@ -6,4 +6,5 @@
     <color name="blue">#FF02335B</color>
     <color name="orange">#FFBE6E1F</color>
     <color name="black2">#FF04061B</color>
+    <color name="loadingGray">#4A4A4A</color>
 </resources>

@@ -4,7 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#4A4A4A"
+    android:background="@color/loadingGray"
     tools:context=".Loading">
 
     <ProgressBar
@@ -28,7 +28,7 @@
         android:id="@+id/loadingTitle"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:textColor="#FFBE6E1F"
+        android:textColor="@color/orange"
         android:textSize="20sp"
         android:textStyle="bold"
         app:layout_constraintBottom_toTopOf="@+id/guideline6"
@@ -50,7 +50,7 @@
         android:id="@+id/timerTxt"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:textColor="#FFBE6E1F"
+        android:textColor="@color/orange"
         android:textSize="20sp"
         android:textStyle="bold"
         app:layout_constraintBottom_toTopOf="@+id/cancelBtn"
