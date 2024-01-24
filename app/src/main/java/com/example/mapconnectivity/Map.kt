@@ -38,6 +38,11 @@ import kotlin.math.floor
 import kotlin.math.pow
 
 class Map (mapView: SupportMapFragment?,activity: MainActivity) {
+    class AverageMeasures(
+        var avgLte: Double?,
+        var avgWifi: Double?,
+        var avgDb: Double?
+    )
 
     private var mapView: SupportMapFragment? = mapView
     private var activity: MainActivity = activity
@@ -242,7 +247,7 @@ class Map (mapView: SupportMapFragment?,activity: MainActivity) {
         val imported = prefs.getBoolean("view_imported", true)
 
         val measureDao = database.measureDao()
-        val measurements = measureDao.getAvgMeasuresInPolygon(
+        var measurements = measureDao.getMeasuresInPolygon(
             trPoint.latitude,
             trPoint.longitude,
             blPoint.latitude,
@@ -250,13 +255,22 @@ class Map (mapView: SupportMapFragment?,activity: MainActivity) {
             imported
         )
 
+        val limitMeasures = prefs.getBoolean("switch_preference_limit", false)
+        if (limitMeasures) {
+            val limit = prefs.getString("limit", 5.toString())!!.toInt()
+
+            measurements = measurements.takeLast(limit)
+        }
+
+        val avgMeasures = getAvgMeasures(measurements)
+
         var avgModeMeasure: Double? = 0.0
         var lowerBound = 0.0
         var upperBound = 0.0
         when (mode) {
-            LTE -> { avgModeMeasure = measurements.avgLte; lowerBound = LTE_BAD; upperBound = LTE_OPT }
-            WIFI -> { avgModeMeasure = measurements.avgWifi; lowerBound = WIFI_BAD; upperBound = WIFI_OPT }
-            DB -> { avgModeMeasure = measurements.avgDb?.times(-1); lowerBound = DB_BAD; upperBound = DB_OPT }
+            LTE -> { avgModeMeasure = avgMeasures.avgLte; lowerBound = LTE_BAD; upperBound = LTE_OPT }
+            WIFI -> { avgModeMeasure = avgMeasures.avgWifi; lowerBound = WIFI_BAD; upperBound = WIFI_OPT }
+            DB -> { avgModeMeasure = avgMeasures.avgDb?.times(-1); lowerBound = DB_BAD; upperBound = DB_OPT }
         }
         if (avgModeMeasure != null) {
             color = getQuality(avgModeMeasure, lowerBound, upperBound)
@@ -447,7 +461,7 @@ class Map (mapView: SupportMapFragment?,activity: MainActivity) {
             CoroutineScope(Dispatchers.IO).launch {
                 val trPoint = withContext(Dispatchers.Main) { polygon.points[1] }
                 val blPoint = withContext(Dispatchers.Main) { polygon.points[3] }
-                val measures =
+                var measures =
                     database.measureDao().getMeasuresInPolygon(
                         trPoint.latitude,
                         trPoint.longitude,
@@ -455,13 +469,24 @@ class Map (mapView: SupportMapFragment?,activity: MainActivity) {
                         blPoint.longitude,
                         imported
                     )
-                val avgMeasures = database.measureDao().getAvgMeasuresInPolygon(
-                    trPoint.latitude,
-                    trPoint.longitude,
-                    blPoint.latitude,
-                    blPoint.longitude,
-                    imported
-                )
+
+                val limitMeasures = prefs.getBoolean("switch_preference_limit", false)
+                if (limitMeasures) {
+                    val limit = prefs.getString("limit", 5.toString())!!.toInt()
+
+                    measures = measures.takeLast(limit)
+                }
+
+
+//                val avgMeasures = database.measureDao().getAvgMeasuresInPolygon(
+//                    trPoint.latitude,
+//                    trPoint.longitude,
+//                    blPoint.latitude,
+//                    blPoint.longitude,
+//                    imported
+//                )
+
+                val avgMeasures = getAvgMeasures(measures)
                 Log.d("MISUREQUADRATO", measures.toString())
                 val dialogBuilder = AlertDialog.Builder(activity, R.style.DialogTheme)
                 dialogBuilder.setTitle("${measures.size} " + if (measures.size == 1) "MISURA TROVATA" else "MISURE TROVATE")
@@ -566,5 +591,23 @@ class Map (mapView: SupportMapFragment?,activity: MainActivity) {
             DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss"))
 
         return l.toString()
+    }
+
+    private fun getAvgMeasures(measures: List<Measure>) : AverageMeasures {
+        if (measures.isEmpty()) {
+            return AverageMeasures(null, null,null)
+        }
+
+        val avg = AverageMeasures(0.0, 0.0,0.0)
+        for (measure in measures) {
+            avg.avgLte = avg.avgLte?.plus(measure.lte)
+            avg.avgWifi = avg.avgWifi?.plus(measure.wifi)
+            avg.avgDb = avg.avgDb?.plus(measure.db)
+        }
+        avg.avgLte = avg.avgLte?.div(measures.size)
+        avg.avgWifi = avg.avgWifi?.div(measures.size)
+        avg.avgDb = avg.avgDb?.div(measures.size)
+
+        return avg
     }
 }

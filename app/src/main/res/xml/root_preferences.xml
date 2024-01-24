@@ -55,6 +55,7 @@
             android:entryValues="@array/discovery_time_value"
             android:key="discovery_time"
             android:title="Durata discoverabilità"
+            android:summary="Per lo scambio delle misure tramite Bluetooth"
             app:useSimpleSummaryProvider="true" />
 
     </PreferenceCategory>
@@ -62,6 +63,21 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:title="Soglie">
+        <SwitchPreference
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:defaultValue="false"
+            android:key="switch_preference_limit"
+            android:title="Limita il numero di misure da visualizzare"
+            android:summary="Se spento verranno mostrate tutte le misure, altrimenti scegli quante misure più recenti prendere in considerazione." />
+        <EditTextPreference
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:dependency="switch_preference_limit"
+            android:key="limit"
+            android:title="Seleziona numero di misure"
+            app:defaultValue="5"
+            app:useSimpleSummaryProvider="true" />
         <SwitchPreference
             android:defaultValue="false"
             android:key="switch_preference_bounds"
