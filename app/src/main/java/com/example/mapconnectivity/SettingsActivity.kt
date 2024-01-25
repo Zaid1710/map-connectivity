@@ -1,15 +1,12 @@
 package com.example.mapconnectivity
 
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
-import android.util.Log
 import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
-import androidx.core.content.ContextCompat
 import androidx.preference.EditTextPreference
 import androidx.preference.ListPreference
 import androidx.preference.Preference
@@ -51,6 +48,8 @@ class SettingsActivity : AppCompatActivity() {
             val background_periodic = findPreference<SwitchPreference>("background_periodic_fetch")
             val automatic = findPreference<SwitchPreference>("automatic_fetch")
 
+            val limit = findPreference<EditTextPreference>("limit")
+
             val prefs = PreferenceManager.getDefaultSharedPreferences(requireContext())
             val editor = prefs.edit()
 
@@ -89,7 +88,6 @@ class SettingsActivity : AppCompatActivity() {
             periodic?.onPreferenceChangeListener =
                 Preference.OnPreferenceChangeListener {_, newValue ->
                     if (newValue == true) {
-//                        periodicFetchStart()
                         findPreference<ListPreference>("periodic_fetch_interval")?.isEnabled = false
 
                         val i = Intent(context, MainActivity::class.java)
@@ -204,6 +202,12 @@ class SettingsActivity : AppCompatActivity() {
                     valid
                 }
 
+            limit?.onPreferenceChangeListener =
+                Preference.OnPreferenceChangeListener { _, newValue ->
+                    val valid = validateInputLimit(newValue.toString())
+                    valid
+                }
+
             theme?.onPreferenceChangeListener =
                 Preference.OnPreferenceChangeListener { _, newValue ->
                     when (newValue as String) {
@@ -257,12 +261,18 @@ class SettingsActivity : AppCompatActivity() {
             }
         }
 
-        private fun isNumber(input: String): Boolean {
-            return input.toIntOrNull() != null
+        private fun validateInputLimit(input: String): Boolean {
+            if (!isNumber(input) || input.toInt() < 1) {
+                val toast = Toast.makeText(requireContext(), "Input non valido", Toast.LENGTH_SHORT)
+                toast.show()
+                return false
+            }
+
+            return true
         }
 
-        private fun checkPermission(permission: String): Boolean {
-            return (ContextCompat.checkSelfPermission(requireContext(), permission) == PackageManager.PERMISSION_GRANTED)
+        private fun isNumber(input: String): Boolean {
+            return input.toIntOrNull() != null
         }
 
     }

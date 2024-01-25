@@ -1,4 +1,10 @@
 <resources>
     <string name="app_name">MapConnectivity</string>
     <string name="title_activity_settings">SettingsActivity</string>
+    <string name="settingsTitle">Impostazioni</string>
+    <string name="swapTitle">Importa/Esporta misure</string>
+    <string name="importDescription">Import</string>
+    <string name="exportDescription">Export</string>
+    <string name="importBtDescription">Import BT</string>
+    <string name="exportBtDescription">Export BT</string>
 </resources>
