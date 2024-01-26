@@ -50,6 +50,7 @@ import com.google.android.gms.maps.MapView
  *       BUGS:
  *       A ZOOM MINIMO NON VIENE SPAWNATA LA GRIGLIA (ne su emulatore ne su telefono) - NON LA GESTIAMO
  *       SE UNO PROVA A IMPORTARE DA BLUETOOTH SENZA AVER DATO PRIMA I PERMESSI DA ERRORE - NON RIUSCIAMO A RIPRODURLO
+ *       QUANDO DISATTIVI PERIODIC AUTOMATIC ECC CONTROLLA ANCHE CHE L'INTENT NON SIA MANDATO DA NOTIFICATION
  * */
 
 class MainActivity : AppCompatActivity() {
@@ -59,6 +60,7 @@ class MainActivity : AppCompatActivity() {
     private val PERMISSION_PERIODIC_FETCH = 3
     private val PERMISSION_BACKGROUND_PERIODIC_FETCH = 4
     private val PERMISSION_AUTOMATIC_FETCH = 5
+    private val PERMISSION_NOTIFY = 6
 
     private lateinit var fm: FragmentManager
     private lateinit var mapView: SupportMapFragment
@@ -77,20 +79,6 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var loadingText: TextView
     private lateinit var loadingBar: ProgressBar
-
-//    val serviceConnection: ServiceConnection = object : ServiceConnection {
-//        override fun onServiceConnected(className: ComponentName?, service: IBinder) {
-//            // cast the IBinder and get MyService instance
-//            val binder: PeriodicFetchService.LocalBinder = service as PeriodicFetchService.LocalBinder
-//            periodicFetchService = binder.getService()
-//            bound = true
-////            periodicFetchService.setCallbacks(this@MainActivity) // register
-//        }
-//
-//        override fun onServiceDisconnected(arg0: ComponentName?) {
-//            bound = false
-//        }
-//    }
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -273,6 +261,38 @@ class MainActivity : AppCompatActivity() {
             editor.putBoolean("background_periodic_fetch", false)
             editor.apply()
         }
+
+
+        val preferences: SharedPreferences =
+            PreferenceManager.getDefaultSharedPreferences(this)
+        val notifySwitch = preferences.getBoolean("notifyAbsentMeasure", false)
+
+        val notify = intent.getStringExtra("notify")
+        Log.d("NOTIFY", notify.toString())
+        if (notify == "start" || (notifySwitch && notify == null && periodic == null && auto == null && backgroundPeriodic == null)) {
+            if (notify != null) { intent.removeExtra("notify") }
+
+            val permissionsToRequest = generatePermissionRequest(mutableListOf(Manifest.permission.POST_NOTIFICATIONS))
+            if (permissionsToRequest.isNotEmpty()) {
+                // Qualche permesso non è stato dato
+                Log.d("PERMISSIONS", "SOMETHING'S MISSING WITH NOTIFY PERMISSIONS")
+                requestPermissions(permissionsToRequest.toTypedArray(), PERMISSION_NOTIFY)
+
+            } else {
+                // Tutti i permessi sono stati già concessi
+                Log.d("PERMISSIONS", "ALL NOTIFY PERMISSIONS GRANTED")
+                val preferences: SharedPreferences =
+                    PreferenceManager.getDefaultSharedPreferences(this)
+                val editor: SharedPreferences.Editor = preferences.edit()
+                editor.putBoolean("notifyAbsentMeasure", true)
+                editor.apply()
+                mapView.getMapAsync { googleMap ->
+                    map.initLocationListener(googleMap, map.NOTIFICATION)
+                }
+            }
+        }
+
+
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
@@ -338,6 +358,16 @@ class MainActivity : AppCompatActivity() {
 
                         mapView.getMapAsync { googleMap ->
                             map.initLocationListener(googleMap, map.PERIODIC)
+                        }
+                    }
+                    PERMISSION_NOTIFY -> {
+                        val preferences: SharedPreferences =
+                            PreferenceManager.getDefaultSharedPreferences(this)
+                        val editor: SharedPreferences.Editor = preferences.edit()
+                        editor.putBoolean("notifyAbsentMeasure", true)
+                        editor.apply()
+                        mapView.getMapAsync { googleMap ->
+                            map.initLocationListener(googleMap, map.NOTIFICATION)
                         }
                     }
                 }

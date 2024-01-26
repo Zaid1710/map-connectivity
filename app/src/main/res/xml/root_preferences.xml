@@ -127,6 +127,12 @@
             app:enabled="false"
             app:useSimpleSummaryProvider="true" />
 
+        <SwitchPreference
+            android:defaultValue="false"
+            android:key="notifyAbsentMeasure"
+            android:summary="Se attivo, verrà inviata una notifica quando si entra in un riquadro senza misure o con misure non aggiornate a oggi."
+            android:title="Notifica per misure assenti o obsolete" />
+
         <Preference
             app:title="Elimina tutte le misure"
             app:key="deleteMeasures"

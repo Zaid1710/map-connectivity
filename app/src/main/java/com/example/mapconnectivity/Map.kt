@@ -2,6 +2,9 @@ package com.example.mapconnectivity
 
 import android.annotation.SuppressLint
 import android.app.AlertDialog
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.content.Context
 import android.content.res.Configuration
 import android.graphics.Color
@@ -14,6 +17,8 @@ import android.util.Log
 import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import androidx.preference.PreferenceManager
 import androidx.room.Room
 import com.google.android.gms.location.FusedLocationProviderClient
@@ -30,6 +35,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.concurrent.Semaphore
@@ -53,8 +59,10 @@ class Map (mapView: SupportMapFragment?,activity: MainActivity) {
     private var semaphore = Semaphore(1)
     private var meters = 0.0
 
+    /* MODE CONSTS */
     val PERIODIC = 1
     val AUTOMATIC = 2
+    val NOTIFICATION = 3
 
     private lateinit var database: MeasureDB
 
@@ -338,9 +346,16 @@ class Map (mapView: SupportMapFragment?,activity: MainActivity) {
         }
     }
 
+    // Gestisce il listener notificando o facendo una misura quando si entra in un nuovo riquadro (COMMENTO DA SISTEMARE)
     @RequiresApi(Build.VERSION_CODES.S)
-    fun automaticFetch(googleMap: GoogleMap) {
-        var automatic = prefs.getBoolean("automatic_fetch", false)
+    fun listenerHandler(googleMap: GoogleMap, isInFetchingMode: Boolean) {
+//        var automatic = prefs.getBoolean("automatic_fetch", false)
+        var on: Boolean
+        on = if (isInFetchingMode) {
+            prefs.getBoolean("automatic_fetch", false)
+        } else {
+            prefs.getBoolean("notifyAbsentMeasure", true)
+        }
 //        if (!automatic) { return }
         Log.d("LOCLISTENER", "Sono entrato in automaticFetch")
         semaphore.acquire()
@@ -349,10 +364,15 @@ class Map (mapView: SupportMapFragment?,activity: MainActivity) {
 //        var lastLocation: Location? = null
 
         CoroutineScope(Dispatchers.IO).launch {
-            while(automatic) {
+            while(on) {
                 Log.d("LOCLISTENER", "Sono entrato nel while di automaticFetch")
                 delay(MILLIS)
-                automatic = prefs.getBoolean("automatic_fetch", false)
+//                automatic = prefs.getBoolean("automatic_fetch", false)
+                on = if (isInFetchingMode) {
+                    prefs.getBoolean("automatic_fetch", false)
+                } else {
+                    prefs.getBoolean("notifyAbsentMeasure", true)
+                }
 
                 withContext(Dispatchers.IO) {
                     semaphore.acquire()
@@ -378,7 +398,31 @@ class Map (mapView: SupportMapFragment?,activity: MainActivity) {
 
                 if (lastLocation != null && (withContext(Dispatchers.Main) { !areInTheSamePolygon(locationFromListener, lastLocation) })) {
                     withContext(Dispatchers.Main) {Log.d("PIPPO", "SONO NELL'IF, poligono1: ${getPolygon(locationFromListener)}, poligono2: ${getPolygon(lastLocation)}")}
-                    activity.manageMeasurePermissions(isOutside)
+                    if (isInFetchingMode) {
+                        activity.manageMeasurePermissions(isOutside)
+                    } else {
+                        withContext(Dispatchers.Main) {
+                            val polygon = getPolygon(locationFromListener)!!
+                            val trPoint = polygon.points[1]
+                            val blPoint = polygon.points[3]
+                            val imported = prefs.getBoolean("view_imported", true)
+
+                            val measureDao = withContext(Dispatchers.IO) { database.measureDao() }
+                            val measurements = withContext(Dispatchers.IO) { measureDao.getMeasuresInPolygon(
+                                trPoint.latitude,
+                                trPoint.longitude,
+                                blPoint.latitude,
+                                blPoint.longitude,
+                                imported
+                            ) }
+                            if (!checkForRecentMeasures(measurements)) {
+                                //Manda notifica
+                                Log.d("NOTIFICA", "NON CI SONO MISURE RECENTI!")
+                                sendNotification()
+
+                            }
+                        }
+                    }
                 }
 
                 lastLocation = locationFromListener
@@ -428,20 +472,24 @@ class Map (mapView: SupportMapFragment?,activity: MainActivity) {
                     "AAAA LAT: ${locationFromListener?.latitude}, LONG: ${locationFromListener?.longitude}"
                 )
 
-                if (!prefs.getBoolean("automatic_fetch", false) &&
-                    !prefs.getBoolean("periodic_fetch", false) ) {
-                    Log.d("AAAA", "fetch is off")
-                    stopLocationListener()
+                if (mode == NOTIFICATION) {
+                    if (!prefs.getBoolean("notifyAbsentMeasure", true)) { stopLocationListener() }
+                } else {
+                    if (!prefs.getBoolean("automatic_fetch", false) &&
+                        !prefs.getBoolean("periodic_fetch", false)) {
+                        stopLocationListener()
+                    }
                 }
+
             }
         locationManager = activity.getSystemService(AppCompatActivity.LOCATION_SERVICE) as LocationManager?
         locationManager?.requestLocationUpdates(LocationManager.GPS_PROVIDER, MILLIS, 0f, locationListener!!)
         Log.d("LOCLISTENER", "Listener avviato")
         Log.d("AAAA", "$locationListener")
-        if (mode == AUTOMATIC) {
-            automaticFetch(googleMap)
-        } else if (mode == PERIODIC) {
-            periodicFetch()
+        when (mode) {
+            AUTOMATIC -> { listenerHandler(googleMap, true) }
+            NOTIFICATION -> { listenerHandler(googleMap, false) }
+            PERIODIC -> { periodicFetch() }
         }
     }
 
@@ -609,5 +657,47 @@ class Map (mapView: SupportMapFragment?,activity: MainActivity) {
         avg.avgDb = avg.avgDb?.div(measures.size)
 
         return avg
+    }
+
+    // True se ci sono misure recenti, false altrimenti
+    @RequiresApi(Build.VERSION_CODES.O)
+    private fun checkForRecentMeasures(measures: List<Measure>) : Boolean {
+        Log.d("DATE", "sono entrato nella funzione")
+        if (measures.isEmpty()) { return false }
+
+        val lastMeasure = measures.last()
+        val today = LocalDate.now()
+        val lastMeasureDate = LocalDate.parse(lastMeasure.timestamp.take(10)) // Stringa tipo: 2024-01-25T19:08:29.627463Z, la data corrisponde ai primi 10 chars
+
+        Log.d("DATE", "Today: $today, lastMeasureDate: $lastMeasureDate, non è di oggi? ${today > lastMeasureDate}")
+
+        return today == lastMeasureDate // Restituisce true se l'ultima misura è di oggi, false altrimenti
+    }
+
+    @RequiresApi(Build.VERSION_CODES.O)
+    private fun sendNotification() {
+        val CHANNEL_ID = "RecentMeasuresChannel"
+        val SERVICE_NOTIFICATION_ID = 2
+        val notificationManager = NotificationManagerCompat.from(activity)
+        val name = "Misure recenti"
+        val description = "Notifica in caso di misure recenti assenti"
+        val importance = NotificationManager.IMPORTANCE_DEFAULT
+        val channel = NotificationChannel(CHANNEL_ID, name, importance)
+        channel.description = description
+        notificationManager.createNotificationChannel(channel)
+
+        val mBuilder = NotificationCompat.Builder(activity, CHANNEL_ID)
+        mBuilder
+            .setContentTitle("Misure assenti o obsolete")
+            .setContentText("Non sono state trovate misure risalenti a oggi, effettuane qualcuna!")
+            .setSmallIcon(R.mipmap.ic_launcher_round)
+            .priority = NotificationCompat.PRIORITY_DEFAULT
+//            .setProgress(0,0,true)
+//            .setOngoing(true)
+
+        val notification = mBuilder.build()
+        notificationManager.notify(SERVICE_NOTIFICATION_ID, notification)
+
+//        return notification
     }
 }

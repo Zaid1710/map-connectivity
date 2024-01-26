@@ -47,6 +47,7 @@ class SettingsActivity : AppCompatActivity() {
             val periodic = findPreference<SwitchPreference>("periodic_fetch")
             val background_periodic = findPreference<SwitchPreference>("background_periodic_fetch")
             val automatic = findPreference<SwitchPreference>("automatic_fetch")
+            val notify = findPreference<SwitchPreference>("notifyAbsentMeasure")
 
             val limit = findPreference<EditTextPreference>("limit")
 
@@ -95,18 +96,18 @@ class SettingsActivity : AppCompatActivity() {
 
                         if (automatic?.isChecked == true) {
                             automatic.isChecked = false
-                            i.putExtra("automatic", "stop")
+//                            i.putExtra("automatic", "stop")
                         }
                         if (background_periodic?.isChecked == true) {
                             background_periodic.isChecked = false
-                            i.putExtra("automatic", "stop")
+                            i.putExtra("background_periodic", "stop")
                         }
 
                         startActivity(i)
                     } else {
                         findPreference<ListPreference>("periodic_fetch_interval")?.isEnabled = true
                         val i = Intent(context, MainActivity::class.java)
-                        i.putExtra("periodic", "stop")
+//                        i.putExtra("periodic", "stop")
                         startActivity(i)
                     }
 
@@ -123,11 +124,11 @@ class SettingsActivity : AppCompatActivity() {
 
                         if (periodic?.isChecked == true) {
                             periodic.isChecked = false
-                            i.putExtra("periodic", "stop")
+//                            i.putExtra("periodic", "stop")
                         }
                         if (automatic?.isChecked == true) {
                             automatic.isChecked = false
-                            i.putExtra("automatic", "stop")
+//                            i.putExtra("automatic", "stop")
                         }
                         startActivity(i)
                     } else {
@@ -148,18 +149,34 @@ class SettingsActivity : AppCompatActivity() {
 
                         if (periodic?.isChecked == true) {
                             periodic.isChecked = false
-                            i.putExtra("periodic", "stop")
+//                            i.putExtra("periodic", "stop")
                         }
                         if (background_periodic?.isChecked == true) {
                             background_periodic.isChecked = false
-                            i.putExtra("automatic", "stop")
+                            i.putExtra("background_periodic", "stop")
                         }
 
                         startActivity(i)
                         false
+                    }
+                    else {
+                        val i = Intent(context, MainActivity::class.java)
+//                        i.putExtra("automatic", "stop")
+                        startActivity(i)
+                        true
+                    }
+                }
+
+            notify?.onPreferenceChangeListener =
+                Preference.OnPreferenceChangeListener {_, newValue ->
+                    if (newValue == true) {
+                        val i = Intent(context, MainActivity::class.java)
+                        i.putExtra("notify", "start")
+                        startActivity(i)
+                        false
                     } else {
                         val i = Intent(context, MainActivity::class.java)
-                        i.putExtra("automatic", "stop")
+//                        i.putExtra("notify", "stop")
                         startActivity(i)
                         true
                     }
