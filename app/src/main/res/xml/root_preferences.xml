@@ -21,19 +21,22 @@
         <SwitchPreference
             android:defaultValue="true"
             android:key="view_imported"
+            android:summary="@string/viewImportedSummary"
             android:title="Visualizza misure importate" />
         <SwitchPreference
             android:defaultValue="false"
             android:key="automatic_fetch"
-            android:summary="Ogni volta che entri in un nuovo riquadro"
+            android:summary="@string/automaticFetchSummary"
             android:title="Scansione automatica" />
         <SwitchPreference
             android:defaultValue="false"
             android:key="periodic_fetch"
+            android:summary="@string/periodicFetchSummary"
             android:title="Scansione periodica" />
         <SwitchPreference
             android:defaultValue="false"
             android:key="background_periodic_fetch"
+            android:summary="@string/bgPeriodicFetchSummary"
             android:title="Scansione periodica in background" />
         <ListPreference
             android:defaultValue="10"
@@ -48,7 +51,6 @@
             android:entryValues="@array/discovery_time_value"
             android:key="discovery_time"
             android:title="Durata discoverabilità"
-            android:summary="Per lo scambio delle misure tramite Bluetooth"
             app:useSimpleSummaryProvider="true" />
 
     </PreferenceCategory>
@@ -62,7 +64,7 @@
             android:defaultValue="false"
             android:key="switch_preference_limit"
             android:title="Limita il numero di misure da visualizzare"
-            android:summary="Se spento verranno mostrate tutte le misure, altrimenti scegli quante misure più recenti prendere in considerazione." />
+            android:summary="@string/limitSummary" />
         <EditTextPreference
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -74,6 +76,7 @@
         <SwitchPreference
             android:defaultValue="false"
             android:key="switch_preference_bounds"
+            android:summary="@string/boundsSummary"
             android:title="Imposta le soglie manualmente" />
         <EditTextPreference
             android:dependency="switch_preference_bounds"

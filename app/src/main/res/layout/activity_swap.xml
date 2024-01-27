@@ -132,48 +132,64 @@
 
     </androidx.appcompat.widget.Toolbar>
 
-    <TextView
-        android:id="@+id/importDescription"
+    <ImageButton
+        android:id="@+id/importDescBtn"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="@string/importDescription"
+        android:layout_alignParentEnd="true"
+        android:layout_centerVertical="true"
+        android:background="#00FFFFFF"
+        android:src="@drawable/info"
+        android:contentDescription="Import Description Button"
         app:layout_constraintBottom_toTopOf="@+id/guideline5"
         app:layout_constraintEnd_toStartOf="@+id/guideline4"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/importBtn"
-        app:layout_constraintVertical_bias="0.15" />
+        app:layout_constraintVertical_bias=".15" />
 
-    <TextView
-        android:id="@+id/exportDescription"
+    <ImageButton
+        android:id="@+id/exportDescBtn"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="@string/exportDescription"
+        android:layout_alignParentEnd="true"
+        android:layout_centerVertical="true"
+        android:background="#00FFFFFF"
+        android:src="@drawable/info"
+        android:contentDescription="Export Description Button"
         app:layout_constraintBottom_toTopOf="@+id/guideline5"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="@+id/guideline4"
         app:layout_constraintTop_toBottomOf="@+id/exportBtn"
         app:layout_constraintVertical_bias="0.15" />
 
-    <TextView
-        android:id="@+id/importBtDescription"
+    <ImageButton
+        android:id="@+id/btImportDescBtn"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="@string/importBtDescription"
+        android:layout_alignParentEnd="true"
+        android:layout_centerVertical="true"
+        android:background="#00FFFFFF"
+        android:src="@drawable/info"
+        android:contentDescription="Import Bluetooth Description Button"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toStartOf="@+id/guideline4"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/importBtBtn"
-        app:layout_constraintVertical_bias="0.15" />
+        app:layout_constraintVertical_bias=".15" />
 
-    <TextView
-        android:id="@+id/exportBtDescription"
+    <ImageButton
+        android:id="@+id/btExportDescBtn"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="@string/exportBtDescription"
+        android:layout_alignParentEnd="true"
+        android:layout_centerVertical="true"
+        android:background="#00FFFFFF"
+        android:src="@drawable/info"
+        android:contentDescription="Export Bluetooth Description Button"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="@+id/guideline4"
         app:layout_constraintTop_toBottomOf="@+id/exportBtBtn"
-        app:layout_constraintVertical_bias="0.15" />
+        app:layout_constraintVertical_bias=".15" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -24,6 +24,7 @@ import android.util.Log
 import android.view.View
 import android.widget.ArrayAdapter
 import android.widget.Button
+import android.widget.ImageButton
 import android.widget.ListView
 import android.widget.ProgressBar
 import android.widget.Toast
@@ -93,6 +94,11 @@ class SwapActivity : AppCompatActivity() {
 
     private lateinit var prefs : SharedPreferences
     private var DISCOVERABLE_DURATION : Int? = 60
+
+    private lateinit var importDescBtn: ImageButton
+    private lateinit var exportDescBtn: ImageButton
+    private lateinit var btImportDescBtn: ImageButton
+    private lateinit var btExportDescBtn: ImageButton
 
     private val startForResult = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -238,6 +244,11 @@ class SwapActivity : AppCompatActivity() {
         mBundle = Bundle()
         loadingFragment = Loading()
 
+        importDescBtn = findViewById(R.id.importDescBtn)
+        exportDescBtn = findViewById(R.id.exportDescBtn)
+        btImportDescBtn = findViewById(R.id.btImportDescBtn)
+        btExportDescBtn = findViewById(R.id.btExportDescBtn)
+
 //        var stopBtn : Button = findViewById(R.id.loadingFragment)
 
         importBtn.setOnClickListener {
@@ -270,6 +281,19 @@ class SwapActivity : AppCompatActivity() {
                     }
                 }
             }
+        }
+
+        importDescBtn.setOnClickListener {
+            showInfoDialog(importBtn.text.toString(), getString(R.string.importDescription))
+        }
+        exportDescBtn.setOnClickListener {
+            showInfoDialog(exportBtn.text.toString(), getString(R.string.exportDescription))
+        }
+        btImportDescBtn.setOnClickListener {
+            showInfoDialog(importBtBtn.text.toString(), getString(R.string.importBtDescription))
+        }
+        btExportDescBtn.setOnClickListener {
+            showInfoDialog(exportBtBtn.text.toString(), getString(R.string.exportBtDescription))
         }
 
 //        stopExportBtBtn.setOnClickListener {
@@ -868,6 +892,15 @@ class SwapActivity : AppCompatActivity() {
         discoverableIntent.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 1)
 //        startActivity(discoverableIntent)
         disableDiscoverabilityLauncher.launch(discoverableIntent)
+    }
+
+    private fun showInfoDialog(title: String, info: String) {
+        val dialogBuilder = AlertDialog.Builder(this, R.style.DialogTheme)
+        dialogBuilder.setTitle("Descrizione di $title")
+
+        dialogBuilder.setMessage(info)
+        dialogBuilder.setNegativeButton("Chiudi") { _, _ -> }
+        dialogBuilder.create().show()
     }
 
 }
