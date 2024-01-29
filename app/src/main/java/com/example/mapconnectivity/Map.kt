@@ -455,12 +455,14 @@ class Map (mapView: SupportMapFragment?,activity: MainActivity) {
                 semaphore.release()
             }
         }
+
     }
 
 
     @RequiresApi(Build.VERSION_CODES.S)
     @SuppressLint("MissingPermission")
-    fun initLocationListener(googleMap: GoogleMap, mode: Int) {
+//    fun initLocationListener(googleMap: GoogleMap, mode: Int) {
+    fun initLocationListener() {
         locationListener =
             LocationListener { location ->
                 semaphore.acquire()
@@ -472,25 +474,31 @@ class Map (mapView: SupportMapFragment?,activity: MainActivity) {
                     "AAAA LAT: ${locationFromListener?.latitude}, LONG: ${locationFromListener?.longitude}"
                 )
 
-                if (mode == NOTIFICATION) {
-                    if (!prefs.getBoolean("notifyAbsentMeasure", true)) { stopLocationListener() }
-                } else {
-                    if (!prefs.getBoolean("automatic_fetch", false) &&
-                        !prefs.getBoolean("periodic_fetch", false)) {
-                        stopLocationListener()
-                    }
-                }
+//                if (mode == NOTIFICATION) {
+//                    if (!prefs.getBoolean("notifyAbsentMeasure", true)) { stopLocationListener() }
+//                } else {
+//                    if (!prefs.getBoolean("automatic_fetch", false) &&
+//                        !prefs.getBoolean("periodic_fetch", false)) {
+//                        stopLocationListener()
+//                    }
+//                }
+
+//                if (!prefs.getBoolean("automatic_fetch", false) &&
+//                    !prefs.getBoolean("periodic_fetch", false) &&
+//                    !prefs.getBoolean("notifyAbsentMeasure", true)) {
+//                        stopLocationListener()
+//                    }
 
             }
         locationManager = activity.getSystemService(AppCompatActivity.LOCATION_SERVICE) as LocationManager?
         locationManager?.requestLocationUpdates(LocationManager.GPS_PROVIDER, MILLIS, 0f, locationListener!!)
         Log.d("LOCLISTENER", "Listener avviato")
         Log.d("AAAA", "$locationListener")
-        when (mode) {
-            AUTOMATIC -> { listenerHandler(googleMap, true) }
-            NOTIFICATION -> { listenerHandler(googleMap, false) }
-            PERIODIC -> { periodicFetch() }
-        }
+//        when (mode) {
+//            AUTOMATIC -> { listenerHandler(googleMap, true) }
+//            NOTIFICATION -> { listenerHandler(googleMap, false) }
+//            PERIODIC -> { periodicFetch() }
+//        }
     }
 
     private fun stopLocationListener() {

@@ -46,11 +46,11 @@ import com.google.android.gms.maps.MapView
  *       ORA CHE L'EXPORT HA UN NOME DIVERSO PER OGNI FILE (timestamp), BISOGNA CANCELLARE I FILE PRIMA CHE DIVENTINO TROPPI
  *       DA VALUTARE: PER ORA SE SI CLICCA SU UN FILE .mapc PORTA A SWAP_ACTIVITY, VALUTARE SE CONTINUARE CON L'IMPLEMENTAZIONE DELL'IMPORTAZIONE AUTOMATICA O MENO
  *       SE ELIMINI UNA MISURA IMPORTATA LA PUOI REIMPORTARE????
+ *       AGGIUNGERE COROUTINE PER EVITARE CRASH X TIMEOUT (vedi INIZIO COROUTINE? e FINE COROUTINE?)
  *
  *       BUGS:
  *       A ZOOM MINIMO NON VIENE SPAWNATA LA GRIGLIA (ne su emulatore ne su telefono) - NON LA GESTIAMO
  *       SE UNO PROVA A IMPORTARE DA BLUETOOTH SENZA AVER DATO PRIMA I PERMESSI DA ERRORE - NON RIUSCIAMO A RIPRODURLO
- *       QUANDO DISATTIVI PERIODIC AUTOMATIC ECC CONTROLLA ANCHE CHE L'INTENT NON SIA MANDATO DA NOTIFICATION
  * */
 
 class MainActivity : AppCompatActivity() {
@@ -73,6 +73,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var settingsBtn: ImageButton
     private lateinit var swapBtn: ImageButton
     private var mode: Int = 0
+    private var lastNotifySwitch: Boolean = false
 
     private lateinit var periodicFetchService: PeriodicFetchService
     private var bound = false
@@ -137,6 +138,7 @@ class MainActivity : AppCompatActivity() {
         } else {
             // Tutti i permessi sono stati già concessi
             Log.d("PERMISSIONS", "LOCATION PERMISSION GRANTED")
+            map.initLocationListener()
             map.loadMap(mode)
             initMeasureBtn()
         }
@@ -151,7 +153,12 @@ class MainActivity : AppCompatActivity() {
             startActivity(swap)
         }
 
+        // TODO: INIZIO COROUTINE?
         val auto = intent.getStringExtra("automatic")
+        val periodic = intent.getStringExtra("periodic")
+        val backgroundPeriodic = intent.getStringExtra("background_periodic")
+        val notify = intent.getStringExtra("notify")
+
         Log.d("AUTOINTENT", auto.toString())
         if (auto == "start") {
             intent.removeExtra("automatic")
@@ -176,10 +183,11 @@ class MainActivity : AppCompatActivity() {
                 editor.apply()
 
                 mapView.getMapAsync { googleMap ->
-                    map.initLocationListener(googleMap, map.AUTOMATIC)
+//                    map.initLocationListener(googleMap, map.AUTOMATIC)
+                    map.listenerHandler(googleMap, true)
                 }
             }
-        } else {
+        } else if (notify == null){
             val preferences: SharedPreferences =
                 PreferenceManager.getDefaultSharedPreferences(this)
             val editor: SharedPreferences.Editor = preferences.edit()
@@ -187,7 +195,7 @@ class MainActivity : AppCompatActivity() {
             editor.apply()
         }
 
-        val periodic = intent.getStringExtra("periodic")
+
         Log.d("PERIODICINTENT", periodic.toString())
         if (periodic == "start") {
             intent.removeExtra("periodic")
@@ -211,11 +219,12 @@ class MainActivity : AppCompatActivity() {
                 editor.putBoolean("periodic_fetch", true)
                 editor.apply()
 
-                mapView.getMapAsync { googleMap ->
-                    map.initLocationListener(googleMap, map.PERIODIC)
-                }
+//                mapView.getMapAsync { googleMap ->
+//                    map.initLocationListener(googleMap, map.PERIODIC)
+                map.periodicFetch()
+//                }
             }
-        } else {
+        } else if (notify == null) {
             val preferences: SharedPreferences =
                 PreferenceManager.getDefaultSharedPreferences(this)
             val editor: SharedPreferences.Editor = preferences.edit()
@@ -223,7 +232,6 @@ class MainActivity : AppCompatActivity() {
             editor.apply()
         }
 
-        val backgroundPeriodic = intent.getStringExtra("background_periodic")
         Log.d("BACKGROUNDPERIODICINTENT", backgroundPeriodic.toString())
         if (backgroundPeriodic == "start") {
             intent.removeExtra("background_periodic")
@@ -253,7 +261,7 @@ class MainActivity : AppCompatActivity() {
         } else if (backgroundPeriodic == "stop") {
             intent.removeExtra("background_periodic")
             periodicFetchStop()
-        } else {
+        } else if (notify == null) {
 //            intent.removeExtra("periodic")
             val preferences: SharedPreferences =
                 PreferenceManager.getDefaultSharedPreferences(this)
@@ -262,16 +270,22 @@ class MainActivity : AppCompatActivity() {
             editor.apply()
         }
 
+        // TODO FINE COROUTINE?
 
-        val preferences: SharedPreferences =
-            PreferenceManager.getDefaultSharedPreferences(this)
-        val notifySwitch = preferences.getBoolean("notifyAbsentMeasure", false)
+    }
 
-        val notify = intent.getStringExtra("notify")
-        Log.d("NOTIFY", notify.toString())
-        if (notify == "start" || (notifySwitch && notify == null && periodic == null && auto == null && backgroundPeriodic == null)) {
-            if (notify != null) { intent.removeExtra("notify") }
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
+    override fun onResume() {
+        super.onResume()
 
+        val prefs = PreferenceManager.getDefaultSharedPreferences(this)
+        mode = prefs.getString("mode_preference", 0.toString())!!.toInt()
+        map.loadMap(mode)
+        Log.d("PREFERENCES", mode.toString())
+
+        val notifySwitch = prefs.getBoolean("notifyAbsentMeasure", false)
+
+        if (notifySwitch && !lastNotifySwitch) {
             val permissionsToRequest = generatePermissionRequest(mutableListOf(Manifest.permission.POST_NOTIFICATIONS))
             if (permissionsToRequest.isNotEmpty()) {
                 // Qualche permesso non è stato dato
@@ -287,26 +301,14 @@ class MainActivity : AppCompatActivity() {
                 editor.putBoolean("notifyAbsentMeasure", true)
                 editor.apply()
                 mapView.getMapAsync { googleMap ->
-                    map.initLocationListener(googleMap, map.NOTIFICATION)
+//                    map.initLocationListener(googleMap, map.NOTIFICATION)
+                    map.listenerHandler(googleMap, false)
                 }
             }
         }
 
+        lastNotifySwitch = notifySwitch
 
-    }
-
-    @RequiresApi(Build.VERSION_CODES.S)
-    override fun onResume() {
-        super.onResume()
-//        val sensorManager = this.getSystemService(Context.SENSOR_SERVICE) as SensorManager
-//        val pressureSensor = sensorManager.getDefaultSensor(Sensor.TYPE_PRESSURE)
-//        var pressureSensorListener = sensors.PressureSensorListener()
-//        sensorManager.registerListener(pressureSensorListener, pressureSensor, SensorManager.SENSOR_DELAY_NORMAL)
-
-        val prefs = PreferenceManager.getDefaultSharedPreferences(this)
-        mode = prefs.getString("mode_preference", 0.toString())!!.toInt()
-        map.loadMap(mode)
-        Log.d("PREFERENCES", mode.toString())
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
@@ -326,6 +328,7 @@ class MainActivity : AppCompatActivity() {
                 Log.d("PERMISSIONS", "ALL OK")
                 when (requestCode) {
                     PERMISSION_INIT -> {
+                        map.initLocationListener()
                         map.loadMap(mode)
                         initMeasureBtn()
                     }
@@ -346,7 +349,8 @@ class MainActivity : AppCompatActivity() {
                         editor.apply()
 
                         mapView.getMapAsync { googleMap ->
-                            map.initLocationListener(googleMap, map.AUTOMATIC)
+//                            map.initLocationListener(googleMap, map.AUTOMATIC)
+                            map.listenerHandler(googleMap, true)
                         }
                     }
                     PERMISSION_PERIODIC_FETCH -> {
@@ -356,9 +360,10 @@ class MainActivity : AppCompatActivity() {
                         editor.putBoolean("periodic_fetch", true)
                         editor.apply()
 
-                        mapView.getMapAsync { googleMap ->
-                            map.initLocationListener(googleMap, map.PERIODIC)
-                        }
+//                        mapView.getMapAsync { googleMap ->
+//                            map.initLocationListener(googleMap, map.PERIODIC)
+                            map.periodicFetch()
+//                        }
                     }
                     PERMISSION_NOTIFY -> {
                         val preferences: SharedPreferences =
@@ -367,7 +372,8 @@ class MainActivity : AppCompatActivity() {
                         editor.putBoolean("notifyAbsentMeasure", true)
                         editor.apply()
                         mapView.getMapAsync { googleMap ->
-                            map.initLocationListener(googleMap, map.NOTIFICATION)
+//                            map.initLocationListener(googleMap, map.NOTIFICATION)
+                            map.listenerHandler(googleMap, false)
                         }
                     }
                 }
@@ -459,6 +465,7 @@ class MainActivity : AppCompatActivity() {
         CoroutineScope(Dispatchers.IO).launch {
             withContext(Dispatchers.Main) {
                 if (::measureBtn.isInitialized && ::measureProgressBar.isInitialized) {
+                    Log.d("CARICA", "Carico, $measureBtn, $measureProgressBar")
                     measureBtn.visibility = View.GONE
                     measureProgressBar.visibility = View.VISIBLE
                 }
@@ -475,14 +482,14 @@ class MainActivity : AppCompatActivity() {
                 imported = false
             )
             measureDao.insertMeasure(measurements)
-            Log.d("MEASURE", measurements.toString())
-            Log.d("DB", measureDao.getAllMeasures().toString())
+//            Log.d("MEASURE", measurements.toString())
+//            Log.d("DB", measureDao.getAllMeasures().toString())
             withContext(Dispatchers.Main) {
                 if (::measureBtn.isInitialized && ::measureProgressBar.isInitialized) {
                     measureBtn.visibility = View.VISIBLE
                     measureProgressBar.visibility = View.GONE
                 }
-                Toast.makeText(applicationContext, "Misura fatta", Toast.LENGTH_SHORT).show()
+                Toast.makeText(applicationContext, "Misura registrata correttamente", Toast.LENGTH_SHORT).show()
                 if (!isOutside) {
                     mapView.getMapAsync { googleMap ->
                         map.deleteGrid()
@@ -562,7 +569,6 @@ class MainActivity : AppCompatActivity() {
         loadingText.visibility = View.VISIBLE
         loadingBar.visibility = View.VISIBLE
     }
-
 
     private fun hideLoading() {
         mapView.view?.visibility = View.VISIBLE

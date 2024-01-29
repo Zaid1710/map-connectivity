@@ -1,8 +1,10 @@
 package com.example.mapconnectivity
 
+import android.app.AlertDialog
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
@@ -13,6 +15,11 @@ import androidx.preference.Preference
 import androidx.preference.PreferenceFragmentCompat
 import androidx.preference.PreferenceManager
 import androidx.preference.SwitchPreference
+import androidx.room.Room
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlin.math.abs
 
 class SettingsActivity : AppCompatActivity() {
@@ -50,6 +57,8 @@ class SettingsActivity : AppCompatActivity() {
             val notify = findPreference<SwitchPreference>("notifyAbsentMeasure")
 
             val limit = findPreference<EditTextPreference>("limit")
+
+            val delete = findPreference<Preference>("deleteMeasures")
 
             val prefs = PreferenceManager.getDefaultSharedPreferences(requireContext())
             val editor = prefs.edit()
@@ -167,21 +176,6 @@ class SettingsActivity : AppCompatActivity() {
                     }
                 }
 
-            notify?.onPreferenceChangeListener =
-                Preference.OnPreferenceChangeListener {_, newValue ->
-                    if (newValue == true) {
-                        val i = Intent(context, MainActivity::class.java)
-                        i.putExtra("notify", "start")
-                        startActivity(i)
-                        false
-                    } else {
-                        val i = Intent(context, MainActivity::class.java)
-//                        i.putExtra("notify", "stop")
-                        startActivity(i)
-                        true
-                    }
-                }
-
 
             optimal_db?.onPreferenceChangeListener =
                 Preference.OnPreferenceChangeListener { _, newValue ->
@@ -235,7 +229,47 @@ class SettingsActivity : AppCompatActivity() {
                     true
                 }
 
+            delete?.setOnPreferenceClickListener {
+                Log.d("Delete", "DELETE ALL")
+                val database = Room.databaseBuilder(requireContext(), MeasureDB::class.java, "measuredb").fallbackToDestructiveMigration().build()
+                val measureDao = database.measureDao()
 
+
+
+                val dialogBuilder = AlertDialog.Builder(activity, R.style.DialogTheme)
+                dialogBuilder.setTitle("Scegli un'opzione")
+                dialogBuilder.setNegativeButton("Chiudi") { _, _ -> }
+                dialogBuilder.setItems(arrayOf("Elimina solo le mie misure", "Elimina solo le misure importate", "Elimina tutte le misure")) { _, which ->
+                    Log.d("Delete", which.toString())
+                    CoroutineScope(Dispatchers.IO).launch {
+                        var deletedMeasures = 0
+                        when (which) {
+                            0 -> {
+                                deletedMeasures = measureDao.getAllMeasuresImported(false).size
+                                measureDao.deleteAllMeasuresImported(false)
+                            }
+
+                            1 -> {
+                                deletedMeasures = measureDao.getAllMeasuresImported(true).size
+                                measureDao.deleteAllMeasuresImported(true)
+                            }
+
+                            2 -> {
+                                deletedMeasures = measureDao.getAllMeasures().size
+                                measureDao.deleteAllMeasures()
+                            }
+                        }
+                        val string = if (deletedMeasures == 0) "Nessuna misura da cancellare" else "$deletedMeasures ${if (deletedMeasures == 1) "misura cancellata" else "misure cancellate"} con successo"
+                        withContext(Dispatchers.Main) {
+                            val toast = Toast.makeText(activity, string, Toast.LENGTH_SHORT)
+                            toast.show()
+                        }
+                    }
+
+                }
+                dialogBuilder.create().show()
+                true
+            }
         }
 
         private fun validateInputOpt(input: String, bad: String?, isDb: Boolean): Boolean {

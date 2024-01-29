@@ -191,6 +191,10 @@ class SwapActivity : AppCompatActivity() {
         exportBtn.visibility = View.GONE
         importBtBtn.visibility = View.GONE
         exportBtBtn.visibility = View.GONE
+        importDescBtn.visibility = View.GONE
+        exportDescBtn.visibility = View.GONE
+        btImportDescBtn.visibility = View.GONE
+        btExportDescBtn.visibility = View.GONE
         loadingView.visibility = View.VISIBLE
     }
 
@@ -202,6 +206,10 @@ class SwapActivity : AppCompatActivity() {
         exportBtn.visibility = View.VISIBLE
         importBtBtn.visibility = View.VISIBLE
         exportBtBtn.visibility = View.VISIBLE
+        importDescBtn.visibility = View.VISIBLE
+        exportDescBtn.visibility = View.VISIBLE
+        btImportDescBtn.visibility = View.VISIBLE
+        btExportDescBtn.visibility = View.VISIBLE
     }
 
 
@@ -265,7 +273,7 @@ class SwapActivity : AppCompatActivity() {
 
         exportBtBtn.setOnClickListener {
             CoroutineScope(Dispatchers.IO).launch {
-                val measures = measureDao.getOwnMeasures()
+                val measures = measureDao.getAllMeasuresImported(false)
                 if (measures.isEmpty()) {
                     withContext(Dispatchers.Main) {
                         val toast = Toast.makeText(
@@ -323,7 +331,7 @@ class SwapActivity : AppCompatActivity() {
                 exportProgressBar.visibility = View.VISIBLE
             }
             mapper = jacksonObjectMapper()
-            val measures = measureDao.getOwnMeasures()
+            val measures = measureDao.getAllMeasuresImported(false)
 
             if (measures.isEmpty()) {
                 withContext(Dispatchers.Main) {
@@ -714,7 +722,7 @@ class SwapActivity : AppCompatActivity() {
         fun manageSocket(socket: BluetoothSocket) {
             try {
                 mapper = jacksonObjectMapper()
-                var payload = mapper.writeValueAsString(measureDao.getOwnMeasures())
+                var payload = mapper.writeValueAsString(measureDao.getAllMeasuresImported(false))
                 payload += "-- END --"
                 Log.d("BLUETOOTH", "payload: $payload")
 
