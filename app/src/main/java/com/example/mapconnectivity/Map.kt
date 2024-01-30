@@ -365,7 +365,7 @@ class Map (mapView: SupportMapFragment?,activity: MainActivity) {
 
         CoroutineScope(Dispatchers.IO).launch {
             while(on) {
-                Log.d("LOCLISTENER", "Sono entrato nel while di automaticFetch")
+                Log.d("LOCLISTENER", "Sono entrato nel while di listenerHandler")
                 delay(MILLIS)
 //                automatic = prefs.getBoolean("automatic_fetch", false)
                 on = if (isInFetchingMode) {

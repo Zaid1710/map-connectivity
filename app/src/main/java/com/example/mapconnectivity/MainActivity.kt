@@ -482,7 +482,7 @@ class MainActivity : AppCompatActivity() {
                 imported = false
             )
             measureDao.insertMeasure(measurements)
-//            Log.d("MEASURE", measurements.toString())
+            Log.d("MEASURE", measurements.toString())
 //            Log.d("DB", measureDao.getAllMeasures().toString())
             withContext(Dispatchers.Main) {
                 if (::measureBtn.isInitialized && ::measureProgressBar.isInitialized) {
