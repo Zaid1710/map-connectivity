@@ -1,7 +1,10 @@
 <resources>
     <string name="app_name">MapConnectivity</string>
+    <!-- Stringhe relative al main -->
+    <string name="modeText">Modalità attuale:</string>
+
+    <!-- Stringhe relative alle impostazioni -->
     <string name="title_activity_settings">SettingsActivity</string>
-    <!--Stringhe relative alle impostazioni -->
     <string name="settingsTitle">Impostazioni</string>
     <string name="viewImportedSummary">Se attiva, verranno prese in considerazione anche le misure importate</string>
     <string name="automaticFetchSummary">Effettua una scansione ogni volta che si entra in un nuovo riquadro</string>
@@ -10,7 +13,7 @@
     <string name="limitSummary">Se spento verranno mostrate tutte le misure, altrimenti scegli quante misure più recenti prendere in considerazione.</string>
     <string name="boundsSummary">Se attiva, verranno prese in considerazione le soglie impostate sotto per la valutazione dei colori dei riquadri</string>
 
-    <!--Stringhe relative allo swap -->
+    <!-- Stringhe relative allo swap -->
     <string name="swapTitle">Importa/Esporta misure</string>
     <string name="importDescription">Seleziona un file .mapc per importare tutte le misure presenti al suo interno</string>
     <string name="exportDescription">Genera un file .mapc da condividere</string>

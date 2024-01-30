@@ -2,7 +2,6 @@ package com.example.mapconnectivity
 
 import android.annotation.SuppressLint
 import android.app.AlertDialog
-import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
@@ -59,11 +58,6 @@ class Map (mapView: SupportMapFragment?,activity: MainActivity) {
     private var semaphore = Semaphore(1)
     private var meters = 0.0
 
-    /* MODE CONSTS */
-    val PERIODIC = 1
-    val AUTOMATIC = 2
-    val NOTIFICATION = 3
-
     private lateinit var database: MeasureDB
 
     val LTE = 0
@@ -109,7 +103,6 @@ class Map (mapView: SupportMapFragment?,activity: MainActivity) {
             DB_OPT = -60.0
         }
 
-//        initLocListener(mode)
 
         mFusedLocationClient.lastLocation
             .addOnSuccessListener(activity) { location ->

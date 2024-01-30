@@ -81,6 +81,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var loadingText: TextView
     private lateinit var loadingBar: ProgressBar
 
+    private val MODES = arrayOf("LTE", "Wi-Fi", "Suono")
+    private lateinit var selectedModeValue: TextView
+
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -106,6 +109,8 @@ class MainActivity : AppCompatActivity() {
 
         loadingText = findViewById(R.id.loadingText)
         loadingBar = findViewById(R.id.loadingBar)
+
+        selectedModeValue = findViewById(R.id.selectedModeValue)
 
         val prefs = PreferenceManager.getDefaultSharedPreferences(this)
 
@@ -279,8 +284,11 @@ class MainActivity : AppCompatActivity() {
         super.onResume()
 
         val prefs = PreferenceManager.getDefaultSharedPreferences(this)
+
         mode = prefs.getString("mode_preference", 0.toString())!!.toInt()
+        selectedModeValue.text = MODES[mode]
         map.loadMap(mode)
+
         Log.d("PREFERENCES", mode.toString())
 
         val notifySwitch = prefs.getBoolean("notifyAbsentMeasure", false)
