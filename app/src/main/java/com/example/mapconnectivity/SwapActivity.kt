@@ -56,10 +56,6 @@ import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.UUID
 
-/**
- * TODO:
- * */
-
 class SwapActivity : AppCompatActivity() {
     private lateinit var importBtn: Button
     private lateinit var exportBtn: Button
@@ -88,18 +84,22 @@ class SwapActivity : AppCompatActivity() {
     private var newFoundDevicesNames: MutableList<String?> = mutableListOf()
     private lateinit var devicesArrayAdapter: ArrayAdapter<BluetoothDevice>
     private lateinit var devicesArrayNamesAdapter: ArrayAdapter<String?>
-    private val bluetooth_UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
-    private val bluetooth_NAME = "mapConnectivity"
+    private val bluetoothUUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
+    private val bluetoothNAME = "mapConnectivity"
     private lateinit var dialog: Dialog
 
     private lateinit var prefs : SharedPreferences
-    private var DISCOVERABLE_DURATION : Int? = 60
+    private var discoverableDuration : Int? = 60
 
     private lateinit var importDescBtn: ImageButton
     private lateinit var exportDescBtn: ImageButton
     private lateinit var btImportDescBtn: ImageButton
     private lateinit var btExportDescBtn: ImageButton
 
+
+    /**
+     * Viene chiamata quando si importa un file
+     * */
     private val startForResult = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result: ActivityResult ->
@@ -124,6 +124,9 @@ class SwapActivity : AppCompatActivity() {
         importProgressBar.visibility = View.GONE
     }
 
+    /**
+     * Viene chiamata all'accensione del Bluetooth
+     * */
     @RequiresApi(Build.VERSION_CODES.S)
     private val enableBluetoothLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -133,7 +136,7 @@ class SwapActivity : AppCompatActivity() {
                 Log.d("BLUETOOTH", "sono il ricevitore")
                 btReceiveHandler()
             } else {
-                Log.d("BLUETOOTH", "sono il mandatore")
+                Log.d("BLUETOOTH", "sono il sender")
                 btDiscoverHandler()
             }
 
@@ -143,6 +146,9 @@ class SwapActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Viene chiamato quando viene attivata l'esportazione Bluetooth
+     * */
     private val enableDiscoverabilityLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -164,6 +170,9 @@ class SwapActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Viene chiamato quando si interrompe l'esportazione Bluetooth
+     * */
     private val disableDiscoverabilityLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -175,12 +184,15 @@ class SwapActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Mostra il fragment di esportazione Bluetooth
+     * */
     private fun showFragment(newText: String, isImport: Boolean) {
         mBundle = Bundle()
         mBundle.putString("swap", newText)
         mBundle.putBoolean("mode", isImport)
-        if (!isImport && DISCOVERABLE_DURATION != null) {
-            mBundle.putLong("timer", DISCOVERABLE_DURATION!!.toLong())
+        if (!isImport && discoverableDuration != null) {
+            mBundle.putLong("timer", discoverableDuration!!.toLong())
         }
         loadingFragment.arguments = mBundle
         mFragmentTransaction = mFragmentManager.beginTransaction()
@@ -198,6 +210,9 @@ class SwapActivity : AppCompatActivity() {
         loadingView.visibility = View.VISIBLE
     }
 
+    /**
+     * Nasconde il fragment di esportazione Bluetooth
+     * */
     fun hideFragment() {
         mFragmentTransaction = mFragmentManager.beginTransaction()
         mFragmentTransaction.remove(loadingFragment).commit()
@@ -213,13 +228,17 @@ class SwapActivity : AppCompatActivity() {
     }
 
 
+    /**
+     * Inizializza le variabili, crea i collegamenti tra le funzioni e i bottoni relativi
+     * @param savedInstanceState Bundle ereditato da super
+     * */
     @RequiresApi(Build.VERSION_CODES.S)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_swap)
 
         prefs = PreferenceManager.getDefaultSharedPreferences(this)
-        DISCOVERABLE_DURATION = prefs.getString("discovery_time", 60.toString())?.toIntOrNull() // Considera il doppio del tempo per scomparire, ad esempio se DISCOVERABLE_DURATION=30, il dispositivo verra' nascosto dopo 60 secondi circa (DA VERIFICARE).
+        discoverableDuration = prefs.getString("discovery_time", 60.toString())?.toIntOrNull() // Considera il doppio del tempo per scomparire, ad esempio se DISCOVERABLE_DURATION=30, il dispositivo verra' nascosto dopo 60 secondi circa (DA VERIFICARE).
 
         foundDevices = mutableListOf()
         newFoundDevices = mutableListOf()
@@ -256,8 +275,6 @@ class SwapActivity : AppCompatActivity() {
         exportDescBtn = findViewById(R.id.exportDescBtn)
         btImportDescBtn = findViewById(R.id.btImportDescBtn)
         btExportDescBtn = findViewById(R.id.btExportDescBtn)
-
-//        var stopBtn : Button = findViewById(R.id.loadingFragment)
 
         importBtn.setOnClickListener {
             launcherImportData()
@@ -303,14 +320,11 @@ class SwapActivity : AppCompatActivity() {
         btExportDescBtn.setOnClickListener {
             showInfoDialog(exportBtBtn.text.toString(), getString(R.string.exportBtDescription))
         }
-
-//        stopExportBtBtn.setOnClickListener {
-//            stopDiscoverable()
-//            stopExportBtBtn.visibility = View.GONE
-//            exportBtBtn.visibility = View.VISIBLE
-//        }
     }
 
+    /**
+     * Alla distruzione dell'attività l'adapter Bluetooth, se inizializzato e se in discovery mode, si interrompe
+     * */
     @RequiresApi(Build.VERSION_CODES.S)
     @SuppressLint("MissingPermission")
     override fun onDestroy() {
@@ -323,6 +337,9 @@ class SwapActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Esporta le misure effettuate dall'utente in un file e avvia l'intent per condividerlo
+     * */
     @RequiresApi(Build.VERSION_CODES.O)
     private fun exportData() {
         CoroutineScope(Dispatchers.IO).launch {
@@ -330,7 +347,7 @@ class SwapActivity : AppCompatActivity() {
                 exportBtn.visibility = View.GONE
                 exportProgressBar.visibility = View.VISIBLE
             }
-            mapper = jacksonObjectMapper()
+            mapper = jacksonObjectMapper()  // Mapper per manipolare il file JSON
             val measures = measureDao.getAllMeasuresImported(false)
 
             if (measures.isEmpty()) {
@@ -372,6 +389,9 @@ class SwapActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Lancia l'intent per aprire la selezione del file da importare
+     * */
     private fun launcherImportData() {
         importBtn.visibility = View.GONE
         importProgressBar.visibility = View.VISIBLE
@@ -384,25 +404,28 @@ class SwapActivity : AppCompatActivity() {
         startForResult.launch(i)
     }
 
+    /**
+     * Importa nel database le misure presenti nel JSON in input scartando quelle già presenti
+     * @param importedMeasures JSON con le misure da importare
+     * */
     private fun importData(importedMeasures: JsonNode) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
-//                var i = 0
-//                while (importedMeasures[i].get("imported").toString().toBoolean()) { i++ } // Ottiene l'indice per la prima misura non importata
                 var senderId = importedMeasures[0].get("user_id").toString()
                 senderId = senderId.substring( 1, senderId.length - 1 )
-//                measureDao.deleteMeasuresFrom(senderId)
                 var measureCounter = 0
                 for (measure in importedMeasures) {
                     var timestamp = measure.get("timestamp").toString()
-                    timestamp = timestamp.removeRange(timestamp.length - 1, timestamp.length)
-                    timestamp = timestamp.removeRange(0, 1)
+                    timestamp = timestamp.removeRange(timestamp.length - 1, timestamp.length) // Rimuove le virgolette alla fine
+                    timestamp = timestamp.removeRange(0, 1)                                   // e all'inizio della stringa
+
+                    // Se la misura non esiste già la importa
                     if (measureDao.countSameMeasures(senderId, timestamp, measure.get("lat").toString().toDouble(), measure.get("lon").toString().toDouble()).toString().toInt() == 0) {
                         measureCounter++
 
                         var userId = measure.get("user_id").toString()
-                        userId = userId.removeRange(userId.length - 1, userId.length)
-                        userId = userId.removeRange(0, 1)
+                        userId = userId.removeRange(userId.length - 1, userId.length)       // Rimuove le virgolette alla fine
+                        userId = userId.removeRange(0, 1)                                   // e all'inizio della stringa
 
                         val measurements = Measure(
                             timestamp = timestamp,
@@ -426,22 +449,31 @@ class SwapActivity : AppCompatActivity() {
             } catch (e: Exception) {
                 Log.e("Import", e.toString())
                 withContext(Dispatchers.Main) {
-                    val toast = Toast.makeText(applicationContext, "Qualcosa � andato storto!", Toast.LENGTH_SHORT)
+                    val toast = Toast.makeText(applicationContext, "Qualcosa è andato storto!", Toast.LENGTH_SHORT)
                     toast.show()
                 }
             }
         }
     }
 
-    /* Verifica un permesso */
+    /**
+     * Verifica l'autorizzazione di un permesso
+     * @param permission Permesso da controllare
+     * @return true se l'autorizzazione è concessa, false altrimenti
+     * */
     private fun checkPermission(permission: String): Boolean {
         return (ContextCompat.checkSelfPermission(
             this,
             permission
-        ) == PackageManager.PERMISSION_GRANTED
-                )
+        ) == PackageManager.PERMISSION_GRANTED)
     }
 
+    /**
+     * Viene chiamata dopo la scelta dell'utente di fornire o meno le autorizzazioni ai permessi necessari
+     * @param requestCode Codice della richiesta effettuata
+     * @param permissions Permessi della richiesta effettuata (ereditato da super)
+     * @param grantResults Array dei permessi accettati e non
+     * */
     @SuppressLint("MissingPermission")
     @RequiresApi(Build.VERSION_CODES.S)
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
@@ -469,6 +501,10 @@ class SwapActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Restituisce una lista di dispositivi con cui il telefono è già accoppiato
+     * @return Lista dei dispositivi accoppiati
+     * */
     @SuppressLint("MissingPermission")
     private fun getPairedDevices(): Set<BluetoothDevice>? {
         val pairedDevices: Set<BluetoothDevice>? = bluetoothAdapter.bondedDevices
@@ -482,14 +518,11 @@ class SwapActivity : AppCompatActivity() {
         return pairedDevices
     }
 
-//    private fun manageData() {
-//        var data = receivedText
-//        receivedText = ""
-//        data = data.replace("-- END --", "")
-//        Log.d("TRANSMISSION", data)
-//        Log.d("TRANSMISSION", "Trasmissione finita, buonanotte")
-//    }
 
+    /**
+     * Controlla i permessi relativi al Bluetooth, altrimenti li chiede. Quindi sposta il controllo all'handler che controlla se il Bluetooth è attivo
+     * @param isReceiver true se si agisce da CLIENT, false se da SERVER
+     * */
     @RequiresApi(Build.VERSION_CODES.S)
     private fun btInit(isReceiver: Boolean) {
         bluetoothManager = getSystemService(BluetoothManager::class.java)
@@ -527,6 +560,10 @@ class SwapActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Controlla se il Bluetooth è attivo, altrimenti chiede di accenderlo. Quindi sposta il controllo all'handler richiesto (CLIENT o SERVER)
+     * @param isReceiver true se si agisce da CLIENT, false se da SERVER
+     * */
     @RequiresApi(Build.VERSION_CODES.S)
     private fun btInitHandler(isReceiver: Boolean) {
         if (!bluetoothAdapter.isEnabled) {
@@ -542,18 +579,28 @@ class SwapActivity : AppCompatActivity() {
         }
     }
 
-    // Quello che importa. Rileva gli altri dipositivi e ci si connette come client
+    /**
+     * Inizializza la ricerca dei disposivi discoverabili tramite Bluetooth e salva i dispositivi scoperti
+     * */
     @RequiresApi(Build.VERSION_CODES.S)
     @SuppressLint("MissingPermission")
     private fun btReceiveHandler() {
         startScanning()
 
+        // Vengono filtrati solo gli intent ACTION_FOUND, ovvero la scoperta di un dispositivo tramite Bluetooth
         val filter = IntentFilter()
         filter.addAction(BluetoothDevice.ACTION_FOUND)
-//        filter.addAction(BluetoothDevice.ACTION_ACL_CONNECTED)
-//        filter.addAction(BluetoothDevice.ACTION_ACL_DISCONNECTED)
-//        filter.addAction(BluetoothDevice.ACTION_ACL_DISCONNECT_REQUESTED)
+
+        /**
+         * Oggetto che salva l'indirizzo del dispositivo quando viene trovato
+         * */
         receiver = object : BroadcastReceiver() {
+
+            /**
+             * Si attiva alla scoperta di un dispositivo
+             * @param context Contesto dell'applicazione
+             * @param intent Intent della scoperta del dispositivo
+             * */
             @SuppressLint("MissingPermission")
             @RequiresApi(Build.VERSION_CODES.TIRAMISU)
             override fun onReceive(context: Context, intent: Intent) {
@@ -586,27 +633,27 @@ class SwapActivity : AppCompatActivity() {
                 }
             }
         }
+
         registerReceiver(receiver, filter)
         showListOfDevicesDialog()
     }
 
-    // Quello che esporta. Si rende rilevabile agli altri dispositivi e fa da server
+    /**
+     * Inizializza la discoverability rendendosi rilevabile agli altri disposivi e avvia il socket del server
+     * */
     @SuppressLint("MissingPermission")
     private fun btDiscoverHandler() {
-//        val discoverableIntent: Intent = Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE).apply {
-//            putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, DISCOVERABLE_DURATION)
-//        }
-//        Log.d("BLUETOOTH", "Richiesta di discoverability in corso...")
-//        enableDiscoverabilityLauncher.launch(discoverableIntent)
-
         val discoverableIntent = Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE)
-        discoverableIntent.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, DISCOVERABLE_DURATION)
+        discoverableIntent.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, discoverableDuration)
         enableDiscoverabilityLauncher.launch(discoverableIntent)
 
         val serverSocket = AcceptThread()
         serverSocket.start()
     }
 
+    /**
+     * Crea e mostra un dialog contenente tutti i dispositivi trovati tramite Bluetooth e ne permette il collegamento
+     * */
     @SuppressLint("MissingPermission")
     @RequiresApi(Build.VERSION_CODES.S)
     private fun showListOfDevicesDialog() {
@@ -643,14 +690,19 @@ class SwapActivity : AppCompatActivity() {
     private val bluetoothHandler = Handler(Looper.getMainLooper())
     private val scanInterval = 2000 // Intervallo di scansione in millisecondi (2 secondi)
 
+    /**
+     * Oggetto che ricerca periodicamente dispositivi Bluetooth
+     * */
     private val scanRunnable = object : Runnable {
+        /**
+         * Funzione principale dell'oggetto che avvia una scansione e elenca i dispositivi trovati
+         * */
         @SuppressLint("MissingPermission")
         override fun run() {
-            // Avvia una nuova scansione
             Log.d("LISTE", "NEWFOUNDDEVICES: $newFoundDevices")
             Log.d("LISTE", "FOUNDDEVICES: $foundDevices")
-            foundDevices -= foundDevices.subtract(newFoundDevices)
-            devicesArrayNames -= devicesArrayNames.subtract(newFoundDevicesNames)
+            foundDevices -= foundDevices.subtract(newFoundDevices.toSet())                          // Algoritmo per rimuovere indirizzi dei telefoni che non sono più discoverabili
+            devicesArrayNames -= devicesArrayNames.subtract(newFoundDevicesNames.toSet())           // Algoritmo per rimuovere nomi dei telefoni che non sono più discoverabili
             Log.d("LISTE", "REMOVE: $foundDevices")
             devicesArrayAdapter.notifyDataSetChanged()
             devicesArrayNamesAdapter.notifyDataSetChanged()
@@ -664,35 +716,44 @@ class SwapActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Avvia la scansione Bluetooth
+     * */
     @RequiresApi(Build.VERSION_CODES.S)
     @SuppressLint("MissingPermission")
     private fun startScanning() {
-        // Inizia la scansione periodica
         bluetoothHandler.post(scanRunnable)
     }
 
+    /**
+     * Interrompe la scansione Bluetooth
+     * */
     @RequiresApi(Build.VERSION_CODES.S)
     @SuppressLint("MissingPermission")
     private fun stopScanning() {
-        // Interrompi la scansione periodica
         bluetoothAdapter.cancelDiscovery()
         unregisterReceiver(receiver)
         bluetoothHandler.removeCallbacks(scanRunnable)
     }
 
-    // SERVER //
+    /**
+     * Classe secondaria per la gestione del thread lato SERVER
+     * */
     @SuppressLint("MissingPermission")
     private inner class AcceptThread : Thread() {
         private val mmServerSocket: BluetoothServerSocket? by lazy(LazyThreadSafetyMode.NONE) {
-            bluetoothAdapter.listenUsingInsecureRfcommWithServiceRecord(bluetooth_NAME, bluetooth_UUID)
+            bluetoothAdapter.listenUsingInsecureRfcommWithServiceRecord(bluetoothNAME, bluetoothUUID)
         }
 
+        /**
+         * Funzione principale del thread server che si rende disponibile ad accettare una connessione in arrivo
+         * */
         override fun run() {
-            // Rimane in ascolto finché non viene trovato un socket o viene catturata un'eccezione
+            // Rimane in ascolto finché non viene trovato un socket a cui connettersi o viene catturata un'eccezione
             var shouldLoop = true
             while (shouldLoop) {
                 val socket: BluetoothSocket? = try {
-                    mmServerSocket?.accept()
+                    mmServerSocket?.accept() // La connessione viene accettata
                 } catch (e: IOException) {
                     Log.e("BLUETOOTH", "Accept() ha fallito", e)
                     shouldLoop = false
@@ -709,19 +770,13 @@ class SwapActivity : AppCompatActivity() {
             }
         }
 
-//        // Chiude il socket e termina la connessione
-//        fun cancel() {
-//            try {
-//                mmServerSocket?.close()
-//            } catch (e: IOException) {
-//                Log.e("BLUETOOTH", "Non è stato possibile chiudere il socket server", e)
-//            }
-//        }
-
-        // Send data
+        /**
+         * Tenta di inviare le proprie misure al telefono collegato
+         * @param socket Socket della connessione bluetooth
+         * */
         fun manageSocket(socket: BluetoothSocket) {
             try {
-                mapper = jacksonObjectMapper()
+                mapper = jacksonObjectMapper() // Mapper per manipolare il file JSON
                 var payload = mapper.writeValueAsString(measureDao.getAllMeasuresImported(false))
                 payload += "-- END --"
                 Log.d("BLUETOOTH", "payload: $payload")
@@ -732,41 +787,30 @@ class SwapActivity : AppCompatActivity() {
 
                 val payloadByteArray = payload.toByteArray()
 
-//                socket.use {
                 socket.outputStream.write(payloadByteArray)
                 CoroutineScope(Dispatchers.Main).launch {
                     hideFragment()
                     val toast = Toast.makeText(applicationContext, "Esportazione effettuata", Toast.LENGTH_SHORT)
                     toast.show()
                 }
-//                }
-
-//                while (socket.isConnected) {
-//                    Log.d("SOCKETTONE", "socket.isConnected = ${socket.isConnected}")
-//                }
-//                socket.outputStream.flush()
-
-                // Altro codice qui
-
-//                socket.outputStream.flush()
-
-//                socket.outputStream.close()
-//                socket.inputStream.close()
-//                socket.close()
-
             } catch (e: IOException) {
                 Log.e("BLUETOOTH", "ERRORE NELL'INVIO DEI DATI DA PARTE DEL SERVER", e)
             }
         }
     }
 
-    // CLIENT //
+    /**
+     * Classe secondaria per la gestione del thread lato CLIENT
+     * */
     @SuppressLint("MissingPermission")
     private inner class ConnectThread(device: BluetoothDevice) : Thread() {
         private val mmSocket: BluetoothSocket by lazy(LazyThreadSafetyMode.NONE) {
-            device.createRfcommSocketToServiceRecord(bluetooth_UUID)
+            device.createRfcommSocketToServiceRecord(bluetoothUUID)
         }
 
+        /**
+         * Funzione principale del thread client quando tenta di connettersi a un altro dispositivo
+         * */
         @RequiresApi(Build.VERSION_CODES.S)
         override fun run() {
             if (this.isInterrupted) {
@@ -777,7 +821,6 @@ class SwapActivity : AppCompatActivity() {
 
             mmSocket.let { socket ->
                 // Si connette al dispositivo remoto tramite il socket.
-                Log.d("VEDIAMO", "A")
                 if (socket.isConnected) {
                     Log.d("BLUETOOTH", "IL SOCKET E' ANCORA APERTO, PROVO A CHIUDERLO.")
                     cancel()
@@ -795,94 +838,55 @@ class SwapActivity : AppCompatActivity() {
                         hideFragment()
                     }
                 }
-                manageSocket(socket)
-                Log.d("VEDIAMO", "B e C")
-                // La connessione è stata effettuata con successo.
-        //                Log.d("BLUETOOTH", "Connessione effettuata con successo")
-        //                } else {
-        //                    val toast = Toast.makeText(applicationContext, "Qualcosa è andato storto!", Toast.LENGTH_SHORT)
-        //                    toast.show()
-        //                }
+                manageSocket(socket) // La connessione è stata effettuata con successo.
             }
         }
 
-        // Chiude il socket e termina la connessione
+        /**
+         * Tenta di chiudere il socket ConnectThread per terminare la connessione
+         * */
         fun cancel() {
             try {
                 Log.d("BLUETOOTH", "Chiusura socket ConnectThread")
-//                mmSocket?.inputStream?.close()
-//                mmSocket?.outputStream?.close()
                 mmSocket.close()
             } catch (e: IOException) {
                 Log.e("BLUETOOTH", "Non è stato possibile chiudere il socket client", e)
             }
         }
 
-        // Receive data
+        /**
+         * Riceve i dati delle misure e li importa
+         * @param socket Socket della connessione bluetooth
+         * */
         fun manageSocket(socket: BluetoothSocket) {
-//            Log.d("VEDIAMO", "D")
-//            thread.start()
-//            Log.d("VEDIAMO", "E")
-//            thread.join()
-//            Log.d("VEDIAMO", "E2")
-//            cancel()
-//            Log.d("VEDIAMO", "E3")
-//            this.interrupt()
-//            Log.d("VEDIAMO", "E4")
-////            Log.d("TRANSMISSION", messageHandler.obtainMessage().toString())
-
             val mmInStream: InputStream = socket.inputStream
-            val mmBuffer = ByteArray(1024) // mmBuffer store for the stream
+            val mmBuffer = ByteArray(1024)
 
             if (this.isInterrupted) {
                 return
             }
 
             var fullMsg = ""
-            Log.d("VEDIAMO", "F")
-            var numBytes: Int // bytes returned from read()
-//            var receivedData = ""
+            var numBytes: Int
 
             try {
-                // Keep listening to the InputStream until an exception occurs.
+                // Continua a leggere dall'inputStream finché non incorre in un'eccezione
                 while (true) {
-                    Log.d("MIAORIZIO", "BEFORE: $fullMsg")
-
-                    // Read from the InputStream.
-//                if ( mmInStream.available() > 0 ) {
-                    Log.d("VEDIAMO", "G")
                     numBytes = mmInStream.read(mmBuffer)
                     fullMsg += String(mmBuffer.copyOf(numBytes), Charsets.UTF_8)
-
-                    Log.d("MIAORIZIO", "AFTER: $fullMsg")
-
-//                }
-//                else {
-//                    SystemClock.sleep(100)
-//                }
-
-                    Log.d("VEDIAMO", "I")
-                    // Send the obtained bytes to the UI activity.
-//                val readMsg = messageHandler.obtainMessage(MESSAGE_READ, numBytes, -1, mmBuffer)
-//                readMsg.sendToTarget()
-//                Log.d("TRANSMISSION", "PRIMA: ${String(mmBuffer, Charsets.UTF_8)}")
-                    Log.d("VEDIAMO", "J")
-//                receivedData += String(mmBuffer, 0, numBytes)
 
                     if (fullMsg.contains("-- END --")) {
                         fullMsg = fullMsg.replace("-- END --", "")
                         break
                     }
-
                 }
             } catch (e: IOException) {
-                Log.e("BLUETOOTH", "Error reading from InputStream", e)
+                Log.e("BLUETOOTH", "Errore nella lettura da inputStream", e)
             } finally {
                 try {
-//                    mmInStream.close()
                     mmSocket.close()
                 } catch (e: IOException) {
-                    Log.e("BLUETOOTH", "Error closing InputStream or socket", e)
+                    Log.e("BLUETOOTH", "Errore nella chiusura di InputStream o del socket", e)
                 }
             }
             Log.d("TRANSMISSION", fullMsg)
@@ -894,14 +898,22 @@ class SwapActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Interrompe la discoverability del dispositivo
+     * */
     @SuppressLint("MissingPermission")
     fun stopDiscoverable() {
+        // Viene inviata una richiesta di discoverability di 1 secondo per rendere il telefono non discoverabile alla scadenza
         val discoverableIntent = Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE)
         discoverableIntent.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 1)
-//        startActivity(discoverableIntent)
         disableDiscoverabilityLauncher.launch(discoverableIntent)
     }
 
+    /**
+     * Crea e mostra un dialog di informazioni
+     * @param title Titolo del dialog
+     * @param info Testo del dialog
+     * */
     private fun showInfoDialog(title: String, info: String) {
         val dialogBuilder = AlertDialog.Builder(this, R.style.DialogTheme)
         dialogBuilder.setTitle("Descrizione di $title")
