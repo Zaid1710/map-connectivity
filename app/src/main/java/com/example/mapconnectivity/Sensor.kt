@@ -2,9 +2,6 @@ package com.example.mapconnectivity
 
 import android.annotation.SuppressLint
 import android.content.Context
-import android.hardware.Sensor
-import android.hardware.SensorEvent
-import android.hardware.SensorEventListener
 import android.media.MediaRecorder
 import android.net.wifi.WifiManager
 import android.os.Build
@@ -16,17 +13,13 @@ import java.io.File
 import kotlin.math.log10
 
 class Sensor(private var context: Context) {
-    private lateinit var pressureSensorListener: PressureSensorListener
-
-    /* Restituisce la potenza del segnale Wifi */
+    /**
+     * Ottiene la potenza del segnale WiFi
+     * @return La potenza del segnale WiFi
+     * */
     @SuppressLint("MissingPermission")
     @RequiresApi(Build.VERSION_CODES.R)
     fun fetchWifi(): Double {
-//            if (!checkPermission(Manifest.permission.ACCESS_FINE_LOCATION)) {
-//                requestPermissions(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), PERMISSION_LOCATION)
-//            } else {
-//
-//            }
         val wfm2: WifiManager =
             context.getSystemService(Context.WIFI_SERVICE) as WifiManager
         var maxLevel = -200
@@ -39,7 +32,10 @@ class Sensor(private var context: Context) {
         return maxLevel.toDouble()
     }
 
-    /* Ottiene la potenza del segnale LTE */
+    /**
+     * Ottiene la potenza del segnale LTE
+     * @return La potenza del segnale LTE
+     * */
     fun getLteSignalStrength(): Double {
         val telephonyManager = context.getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
 
@@ -61,7 +57,10 @@ class Sensor(private var context: Context) {
         return 1.0
     }
 
-    /* Registra 5 secondi l'audio ambientale dal microfono e calcola la media dei dB recepiti */
+    /**
+     * Registra 1 secondo l'audio ambientale dal microfono e calcola la media dei dB recepiti
+     * @return Media dB recepiti
+     * */
     @RequiresApi(Build.VERSION_CODES.S)
     fun fetchMicrophone(): Double {
         val SECONDS_TO_FETCH = 1
@@ -78,7 +77,7 @@ class Sensor(private var context: Context) {
         recorder.prepare()
         recorder.start()
         Log.d("MediaRecorder", "Started")
-        repeat(SECONDS_TO_FETCH + 1) {
+        repeat(SECONDS_TO_FETCH + 1) { // Viene aggiunto 1 perché nel primo secondo non viene captato nulla
             val fetchedAmplitude = fetchAmplitude(recorder)
             amplitudes += fetchedAmplitude
             Thread.sleep(1000)
@@ -92,16 +91,13 @@ class Sensor(private var context: Context) {
         recorder.reset()
 
         return avgAmplitude
-
-//        runOnUiThread {
-//                microphoneText.text = avgAmplitude.toString()
-//                microphoneText.setBackgroundColor(getQuality(-avgAmplitude, DB_BAD, DB_OPT))
-//        }
-
-//        Log.d("MediaRecorder", "Finished")
     }
 
-    /* Prende in input l'ampiezza e la converte in dB */
+    /**
+     * Metodo ausiliario per convertire ampiezza in dB
+     * @param recorder MediaRecorder per registrare il microfono
+     * @return Valore convertito in dB
+     * */
     private fun fetchAmplitude(recorder: MediaRecorder): Double {
         val amplitude = recorder.maxAmplitude
         Log.d("MediaRecorder", "Amp $amplitude")
@@ -112,26 +108,4 @@ class Sensor(private var context: Context) {
         Log.d("MediaRecorder", "Db $db")
         return db
     }
-
-    /* Classe listener per ottenere i valori del sensore di umidita */
-    inner class PressureSensorListener : SensorEventListener {
-        var currentPressure: Float = 0f
-
-        override fun onSensorChanged(event: SensorEvent) {
-            if (event.sensor.type == Sensor.TYPE_PRESSURE) {
-                currentPressure = event.values[0]
-            }
-        }
-
-        override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
-    }
-
-    /* Restituisce il livello di pressione atmosferica */
-    fun getPressure(): Float {
-        return pressureSensorListener.currentPressure
-//        pressureText.text = pressureSensorListener.currentPressure.toString()
-//        pressureText.setBackgroundColor(getQuality(pressureSensorListener.currentPressure.toDouble(), PRESSURE_BAD_LOW, PRESSURE_OPT))
-    }
-
-
 }

@@ -1,7 +1,5 @@
 package com.example.mapconnectivity
 
-import android.annotation.SuppressLint
-import android.opengl.Visibility
 import android.os.Bundle
 import android.os.CountDownTimer
 import android.util.Log
@@ -12,13 +10,7 @@ import android.view.ViewGroup
 import android.widget.Button
 import android.widget.TextView
 import androidx.activity.addCallback
-import androidx.fragment.app.FragmentManager
-import androidx.fragment.app.FragmentTransaction
 import com.google.android.material.textview.MaterialTextView
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 class Loading : Fragment() {
 
@@ -28,17 +20,17 @@ class Loading : Fragment() {
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
-
-//        Log.d("Bundle", "FRAGMENT: $bundle")
-
-        // Inflate the layout for this fragment
         return inflater.inflate(R.layout.fragment_loading, container, false)
     }
 
+    /**
+     * Alla creazione della view, vengono inizializzate le variabili e creato il bottone per interrompere l'esportazione tramite Bluetooth
+     * @param view View del fragment caricamento
+     * @param savedInstanceState Bundle ereditato da super
+     * */
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         val cancelBtn : Button? = getView()?.findViewById(R.id.cancelBtn)
-//        changeTimer("")
         timer = view.findViewById(R.id.timerTxt)
         var countdown: CountDownTimer? = null
         val swapActivity = activity as SwapActivity
@@ -84,6 +76,10 @@ class Loading : Fragment() {
         }
     }
 
+    /**
+     * Cambia il titolo al valore della stringa in input
+     * @param newText Nuovo valore del titolo
+     * */
     private fun changeTitle(newText: String) {
         val text : TextView? = view?.findViewById(R.id.loadingTitle)
         if (text != null) {
@@ -91,13 +87,13 @@ class Loading : Fragment() {
         }
     }
 
+    /**
+     * Imposta il timer al valore della stringa in input
+     * @param newText Nuovo valore del timer
+     * */
     private fun changeTimer(newText: String) {
         if (timer != null) {
             timer?.text = newText
         }
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
     }
 }

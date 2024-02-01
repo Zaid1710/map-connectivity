@@ -42,7 +42,7 @@ import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.pow
 
-class Map (mapView: SupportMapFragment?,activity: MainActivity) {
+class Map (mapView: SupportMapFragment?, activity: MainActivity) {
     class AverageMeasures(
         var avgLte: Double?,
         var avgWifi: Double?,
@@ -79,6 +79,10 @@ class Map (mapView: SupportMapFragment?,activity: MainActivity) {
 
     private val gridInARow = 5.0
 
+    /**
+     * Carica la mappa
+     * @param mode Modalità di visualizzazione
+     * */
     @RequiresApi(Build.VERSION_CODES.S)
     @SuppressLint("MissingPermission")
     fun loadMap(mode: Int) {
@@ -86,7 +90,6 @@ class Map (mapView: SupportMapFragment?,activity: MainActivity) {
 
         val manual = prefs.getBoolean("switch_preference_bounds", false)
         if (manual) {
-            Log.d("Manual", "Sono manuale")
             WIFI_OPT = prefs.getString("opt_wifi", (-55).toString())?.toDoubleOrNull() ?: -55.0
             WIFI_BAD = prefs.getString("bad_wifi", (-75).toString())?.toDoubleOrNull() ?: -75.0
             LTE_BAD = prefs.getString("bad_lte", (-95).toString())?.toDoubleOrNull() ?: -95.0
@@ -110,6 +113,7 @@ class Map (mapView: SupportMapFragment?,activity: MainActivity) {
                     Log.d("LOCATION", "LAT: ${location.latitude}, LONG: ${location.longitude}")
                     mapView?.getMapAsync { googleMap ->
 
+                        // Da gennaio 2024 non funziona più :(
                         var style = MapStyleOptions.loadRawResourceStyle(activity, R.raw.default_theme)
                         when (prefs.getString("theme_preference", 2.toString())) {
                             "0" -> { Log.d("style", "sono in 0"); style = MapStyleOptions.loadRawResourceStyle(activity, R.raw.default_theme) }
@@ -122,7 +126,6 @@ class Map (mapView: SupportMapFragment?,activity: MainActivity) {
                                 }
                             }
                         }
-
                         val success = googleMap.setMapStyle(style)
                         Log.d("style", success.toString())
 
@@ -155,6 +158,12 @@ class Map (mapView: SupportMapFragment?,activity: MainActivity) {
             }
     }
 
+    /**
+     * Disegna la griglia sulla mappa visualizzata
+     * @param googleMap Mappa
+     * @param mode Modalità di visualizzazione (LTE, Wi-Fi o dB)
+     * */
+    // polygon.points = [tl, bl, br, tr]
     @RequiresApi(Build.VERSION_CODES.S)
     @SuppressLint("MissingPermission")
     fun drawGridOnMap(googleMap: GoogleMap, mode: Int) {
@@ -162,7 +171,6 @@ class Map (mapView: SupportMapFragment?,activity: MainActivity) {
         googleMap.uiSettings.isZoomGesturesEnabled = false
 
         CoroutineScope(Dispatchers.IO).launch {
-            Log.d("PERCHE", "Sono entrato nella draw grid")
             val zoom: Float = withContext(Dispatchers.Main) { googleMap.cameraPosition.zoom }
 
             val bounds = withContext(Dispatchers.Main) { googleMap.projection.visibleRegion.latLngBounds }
@@ -174,7 +182,6 @@ class Map (mapView: SupportMapFragment?,activity: MainActivity) {
 
             withContext(Dispatchers.Main) {
                 val polygon = googleMap.addPolygon(lastGeneratedPolygon)
-//                polygon.tag = "Polygon($i,$j)"
                 gridPolygons.add(polygon)
             }
 
@@ -182,10 +189,10 @@ class Map (mapView: SupportMapFragment?,activity: MainActivity) {
             var bl = withContext(Dispatchers.Main) { googleMap.projection.toScreenLocation(lastGeneratedPolygon.points[1])}
 
             val offset = 500
-            val screen = Rect(0 - offset,0 - offset, activity.resources.displayMetrics.widthPixels + offset, activity.resources.displayMetrics.heightPixels + offset)
+            val screen = Rect(0 - offset,0 - offset, activity.resources.displayMetrics.widthPixels + offset, activity.resources.displayMetrics.heightPixels + offset) // Area dello schermo
 
             while (screen.contains(bl.x, bl.y)) {
-                val firstPolygon = lastGeneratedPolygon
+                val firstPolygon = lastGeneratedPolygon  // Per fare i poligoni attaccati
                 while (screen.contains(tr.x, tr.y)) {
                     lastGeneratedPolygon = createPolygon(lastGeneratedPolygon.points[3], meters, mode)
 
@@ -212,8 +219,6 @@ class Map (mapView: SupportMapFragment?,activity: MainActivity) {
                     googleMap.projection.toScreenLocation(lastGeneratedPolygon.points[3])
                 }
             }
-
-
             withContext(Dispatchers.Main) {
                 googleMap.uiSettings.isZoomControlsEnabled = true
                 googleMap.uiSettings.isZoomGesturesEnabled = true
@@ -221,23 +226,45 @@ class Map (mapView: SupportMapFragment?,activity: MainActivity) {
         }
     }
 
+    /**
+     * Calcola la grandezza in metri di ogni riquadro
+     * @param zoom Zoom attuale della mappa
+     * @return Lunghezza in metri del lato di un riquadro
+     * */
     private fun calculateGridSize(zoom: Float) : Double {
         val meters = 22 * (2.0.pow(-(zoom - 22) - 1.0)) // A partire da 21, ogni volta che lo zoom diminuisce di 1, meters raddoppia
         val cellSize = meters / gridInARow
         return cellSize
     }
 
+    /**
+     * Restituisce le coordinate del punto in alto a sinistra del poligono in cui è presente la posizione in input
+     * @param meters Grandezza di un riquadro in base allo zoom
+     * @param lat Latitudine della posizione
+     * @param lon Longitudine della posizione
+     * @return Coordinate del punto in alto a sinistra del poligono
+     * */
     private fun generateTopLeftPoint(meters: Double, lat: Double, lon: Double) : LatLng {
         val offset = metersToOffset(meters)
 
         return LatLng(ceil(lat / offset) * offset, floor(lon / offset) * offset)
     }
 
+    /**
+     * Converte un offset da metri a gradi di latitudine/longitudine (1° lat/lon = 111km circa)
+     * @return Offset in gradi lat/lon
+     * */
     private fun metersToOffset(meters: Double) : Double {
         return meters / 111111.0
     }
 
-    // polygon.points = [tl, bl, br, tr]
+    /**
+     * Crea un poligono sulla mappa dato il punto in alto a sinistra e la grandezza di un riquadro in base allo zoom
+     * @param tlPoint Punto in alto a sinistra del poligono
+     * @param meters Grandezza di un riquadro in base allo zoom
+     * @param mode Modalità di visualizzazione (LTE, Wi-Fi o dB)
+     * @return Poligono creato
+     * */
     private fun createPolygon(tlPoint: LatLng, meters: Double, mode: Int) : PolygonOptions {
         val trPoint = LatLng(tlPoint.latitude, tlPoint.longitude + metersToOffset(meters))
         val blPoint = LatLng(tlPoint.latitude - metersToOffset(meters), tlPoint.longitude)
@@ -281,13 +308,14 @@ class Map (mapView: SupportMapFragment?,activity: MainActivity) {
             .add(tlPoint, trPoint, brPoint, blPoint)
             .strokeWidth(2f)
             .strokeColor(Color.BLACK) // Colore del bordo (nero)
-//            .fillColor(Color.argb(128, 255, 0, 0)) // Colore di riempimento
             .fillColor(color) // Colore di riempimento
 
         return polygon
     }
 
-    // Rimuove i poligoni della griglia precedente dalla mappa, se presenti
+    /**
+     * Rimuove tutti i poligoni sulla griglia
+     * */
     fun deleteGrid() {
         for (polygon in gridPolygons) {
             polygon.remove()
@@ -295,20 +323,22 @@ class Map (mapView: SupportMapFragment?,activity: MainActivity) {
         gridPolygons.clear()
     }
 
+    /**
+     * Fornisce la posizione attuale sottoforma di oggetto Location
+     * @return Oggetto Location con la posizione attuale
+     * */
     @SuppressLint("MissingPermission")
     fun getPosition(): Location? {
         val locationManager = activity.getSystemService(Context.LOCATION_SERVICE) as LocationManager
-//        val networkLocation = locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
         val gpsLocation = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER)
         return gpsLocation
-        // Confronta le due posizioni e restituisce quella più recente
-//        return if (networkLocation != null && gpsLocation != null) {
-//            if (networkLocation.time > gpsLocation.time) networkLocation else gpsLocation
-//        } else {
-//            networkLocation ?: gpsLocation
-//        }
     }
 
+    /**
+     * Data una posizione, restituisce il riquadro in cui si trova
+     * @param currentPos Posizione da controllare
+     * @return Riquadro in cui si trova la posizione
+     * */
     private fun getPolygon(currentPos: Location?): Polygon? {
         if (currentPos != null) {
             for (polygon in gridPolygons) {
@@ -320,15 +350,27 @@ class Map (mapView: SupportMapFragment?,activity: MainActivity) {
         return null
     }
 
+    /**
+     * Controlla se due posizioni si trovano nello stesso riquadro
+     * @param pos1 Prima posizione
+     * @param pos2 Seconda posizione
+     * @return True se si trovano nello stesso riquadro, false altrimenti
+     * */
     private fun areInTheSamePolygon(pos1: Location?, pos2: Location?): Boolean {
         return if (pos1 == null || pos2 == null) {
             true
         } else {
-//            getPolygon(pos1)?.equals(getPolygon(pos2)) ?: true
             generateTopLeftPoint(meters, pos1.latitude, pos1.longitude) == generateTopLeftPoint(meters, pos2.latitude, pos2.longitude)
         }
     }
 
+    /**
+     * Decide e restituisce il colore in base al valore in input
+     * @param value Valore medio delle misure in un riquadro
+     * @param bad Valore pessimo della categoria
+     * @param optimal Valore ottimale della categoria
+     * @return Colore da applicare al riquadro
+     * */
     private fun getQuality(value: Double, bad: Double, optimal: Double): Int {
         return if (value <= bad) {
             Color.argb(90, 255, 0, 0)
@@ -339,28 +381,28 @@ class Map (mapView: SupportMapFragment?,activity: MainActivity) {
         }
     }
 
-    // Gestisce il listener notificando o facendo una misura quando si entra in un nuovo riquadro (COMMENTO DA SISTEMARE)
+    /**
+     * Gestisce il listener selezionando una modalità di esecuzione tra misurazione automatica e notifica di misure obsolete
+     * @param googleMap Mappa
+     * @param isInFetchingMode True se la modalità di esecuzione è misurazione automatica, false altrimenti (notifica)
+     * */
     @RequiresApi(Build.VERSION_CODES.S)
     fun listenerHandler(googleMap: GoogleMap, isInFetchingMode: Boolean) {
-//        var automatic = prefs.getBoolean("automatic_fetch", false)
         var on: Boolean
         on = if (isInFetchingMode) {
             prefs.getBoolean("automatic_fetch", false)
         } else {
             prefs.getBoolean("notifyAbsentMeasure", true)
         }
-//        if (!automatic) { return }
         Log.d("LOCLISTENER", "Sono entrato in automaticFetch")
         semaphore.acquire()
         var lastLocation = locationFromListener
         semaphore.release()
-//        var lastLocation: Location? = null
 
         CoroutineScope(Dispatchers.IO).launch {
             while(on) {
                 Log.d("LOCLISTENER", "Sono entrato nel while di listenerHandler")
                 delay(MILLIS)
-//                automatic = prefs.getBoolean("automatic_fetch", false)
                 on = if (isInFetchingMode) {
                     prefs.getBoolean("automatic_fetch", false)
                 } else {
@@ -390,7 +432,6 @@ class Map (mapView: SupportMapFragment?,activity: MainActivity) {
                 }
 
                 if (lastLocation != null && (withContext(Dispatchers.Main) { !areInTheSamePolygon(locationFromListener, lastLocation) })) {
-                    withContext(Dispatchers.Main) {Log.d("PIPPO", "SONO NELL'IF, poligono1: ${getPolygon(locationFromListener)}, poligono2: ${getPolygon(lastLocation)}")}
                     if (isInFetchingMode) {
                         activity.manageMeasurePermissions(isOutside)
                     } else {
@@ -424,17 +465,18 @@ class Map (mapView: SupportMapFragment?,activity: MainActivity) {
         }
     }
 
+    /**
+     * Effettua una misurazione ogni intervallo predefinito o scelto dall'utente
+     * */
     @RequiresApi(Build.VERSION_CODES.S)
     fun periodicFetch() {
         var periodic = prefs.getBoolean("periodic_fetch", false)
         val seconds = prefs.getString("periodic_fetch_interval", 10.toString())!!.toInt()
-//        if (!automatic) { return }
         Log.d("LOCLISTENER", "Sono entrato in periodicFetch")
-//        var lastLocation: Location? = null
 
         CoroutineScope(Dispatchers.IO).launch {
             while(periodic) {
-                Log.d("LOCLISTENER", "Sono entrato nel while di automaticFetch")
+                Log.d("LOCLISTENER", "Sono entrato nel while di periodicFetch")
                 delay(seconds * 1000L)
                 periodic = prefs.getBoolean("periodic_fetch", false)
 
@@ -451,10 +493,11 @@ class Map (mapView: SupportMapFragment?,activity: MainActivity) {
 
     }
 
-
+    /**
+     * Inizializza il location listener
+     * */
     @RequiresApi(Build.VERSION_CODES.S)
     @SuppressLint("MissingPermission")
-//    fun initLocationListener(googleMap: GoogleMap, mode: Int) {
     fun initLocationListener() {
         locationListener =
             LocationListener { location ->
@@ -464,48 +507,21 @@ class Map (mapView: SupportMapFragment?,activity: MainActivity) {
 
                 Log.d(
                     "LOCATION",
-                    "AAAA LAT: ${locationFromListener?.latitude}, LONG: ${locationFromListener?.longitude}"
+                    "LAT: ${locationFromListener?.latitude}, LONG: ${locationFromListener?.longitude}"
                 )
-
-//                if (mode == NOTIFICATION) {
-//                    if (!prefs.getBoolean("notifyAbsentMeasure", true)) { stopLocationListener() }
-//                } else {
-//                    if (!prefs.getBoolean("automatic_fetch", false) &&
-//                        !prefs.getBoolean("periodic_fetch", false)) {
-//                        stopLocationListener()
-//                    }
-//                }
-
-//                if (!prefs.getBoolean("automatic_fetch", false) &&
-//                    !prefs.getBoolean("periodic_fetch", false) &&
-//                    !prefs.getBoolean("notifyAbsentMeasure", true)) {
-//                        stopLocationListener()
-//                    }
-
             }
         locationManager = activity.getSystemService(AppCompatActivity.LOCATION_SERVICE) as LocationManager?
         locationManager?.requestLocationUpdates(LocationManager.GPS_PROVIDER, MILLIS, 0f, locationListener!!)
         Log.d("LOCLISTENER", "Listener avviato")
-        Log.d("AAAA", "$locationListener")
-//        when (mode) {
-//            AUTOMATIC -> { listenerHandler(googleMap, true) }
-//            NOTIFICATION -> { listenerHandler(googleMap, false) }
-//            PERIODIC -> { periodicFetch() }
-//        }
     }
 
-    private fun stopLocationListener() {
-        Log.d("AAAA", "$locationListener, $locationManager")
-        locationManager?.removeUpdates(locationListener!!)
-        locationManager = null
-        locationListener = null
-        Log.d("LOCLISTENER", "Ho interrotto il listener")
-    }
-
+    /**
+     * Crea un dialog che viene visualizzato quando si clicca su un riquadro
+     * @param polygon Riquadro premuto
+     * */
     @RequiresApi(Build.VERSION_CODES.S)
     private fun showInfoDialog(polygon: Polygon?) {
         if (polygon != null) {
-//            Log.d("MISUREQUADRATO", "${polygon.points[0]}, ${polygon.points[1]}, ${polygon.points[2]}, ${polygon.points[3]}")
             val imported = prefs.getBoolean("view_imported", true)
             CoroutineScope(Dispatchers.IO).launch {
                 val trPoint = withContext(Dispatchers.Main) { polygon.points[1] }
@@ -526,14 +542,6 @@ class Map (mapView: SupportMapFragment?,activity: MainActivity) {
                     measures = measures.takeLast(limit)
                 }
 
-
-//                val avgMeasures = database.measureDao().getAvgMeasuresInPolygon(
-//                    trPoint.latitude,
-//                    trPoint.longitude,
-//                    blPoint.latitude,
-//                    blPoint.longitude,
-//                    imported
-//                )
 
                 val avgMeasures = getAvgMeasures(measures)
                 Log.d("MISUREQUADRATO", measures.toString())
@@ -570,6 +578,10 @@ class Map (mapView: SupportMapFragment?,activity: MainActivity) {
         }
     }
 
+    /**
+     * Crea un dialog che mostra in elenco le misure all'interno del riquadro premuto
+     * @param measures Lista di misure da mostrare
+     * */
     @RequiresApi(Build.VERSION_CODES.S)
     private fun showMoreDialog(measures: List<Measure>) {
         val dialogBuilder = AlertDialog.Builder(activity, R.style.DialogTheme)
@@ -582,6 +594,10 @@ class Map (mapView: SupportMapFragment?,activity: MainActivity) {
         dialogBuilder.create().show()
     }
 
+    /**
+     * Crea un dialog che visualizza ulteriori informazioni di una misura
+     * @param measure Misura da visualizzare
+     * */
     @RequiresApi(Build.VERSION_CODES.S)
     private fun showDetailsDialog(measure: Measure) {
         val dialogBuilder = AlertDialog.Builder(activity, R.style.DialogTheme)
@@ -604,6 +620,10 @@ class Map (mapView: SupportMapFragment?,activity: MainActivity) {
         dialogBuilder.create().show()
     }
 
+    /**
+     * Crea un dialog che chiede all'utente se si è sicuri di voler cancellare la misura selezionata
+     * @param measure Misura da cancellare
+     * */
     @RequiresApi(Build.VERSION_CODES.S)
     private fun deleteMeasureDialog(measure: Measure) {
         val dialogBuilder = AlertDialog.Builder(activity, R.style.DialogTheme)
@@ -624,6 +644,11 @@ class Map (mapView: SupportMapFragment?,activity: MainActivity) {
 
     }
 
+    /**
+     * Data una lista di misure, crea e restituisce un array contenente le date delle misure
+     * @param measures Lista di misure
+     * @return Array di stringhe contenente le date formattate delle misure
+     * */
     @RequiresApi(Build.VERSION_CODES.O)
     private fun createExpandedString(measures: List<Measure>): Array<String> {
         var array = arrayOf<String>()
@@ -634,6 +659,11 @@ class Map (mapView: SupportMapFragment?,activity: MainActivity) {
         return array
     }
 
+    /**
+     * Dato una stringa contenente un timestamp, trasformandolo da yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z' a dd/MM/yyyy HH:mm:ss
+     * @param timestamp Stringa contenente il timestamp da formattare
+     * @return Stringa contenente il timestamp formattato
+     * */
     @RequiresApi(Build.VERSION_CODES.O)
     private fun formatTimestamp(timestamp: String): String {
         val l = LocalDateTime.parse(timestamp, DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'")).format(
@@ -642,6 +672,11 @@ class Map (mapView: SupportMapFragment?,activity: MainActivity) {
         return l.toString()
     }
 
+    /**
+     * Crea un oggetto di tipo AverageMeasures, lo popola con le medie delle misure in input e lo restituisce
+     * @param measures Lista di misure di cui fare le medie
+     * @return Oggetto AverageMeasures con le medie delle misure
+     * */
     private fun getAvgMeasures(measures: List<Measure>) : AverageMeasures {
         if (measures.isEmpty()) {
             return AverageMeasures(null, null,null)
@@ -660,7 +695,11 @@ class Map (mapView: SupportMapFragment?,activity: MainActivity) {
         return avg
     }
 
-    // True se ci sono misure recenti, false altrimenti
+    /**
+     * Data una lista di misure, controlla se la più recente è datata al giorno odierno
+     * @param measures Lista di misure da controllare
+     * @return True se l'ultima misura è datata al giorno odierno, false altrimenti
+     * */
     @RequiresApi(Build.VERSION_CODES.O)
     private fun checkForRecentMeasures(measures: List<Measure>) : Boolean {
         Log.d("DATE", "sono entrato nella funzione")
@@ -672,9 +711,12 @@ class Map (mapView: SupportMapFragment?,activity: MainActivity) {
 
         Log.d("DATE", "Today: $today, lastMeasureDate: $lastMeasureDate, non è di oggi? ${today > lastMeasureDate}")
 
-        return today == lastMeasureDate // Restituisce true se l'ultima misura è di oggi, false altrimenti
+        return today == lastMeasureDate
     }
 
+    /**
+     * Invia una notifica segnalando che non sono state trovate misure recenti
+     * */
     @RequiresApi(Build.VERSION_CODES.O)
     private fun sendNotification() {
         val CHANNEL_ID = "RecentMeasuresChannel"
@@ -693,12 +735,9 @@ class Map (mapView: SupportMapFragment?,activity: MainActivity) {
             .setContentText("Non sono state trovate misure risalenti a oggi, effettuane qualcuna!")
             .setSmallIcon(R.mipmap.ic_launcher_round)
             .priority = NotificationCompat.PRIORITY_DEFAULT
-//            .setProgress(0,0,true)
-//            .setOngoing(true)
+
 
         val notification = mBuilder.build()
         notificationManager.notify(SERVICE_NOTIFICATION_ID, notification)
-
-//        return notification
     }
 }

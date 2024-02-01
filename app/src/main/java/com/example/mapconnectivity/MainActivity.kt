@@ -83,6 +83,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var loadingBar: ProgressBar
 
     private val MODES = arrayOf("LTE", "Wi-Fi", "Suono")
+    private lateinit var selectedMode: TextView
     private lateinit var selectedModeValue: TextView
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
@@ -111,6 +112,7 @@ class MainActivity : AppCompatActivity() {
         loadingText = findViewById(R.id.loadingText)
         loadingBar = findViewById(R.id.loadingBar)
 
+        selectedMode = findViewById(R.id.selectedMode)
         selectedModeValue = findViewById(R.id.selectedModeValue)
 
         val prefs = PreferenceManager.getDefaultSharedPreferences(this)
@@ -575,12 +577,16 @@ class MainActivity : AppCompatActivity() {
 
     private fun showLoading() {
         mapView.view?.visibility = View.GONE
+        selectedMode.visibility = View.GONE
+        selectedModeValue.visibility = View.GONE
         loadingText.visibility = View.VISIBLE
         loadingBar.visibility = View.VISIBLE
     }
 
     private fun hideLoading() {
         mapView.view?.visibility = View.VISIBLE
+        selectedMode.visibility = View.VISIBLE
+        selectedModeValue.visibility = View.VISIBLE
         loadingText.visibility = View.GONE
         loadingBar.visibility = View.GONE
     }

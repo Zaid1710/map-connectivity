@@ -54,7 +54,6 @@ class SettingsActivity : AppCompatActivity() {
             val periodic = findPreference<SwitchPreference>("periodic_fetch")
             val background_periodic = findPreference<SwitchPreference>("background_periodic_fetch")
             val automatic = findPreference<SwitchPreference>("automatic_fetch")
-            val notify = findPreference<SwitchPreference>("notifyAbsentMeasure")
 
             val limit = findPreference<EditTextPreference>("limit")
 
@@ -63,9 +62,12 @@ class SettingsActivity : AppCompatActivity() {
             val prefs = PreferenceManager.getDefaultSharedPreferences(requireContext())
             val editor = prefs.edit()
 
+            // L'impostazione per scegliere la durata del fetch periodico è attiva se entrambi
+            // gli switch sia per periodic che background periodic sono off
             findPreference<ListPreference>("periodic_fetch_interval")?.isEnabled =
                 !(periodic?.isChecked!! || background_periodic?.isChecked!!)
 
+            // Impostazione soglie manuali
             manual?.onPreferenceChangeListener =
                 Preference.OnPreferenceChangeListener { _, newValue ->
                     if (newValue == false) {
@@ -94,8 +96,8 @@ class SettingsActivity : AppCompatActivity() {
                     true
                 }
 
-
-            periodic?.onPreferenceChangeListener =
+            // Gestione misurazione periodica
+            periodic.onPreferenceChangeListener =
                 Preference.OnPreferenceChangeListener {_, newValue ->
                     if (newValue == true) {
                         findPreference<ListPreference>("periodic_fetch_interval")?.isEnabled = false
@@ -103,10 +105,11 @@ class SettingsActivity : AppCompatActivity() {
                         val i = Intent(context, MainActivity::class.java)
                         i.putExtra("periodic", "start")
 
+                        // Se la misurazione periodica viene avviata mentre quella automatica è attiva, quest'ultima viene disattivata
                         if (automatic?.isChecked == true) {
                             automatic.isChecked = false
-//                            i.putExtra("automatic", "stop")
                         }
+                        // Se la misurazione periodica viene avviata mentre quella periodica in background è attiva, quest'ultima viene disattivata
                         if (background_periodic?.isChecked == true) {
                             background_periodic.isChecked = false
                             i.putExtra("background_periodic", "stop")
@@ -116,13 +119,13 @@ class SettingsActivity : AppCompatActivity() {
                     } else {
                         findPreference<ListPreference>("periodic_fetch_interval")?.isEnabled = true
                         val i = Intent(context, MainActivity::class.java)
-//                        i.putExtra("periodic", "stop")
                         startActivity(i)
                     }
 
                     true
                 }
 
+            // Gestione misurazione periodica in background
             background_periodic?.onPreferenceChangeListener =
                 Preference.OnPreferenceChangeListener {_, newValue ->
                     if (newValue == true) {
@@ -131,13 +134,13 @@ class SettingsActivity : AppCompatActivity() {
                         val i = Intent(context, MainActivity::class.java)
                         i.putExtra("background_periodic", "start")
 
-                        if (periodic?.isChecked == true) {
+                        // Se la misurazione periodica in background viene avviata mentre quella periodica è attiva, quest'ultima viene disattivata
+                        if (periodic.isChecked) {
                             periodic.isChecked = false
-//                            i.putExtra("periodic", "stop")
                         }
+                        // Se la misurazione periodica in background viene avviata mentre quella automatica è attiva, quest'ultima viene disattivata
                         if (automatic?.isChecked == true) {
                             automatic.isChecked = false
-//                            i.putExtra("automatic", "stop")
                         }
                         startActivity(i)
                     } else {
@@ -150,16 +153,18 @@ class SettingsActivity : AppCompatActivity() {
                     true
                 }
 
+            // Gestione misurazione automatica
             automatic?.onPreferenceChangeListener =
                 Preference.OnPreferenceChangeListener {_, newValue ->
                     if (newValue == true) {
                         val i = Intent(context, MainActivity::class.java)
                         i.putExtra("automatic", "start")
 
-                        if (periodic?.isChecked == true) {
+                        // Se la misurazione automatica viene avviata mentre quella periodica è attiva, quest'ultima viene disattivata
+                        if (periodic.isChecked) {
                             periodic.isChecked = false
-//                            i.putExtra("periodic", "stop")
                         }
+                        // Se la misurazione automatica viene avviata mentre quella periodica in background è attiva, quest'ultima viene disattivata
                         if (background_periodic?.isChecked == true) {
                             background_periodic.isChecked = false
                             i.putExtra("background_periodic", "stop")
@@ -170,7 +175,6 @@ class SettingsActivity : AppCompatActivity() {
                     }
                     else {
                         val i = Intent(context, MainActivity::class.java)
-//                        i.putExtra("automatic", "stop")
                         startActivity(i)
                         true
                     }
@@ -272,6 +276,13 @@ class SettingsActivity : AppCompatActivity() {
             }
         }
 
+        /**
+         * Verifica che la stringa impostata come soglia per il caso ottimale in input sia un valore valido
+         * @param input Stringa da verificare
+         * @param bad Valore pessimo da confrontare con quello in input
+         * @param isDb Se il valore da controllare è in Db
+         * @return Se la stringa in input è un valore valido
+         * */
         private fun validateInputOpt(input: String, bad: String?, isDb: Boolean): Boolean {
             if (!isNumber(input)) {
                 val toast = Toast.makeText(requireContext(), "Input non valido", Toast.LENGTH_SHORT)
@@ -282,7 +293,7 @@ class SettingsActivity : AppCompatActivity() {
             return if (bad != null && input.isNotEmpty() && abs(input.toInt()) < abs(bad.toInt())) {
                 true
             } else {
-                val toast: Toast = if (isDb) {
+                val toast: Toast = if (isDb) { // Se il valore è in Db il controllo è inverso
                     Toast.makeText(requireContext(), "Inserire un valore inferiore a $bad", Toast.LENGTH_SHORT)
                 } else {
                     Toast.makeText(requireContext(), "Inserire un valore superiore a $bad", Toast.LENGTH_SHORT)
@@ -292,6 +303,13 @@ class SettingsActivity : AppCompatActivity() {
             }
         }
 
+        /**
+         * Verifica che la stringa impostata come soglia per il caso pessimo in input sia un valore valido
+         * @param input Stringa da verificare
+         * @param opt Valore ottimale da confrontare con quello in input
+         * @param isDb Se il valore da controllare è in Db
+         * @return Se la stringa in input è un valore valido
+         * */
         private fun validateInputBad(input: String, opt: String?, isDb: Boolean): Boolean {
             if (!isNumber(input)) {
                 val toast = Toast.makeText(requireContext(), "Input non valido", Toast.LENGTH_SHORT)
@@ -302,7 +320,7 @@ class SettingsActivity : AppCompatActivity() {
             return if (opt != null && input.isNotEmpty() && abs(input.toInt()) > abs(opt.toInt())) {
                 true
             } else {
-                val toast: Toast = if (isDb) {
+                val toast: Toast = if (isDb) { // Se il valore è in Db il controllo è inverso
                     Toast.makeText(requireContext(), "Inserire un valore superiore a $opt", Toast.LENGTH_SHORT)
                 } else {
                     Toast.makeText(requireContext(), "Inserire un valore inferiore a $opt", Toast.LENGTH_SHORT)
@@ -312,6 +330,11 @@ class SettingsActivity : AppCompatActivity() {
             }
         }
 
+        /**
+         * Verifica che la stringa in input sia un numero e sia positivo
+         * @param input Stringa da verificare
+         * @return True se la stringa in input è un numero positivo, false altrimenti
+         * */
         private fun validateInputLimit(input: String): Boolean {
             if (!isNumber(input) || input.toInt() < 1) {
                 val toast = Toast.makeText(requireContext(), "Input non valido", Toast.LENGTH_SHORT)
@@ -322,6 +345,11 @@ class SettingsActivity : AppCompatActivity() {
             return true
         }
 
+        /**
+         * Verifica che la stringa in input sia un numero
+         * @param input Stringa da verificare
+         * @return True se la stringa in input è un numero, false altrimenti
+         * */
         private fun isNumber(input: String): Boolean {
             return input.toIntOrNull() != null
         }
