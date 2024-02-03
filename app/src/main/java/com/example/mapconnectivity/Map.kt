@@ -515,6 +515,14 @@ class Map (mapView: SupportMapFragment?, activity: MainActivity) {
         Log.d("LOCLISTENER", "Listener avviato")
     }
 
+    fun stopLocationListener() {
+        if (locationManager != null && locationListener != null) {
+            locationManager!!.removeUpdates(locationListener!!)
+        } else {
+            Log.d("LOCSTOPPING", "Non sono riuscito a interrompere $locationManager, $locationListener")
+        }
+    }
+
     /**
      * Crea un dialog che viene visualizzato quando si clicca su un riquadro
      * @param polygon Riquadro premuto

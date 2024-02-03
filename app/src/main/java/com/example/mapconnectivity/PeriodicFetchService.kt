@@ -111,6 +111,7 @@ class PeriodicFetchService : Service() {
      * */
     override fun onDestroy() {
         super.onDestroy()
+        Log.d("SERVICEONDESTROY", locationManager.toString())
         locationManager?.removeUpdates(locationListener)
         isOn = false
         this.stopForeground(STOP_FOREGROUND_REMOVE)
