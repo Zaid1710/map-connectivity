@@ -1,6 +1,7 @@
 package com.example.mapconnectivity
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.app.AlertDialog
 import android.content.Intent
 import android.content.SharedPreferences
@@ -31,19 +32,12 @@ import kotlinx.coroutines.withContext
 import java.time.Instant
 import java.time.format.DateTimeFormatter
 
-
 /**
- * TODO: !!!!!!!!!!!!!!!!!!!!!!!!!!!!VMMV MODEL VIEW ECC!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
- *       PULIZIA CODICE (abbiamo spostato le funzioni relative ai sensori)
- *       ORA CHE L'EXPORT HA UN NOME DIVERSO PER OGNI FILE (timestamp), BISOGNA CANCELLARE I FILE PRIMA CHE DIVENTINO TROPPI
- *       DA VALUTARE: PER ORA SE SI CLICCA SU UN FILE .mapc PORTA A SWAP_ACTIVITY, VALUTARE SE CONTINUARE CON L'IMPLEMENTAZIONE DELL'IMPORTAZIONE AUTOMATICA O MENO
- *       SE ELIMINI UNA MISURA IMPORTATA LA PUOI REIMPORTARE????
- *       AGGIUNGERE COROUTINE PER EVITARE CRASH X TIMEOUT (vedi INIZIO COROUTINE? e FINE COROUTINE?)
- *
  *       BUGS:
- *       A ZOOM MINIMO NON VIENE SPAWNATA LA GRIGLIA (ne su emulatore ne su telefono) - NON LA GESTIAMO
- *       SE UNO PROVA A IMPORTARE DA BLUETOOTH SENZA AVER DATO PRIMA I PERMESSI DA ERRORE - NON RIUSCIAMO A RIPRODURLO
+ *       A ZOOM MINIMO NON VIENE SPAWNATA LA GRIGLIA (ne su emulatore ne su telefono)
  *       NEL TELEFONO LA MISURA CREATA HA UN FUSO ORARIO DIVERSO (QUANDO LO SI GUARDA CLICCANDO SUL QUADRATO)
+ *       SE DOPO ESSERE ENTRATI NELLE IMPOSTAZIONI CLICCANDO SUL DIALOG DI PERMESSI MANCANTI, NON SI IMPOSTANO I PERMESSI O SI IMPOSTANO ASK EVERYTIME E SI TORNA INDIETRO,
+ *          NON VENGONO RICHIESTI NUOVAMENTE
  * */
 
 class MainActivity : AppCompatActivity() {
@@ -69,7 +63,6 @@ class MainActivity : AppCompatActivity() {
     private var lastNotifySwitch: Boolean = false
 
     private lateinit var periodicFetchService: PeriodicFetchService
-    private var bound = false
 
     private lateinit var loadingText: TextView
     private lateinit var loadingBar: ProgressBar
@@ -81,11 +74,13 @@ class MainActivity : AppCompatActivity() {
     private var isMapStarted = false
     private var isAppStarting = false
 
+    /**
+     * Inizializza il programma e controlla se c'è qualche modalità da eseguire (automatic, periodic o background periodic)
+     * */
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-
         isAppStarting = true
         User.getUserId(this)
 
@@ -133,9 +128,6 @@ class MainActivity : AppCompatActivity() {
         Log.d("INIZIALIZZAZIONE", "HO INIZIALIZZATO TUTTO, SOPRATTUTTO $map")
 
         val permissionsToRequest = generatePermissionRequest(mutableListOf(Manifest.permission.ACCESS_FINE_LOCATION))
-//        if (!checkPermission(Manifest.permission.ACCESS_FINE_LOCATION)) {
-//            permissionsToRequest.add(Manifest.permission.ACCESS_FINE_LOCATION)
-//        }
 
         if (permissionsToRequest.isNotEmpty()) {
             Log.d("PERMISSIONS", "LOCATION PERMISSION MISSING")
@@ -143,8 +135,6 @@ class MainActivity : AppCompatActivity() {
         } else {
             // Tutti i permessi sono stati già concessi
             Log.d("PERMISSIONS", "LOCATION PERMISSION GRANTED")
-//            map.initLocationListener()
-//            map.loadMap(mode)
             initMap(mode)
             initMeasureBtn()
         }
@@ -159,7 +149,6 @@ class MainActivity : AppCompatActivity() {
             startActivity(swap)
         }
 
-        // TODO: INIZIO COROUTINE?
         val auto = intent.getStringExtra("automatic")
         val periodic = intent.getStringExtra("periodic")
         val backgroundPeriodic = intent.getStringExtra("background_periodic")
@@ -170,9 +159,6 @@ class MainActivity : AppCompatActivity() {
             intent.removeExtra("automatic")
             // Controllo permessi
             val permissionsToRequest = generatePermissionRequest(mutableListOf(Manifest.permission.RECORD_AUDIO))
-//            if (!checkPermission(Manifest.permission.RECORD_AUDIO)) {
-//                permissionsToRequest.add(Manifest.permission.RECORD_AUDIO)
-//            }
 
             if (permissionsToRequest.isNotEmpty()) {
                 // Qualche permesso non è stato dato
@@ -189,7 +175,6 @@ class MainActivity : AppCompatActivity() {
                 editor.apply()
 
                 mapView.getMapAsync { googleMap ->
-//                    map.initLocationListener(googleMap, map.AUTOMATIC)
                     map.listenerHandler(googleMap, true)
                 }
             }
@@ -207,9 +192,6 @@ class MainActivity : AppCompatActivity() {
             intent.removeExtra("periodic")
             // Controllo permessi
             val permissionsToRequest = generatePermissionRequest(mutableListOf(Manifest.permission.RECORD_AUDIO))
-//            if (!checkPermission(Manifest.permission.RECORD_AUDIO)) {
-//                permissionsToRequest.add(Manifest.permission.RECORD_AUDIO)
-//            }
 
             if (permissionsToRequest.isNotEmpty()) {
                 // Qualche permesso non è stato dato
@@ -225,10 +207,8 @@ class MainActivity : AppCompatActivity() {
                 editor.putBoolean("periodic_fetch", true)
                 editor.apply()
 
-//                mapView.getMapAsync { googleMap ->
-//                    map.initLocationListener(googleMap, map.PERIODIC)
+
                 map.periodicFetch()
-//                }
             }
         } else if (notify == null) {
             val preferences: SharedPreferences =
@@ -244,15 +224,6 @@ class MainActivity : AppCompatActivity() {
 
             // Controllo permessi
             val permissionsToRequest = generatePermissionRequest(mutableListOf(Manifest.permission.POST_NOTIFICATIONS, Manifest.permission.FOREGROUND_SERVICE, Manifest.permission.RECORD_AUDIO))
-//            if (!checkPermission(Manifest.permission.POST_NOTIFICATIONS)) {
-//                permissionsToRequest.add(Manifest.permission.POST_NOTIFICATIONS)
-//            }
-//            if (!checkPermission(Manifest.permission.FOREGROUND_SERVICE)) {
-//                permissionsToRequest.add(Manifest.permission.FOREGROUND_SERVICE)
-//            }
-//            if (!checkPermission(Manifest.permission.RECORD_AUDIO)) {
-//                permissionsToRequest.add(Manifest.permission.RECORD_AUDIO)
-//            }
 
             if (permissionsToRequest.isNotEmpty()) {
                 // Qualche permesso non è stato dato
@@ -268,7 +239,6 @@ class MainActivity : AppCompatActivity() {
             intent.removeExtra("background_periodic")
             periodicFetchStop()
         } else if (notify == null) {
-//            intent.removeExtra("periodic")
             val preferences: SharedPreferences =
                 PreferenceManager.getDefaultSharedPreferences(this)
             val editor: SharedPreferences.Editor = preferences.edit()
@@ -276,11 +246,12 @@ class MainActivity : AppCompatActivity() {
             editor.apply()
         }
 
-        // TODO FINE COROUTINE?
-
     }
 
-
+    /**
+     * Viene chiamato al resume dell'activity, inizializza il loclistener e controlla se lo switch delle notifiche è attivo
+     * */
+    @SuppressLint("UnsafeIntentLaunch")
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onResume() {
         super.onResume()
@@ -290,14 +261,11 @@ class MainActivity : AppCompatActivity() {
         mode = prefs.getString("mode_preference", 0.toString())!!.toInt()
         selectedModeValue.text = MODES[mode]
         val permissionsToRequest = generatePermissionRequest(mutableListOf(Manifest.permission.ACCESS_FINE_LOCATION))
-//        if (!checkPermission(Manifest.permission.ACCESS_FINE_LOCATION)) {
-//            permissionsToRequest.add(Manifest.permission.ACCESS_FINE_LOCATION)
-//        }
-
 
         if (permissionsToRequest.isEmpty()) {
             initMap(mode)
-        } else if (!isAppStarting) {
+        } else {
+            isAppStarting = false
             finish()
             startActivity(getIntent())
         }
@@ -322,7 +290,6 @@ class MainActivity : AppCompatActivity() {
                 editor.putBoolean("notifyAbsentMeasure", true)
                 editor.apply()
                 mapView.getMapAsync { googleMap ->
-//                    map.initLocationListener(googleMap, map.NOTIFICATION)
                     map.listenerHandler(googleMap, false)
                 }
             }
@@ -332,6 +299,12 @@ class MainActivity : AppCompatActivity() {
 
     }
 
+    /**
+     * Viene chiamata dopo la scelta dell'utente di fornire o meno le autorizzazioni ai permessi necessari
+     * @param requestCode Codice della richiesta effettuata
+     * @param permissions Permessi della richiesta effettuata (ereditato da super)
+     * @param grantResults Array dei permessi accettati e non
+     * */
     @RequiresApi(Build.VERSION_CODES.S)
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
@@ -369,7 +342,6 @@ class MainActivity : AppCompatActivity() {
                     editor.apply()
 
                     mapView.getMapAsync { googleMap ->
-//                            map.initLocationListener(googleMap, map.AUTOMATIC)
                         map.listenerHandler(googleMap, true)
                     }
                 }
@@ -380,10 +352,8 @@ class MainActivity : AppCompatActivity() {
                     editor.putBoolean("periodic_fetch", true)
                     editor.apply()
 
-//                        mapView.getMapAsync { googleMap ->
-//                            map.initLocationListener(googleMap, map.PERIODIC)
-                        map.periodicFetch()
-//                        }
+                    map.periodicFetch()
+
                 }
                 PERMISSION_NOTIFY -> {
                     val preferences: SharedPreferences =
@@ -392,7 +362,6 @@ class MainActivity : AppCompatActivity() {
                     editor.putBoolean("notifyAbsentMeasure", true)
                     editor.apply()
                     mapView.getMapAsync { googleMap ->
-//                            map.initLocationListener(googleMap, map.NOTIFICATION)
                         map.listenerHandler(googleMap, false)
                     }
                 }
@@ -400,33 +369,7 @@ class MainActivity : AppCompatActivity() {
 
         } else {
             if (requestCode == PERMISSION_INIT) {
-                val dialogBuilder = AlertDialog.Builder(this, R.style.DialogTheme)
-                dialogBuilder.setTitle("Permessi di posizione mancanti")
-                dialogBuilder.setMessage("L'applicazione ha bisogno dei permessi di posizione. \nPer favore autorizzane l'utilizzo per proseguire.")
-                dialogBuilder.setNegativeButton("Prosegui") { _, _ -> }
-                dialogBuilder.setOnDismissListener {
-////                        val permissionsToRequest = mutableListOf<String>()
-//                    val permissionsToRequest = generatePermissionRequest(mutableListOf(Manifest.permission.ACCESS_FINE_LOCATION))
-////                        if (!checkPermission(Manifest.permission.ACCESS_FINE_LOCATION)) {
-////                            permissionsToRequest.add(Manifest.permission.ACCESS_FINE_LOCATION)
-////                        }
-//
-//                    if (permissionsToRequest.isNotEmpty()) {
-//                        Log.d("PERMISSIONS", "LOCATION PERMISSION MISSING IN onRequestPermissionsResult")
-//                        requestPermissions(permissionsToRequest.toTypedArray(), PERMISSION_INIT)
-//                    } else {
-//                        // Tutti i permessi sono stati già concessi
-//                        Log.d("PERMISSIONS", "LOCATION PERMISSION GRANTED")
-//                        initMap(mode)
-//                        initMeasureBtn()
-//                    }
-                    val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
-                    val uri = Uri.fromParts("package", packageName, null)
-                    intent.data = uri
-                    startActivity(intent)
-
-                }
-                dialogBuilder.create().show()
+                notifyMissingInitPermissions()
             }
 
             if (requestCode == PERMISSION_BACKGROUND_PERIODIC_FETCH) {
@@ -442,18 +385,21 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Viene chiamata all'interruzione dell'activity. Interrompe il listener della posizione
+     * */
     override fun onStop() {
         super.onStop()
         map.stopLocationListener()
         isMapStarted = false
-        if (bound) {
-//            unbindService(serviceConnection)
-            bound = false
-        }
     }
 
 
-    /* Verifica un permesso */
+    /**
+     * Verifica un permesso
+     * @param permission Permesso da verificare
+     * @return True se è concesso, false altrimenti
+     * */
     private fun checkPermission(permission: String): Boolean {
         return (ContextCompat.checkSelfPermission(
                 this@MainActivity,
@@ -462,6 +408,9 @@ class MainActivity : AppCompatActivity() {
         )
     }
 
+    /**
+     * Inizializza il bottone per eseguire una misura
+     * */
     @RequiresApi(Build.VERSION_CODES.S)
     private fun initMeasureBtn() {
         measureBtn.setOnClickListener {
@@ -469,24 +418,10 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-//    @RequiresApi(Build.VERSION_CODES.S)
-//    fun tmpAddMeasurement(): Measure {
-//        Log.d("SERVIZIO", "sono un servizio")
-//        val measurements = Measure(
-//            timestamp = "sdoigsdg",
-//            lat = 23.0,
-//            lon = 44.0,
-//            lte = 12.3,
-//            wifi = 1.6,
-//            db = 45.0,
-//            user_id = "sdogkjlgksdj",
-//            imported = false
-//        )
-//        CoroutineScope(Dispatchers.IO).launch { measureDao.insertMeasure(measurements) }
-//
-//        return measurements
-//    }
-
+    /**
+     * Effettua una misura e la inserisce nel database
+     * @param isOutside Flag per determinare se la posizione dell'utente si trova al di fuori dell'area visualizzata
+     * */
     @RequiresApi(Build.VERSION_CODES.S)
     fun addMeasurement(isOutside: Boolean) {
         CoroutineScope(Dispatchers.IO).launch {
@@ -510,7 +445,6 @@ class MainActivity : AppCompatActivity() {
             )
             measureDao.insertMeasure(measurements)
             Log.d("MEASURE", measurements.toString())
-//            Log.d("DB", measureDao.getAllMeasures().toString())
             withContext(Dispatchers.Main) {
                 if (::measureBtn.isInitialized && ::measureProgressBar.isInitialized) {
                     measureBtn.visibility = View.VISIBLE
@@ -527,18 +461,13 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Chiede i permessi necessari per eseguire una misura e la esegue dopo che sono stati concessi
+     * @param isOutside Flag per determinare se la posizione dell'utente si trova al di fuori dell'area visualizzata
+     * */
     @RequiresApi(Build.VERSION_CODES.S)
     fun manageMeasurePermissions(isOutside: Boolean) {
-//        val permissionsToRequest = mutableListOf<String>()
         val permissionsToRequest = generatePermissionRequest(mutableListOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.RECORD_AUDIO))
-//        if (!this.checkPermission(Manifest.permission.ACCESS_FINE_LOCATION)) {
-//            Log.d("MEASUREPERMISSIONS", "Mi manca ACCESS_FINE_LOCATION")
-//            permissionsToRequest.add(Manifest.permission.ACCESS_FINE_LOCATION)
-//        }
-//        if (!this.checkPermission(Manifest.permission.RECORD_AUDIO)) {
-//            Log.d("MEASUREPERMISSIONS", "Mi manca RECORD_AUDIO")
-//            permissionsToRequest.add(Manifest.permission.RECORD_AUDIO)
-//        }
 
         if (permissionsToRequest.isNotEmpty()) {
             Log.d("MEASUREPERMISSIONS", "Mi manca qualche permesso per le misure")
@@ -555,31 +484,38 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Avvia il servizio di background periodic fetch
+     * */
     @RequiresApi(Build.VERSION_CODES.O)
     private fun periodicFetchStart() {
         Log.d("SERVIZIO", "STO AVVIANDO IL SERVIZIO")
         measureBtn.visibility = View.GONE
         showLoading()
-//        measureProgressBar.visibility = View.VISIBLE
         val seconds = PreferenceManager.getDefaultSharedPreferences(this).getString("periodic_fetch_interval", 10.toString())!!.toInt()
 
-        var serviceIntent = Intent(this, PeriodicFetchService::class.java)
+        val serviceIntent = Intent(this, PeriodicFetchService::class.java)
         serviceIntent.putExtra("seconds", seconds)
-//        this.bindService(serviceIntent, this.serviceConnection, Context.BIND_AUTO_CREATE)
         this.startForegroundService(serviceIntent)
     }
 
+    /**
+     * Interrompe il servizio di background periodic fetch
+     * */
     private fun periodicFetchStop() {
         measureBtn.visibility = View.VISIBLE
-//        measureProgressBar.visibility = View.GONE
-//        unbindService(serviceConnection)
+
         this.stopService(Intent(this, PeriodicFetchService::class.java))
         hideLoading()
-//        this.stopService(periodicFetchService)
 
         Log.d("SERVIZIO", "HO INTERROTTO IL SERVIZIO")
     }
 
+    /**
+     * Data una lista di permessi, filtra quelli già presenti e restituisce una lista con quelli mancanti
+     * @param requests Lista di permessi
+     * @return Lista di permessi da richiedere
+     * */
     private fun generatePermissionRequest(requests: MutableList<String>) : MutableList<String> {
         val permissionsToRequest = mutableListOf<String>()
         for (request in requests) {
@@ -591,6 +527,9 @@ class MainActivity : AppCompatActivity() {
         return permissionsToRequest
     }
 
+    /**
+     * Mostra la schermata di caricamento (visibile in background periodic fetch)
+     * */
     private fun showLoading() {
         mapView.view?.visibility = View.GONE
         selectedMode.visibility = View.GONE
@@ -599,6 +538,9 @@ class MainActivity : AppCompatActivity() {
         loadingBar.visibility = View.VISIBLE
     }
 
+    /**
+     * Nasconde la schermata di caricamento (visibile in background periodic fetch)
+     * */
     private fun hideLoading() {
         mapView.view?.visibility = View.VISIBLE
         selectedMode.visibility = View.VISIBLE
@@ -607,11 +549,34 @@ class MainActivity : AppCompatActivity() {
         loadingBar.visibility = View.GONE
     }
 
+    /**
+     * Controlla se la mappa è avviata e inizializza listener e mappa
+     * @param mode Modalità di visualizzazione
+     * */
     @RequiresApi(Build.VERSION_CODES.S)
     private fun initMap(mode: Int) {
         if (isMapStarted) { return }
         map.initLocationListener()
         map.loadMap(mode)
         isMapStarted = true
+    }
+
+    /**
+     * Crea e mostra la notifica che allerta l'utente che mancano i permessi di posizione e lo indirizza alle impostazioni dell'applicazione per fornirli
+     * */
+    private fun notifyMissingInitPermissions() {
+        val dialogBuilder = AlertDialog.Builder(this, R.style.DialogTheme)
+        dialogBuilder.setTitle("Permessi di posizione mancanti")
+        dialogBuilder.setMessage("L'applicazione ha bisogno dei permessi di posizione. \nPer favore autorizzane l'utilizzo per proseguire.")
+        dialogBuilder.setNegativeButton("Prosegui") { _, _ -> }
+        dialogBuilder.setOnDismissListener {
+
+            val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+            val uri = Uri.fromParts("package", packageName, null)
+            intent.data = uri
+            startActivity(intent)
+
+        }
+        dialogBuilder.create().show()
     }
 }
