@@ -16,10 +16,12 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.provider.Settings
 import android.util.Log
 import android.view.View
 import android.widget.ArrayAdapter
@@ -95,6 +97,8 @@ class SwapActivity : AppCompatActivity() {
     private lateinit var exportDescBtn: ImageButton
     private lateinit var btImportDescBtn: ImageButton
     private lateinit var btExportDescBtn: ImageButton
+
+//    private var isPermissionRequested = false
 
 
     /**
@@ -239,6 +243,8 @@ class SwapActivity : AppCompatActivity() {
 
         prefs = PreferenceManager.getDefaultSharedPreferences(this)
         discoverableDuration = prefs.getString("discovery_time", 60.toString())?.toIntOrNull() // Considera il doppio del tempo per scomparire, ad esempio se DISCOVERABLE_DURATION=30, il dispositivo verra' nascosto dopo 60 secondi circa (DA VERIFICARE).
+
+//        isPermissionRequested = false
 
         foundDevices = mutableListOf()
         newFoundDevices = mutableListOf()
@@ -498,6 +504,7 @@ class SwapActivity : AppCompatActivity() {
         } else {
             // Almeno uno dei permessi è stato negato
             Log.d("PERMISSIONS", "ONE OR MORE BT PERMISSIONS MISSING")
+            notifyMissingPermissions("L'applicazione ha bisogno dei permessi dei dispositivi nelle vicinanze per importare ed esportare tramite Bluetooth.")
         }
     }
 
@@ -525,9 +532,6 @@ class SwapActivity : AppCompatActivity() {
      * */
     @RequiresApi(Build.VERSION_CODES.S)
     private fun btInit(isReceiver: Boolean) {
-        bluetoothManager = getSystemService(BluetoothManager::class.java)
-        bluetoothAdapter = bluetoothManager.adapter
-
         val permissionsToRequest = mutableListOf<String>()
         if (!checkPermission(Manifest.permission.ACCESS_FINE_LOCATION)) {
             permissionsToRequest.add(Manifest.permission.ACCESS_FINE_LOCATION)
@@ -546,12 +550,17 @@ class SwapActivity : AppCompatActivity() {
         }
 
         if (permissionsToRequest.isNotEmpty()) {
-            Log.d("PERMISSIONS", "BT PERMISSIONS MISSING")
-            if (isReceiver) {
-                requestPermissions(permissionsToRequest.toTypedArray(), PERMISSION_BT_RECEIVER)
-            } else {
-                requestPermissions(permissionsToRequest.toTypedArray(), PERMISSION_BT_DISCOVER)
-            }
+//            if (!isPermissionRequested) {
+//                isPermissionRequested = true
+                Log.d("PERMISSIONS", "BT PERMISSIONS MISSING")
+                if (isReceiver) {
+                    requestPermissions(permissionsToRequest.toTypedArray(), PERMISSION_BT_RECEIVER)
+                } else {
+                    requestPermissions(permissionsToRequest.toTypedArray(), PERMISSION_BT_DISCOVER)
+                }
+//            }  else {
+//                notifyMissingPermissions("L'applicazione ha bisogno dei permessi dei dispositivi nelle vicinanze per importare ed esportare tramite Bluetooth.")
+//            }
 
         } else {
             // Tutti i permessi sono stati già concessi
@@ -566,6 +575,8 @@ class SwapActivity : AppCompatActivity() {
      * */
     @RequiresApi(Build.VERSION_CODES.S)
     private fun btInitHandler(isReceiver: Boolean) {
+        bluetoothManager = getSystemService(BluetoothManager::class.java)
+        bluetoothAdapter = bluetoothManager.adapter
         if (!bluetoothAdapter.isEnabled) {
             val enableBtIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
             isReceivers = isReceiver
@@ -923,5 +934,24 @@ class SwapActivity : AppCompatActivity() {
         dialogBuilder.create().show()
     }
 
+    /**
+     * Crea e mostra la notifica che allerta l'utente che mancano i permessi e lo indirizza alle impostazioni dell'applicazione per fornirli
+     * @param str Testo del dialog
+     * */
+    private fun notifyMissingPermissions(str: String) {
+        val dialogBuilder = AlertDialog.Builder(this, R.style.DialogTheme)
+        dialogBuilder.setTitle("Permessi di posizione mancanti")
+        dialogBuilder.setMessage("$str \nPer favore autorizzane l'utilizzo per proseguire.")
+        dialogBuilder.setNegativeButton("Prosegui") { _, _ ->
+            val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+            val uri = Uri.fromParts("package", packageName, null)
+            intent.data = uri
+            startActivity(intent)
+
+            finish()
+        }
+        dialogBuilder.setNeutralButton("Chiudi") { _, _ -> }
+        dialogBuilder.create().show()
+    }
 }
 

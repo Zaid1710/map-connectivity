@@ -1,7 +1,6 @@
 package com.example.mapconnectivity
 
 import android.Manifest
-import android.annotation.SuppressLint
 import android.app.AlertDialog
 import android.content.Intent
 import android.content.SharedPreferences
@@ -36,8 +35,6 @@ import java.time.format.DateTimeFormatter
  *       BUGS:
  *       A ZOOM MINIMO NON VIENE SPAWNATA LA GRIGLIA (ne su emulatore ne su telefono)
  *       NEL TELEFONO LA MISURA CREATA HA UN FUSO ORARIO DIVERSO (QUANDO LO SI GUARDA CLICCANDO SUL QUADRATO)
- *       SE DOPO ESSERE ENTRATI NELLE IMPOSTAZIONI CLICCANDO SUL DIALOG DI PERMESSI MANCANTI, NON SI IMPOSTANO I PERMESSI O SI IMPOSTANO ASK EVERYTIME E SI TORNA INDIETRO,
- *          NON VENGONO RICHIESTI NUOVAMENTE
  * */
 
 class MainActivity : AppCompatActivity() {
@@ -72,7 +69,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var selectedModeValue: TextView
 
     private var isMapStarted = false
-    private var isAppStarting = false
+    private var isPermissionRequested = false
 
     /**
      * Inizializza il programma e controlla se c'è qualche modalità da eseguire (automatic, periodic o background periodic)
@@ -81,7 +78,7 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-        isAppStarting = true
+        isPermissionRequested = false
         User.getUserId(this)
 
         database = Room.databaseBuilder(this, MeasureDB::class.java, "measuredb").fallbackToDestructiveMigration().build()
@@ -251,7 +248,6 @@ class MainActivity : AppCompatActivity() {
     /**
      * Viene chiamato al resume dell'activity, inizializza il loclistener e controlla se lo switch delle notifiche è attivo
      * */
-    @SuppressLint("UnsafeIntentLaunch")
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onResume() {
         super.onResume()
@@ -264,10 +260,6 @@ class MainActivity : AppCompatActivity() {
 
         if (permissionsToRequest.isEmpty()) {
             initMap(mode)
-        } else {
-            isAppStarting = false
-            finish()
-            startActivity(getIntent())
         }
 
         Log.d("PREFERENCES", mode.toString())
@@ -369,7 +361,7 @@ class MainActivity : AppCompatActivity() {
 
         } else {
             if (requestCode == PERMISSION_INIT) {
-                notifyMissingInitPermissions()
+                notifyMissingPermissions("L'applicazione ha bisogno dei permessi di posizione.")
             }
 
             if (requestCode == PERMISSION_BACKGROUND_PERIODIC_FETCH) {
@@ -469,12 +461,24 @@ class MainActivity : AppCompatActivity() {
     fun manageMeasurePermissions(isOutside: Boolean) {
         val permissionsToRequest = generatePermissionRequest(mutableListOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.RECORD_AUDIO))
 
+
         if (permissionsToRequest.isNotEmpty()) {
-            Log.d("MEASUREPERMISSIONS", "Mi manca qualche permesso per le misure")
-            if (isOutside) {
-                this.requestPermissions(permissionsToRequest.toTypedArray(), this.PERMISSION_OUTSIDE_MEASUREMENTS)
+            if (!isPermissionRequested) {
+                isPermissionRequested = true
+                Log.d("MEASUREPERMISSIONS", "Mi manca qualche permesso per le misure")
+                if (isOutside) {
+                    this.requestPermissions(
+                        permissionsToRequest.toTypedArray(),
+                        this.PERMISSION_OUTSIDE_MEASUREMENTS
+                    )
+                } else {
+                    this.requestPermissions(
+                        permissionsToRequest.toTypedArray(),
+                        this.PERMISSION_MEASUREMENTS
+                    )
+                }
             } else {
-                this.requestPermissions(permissionsToRequest.toTypedArray(), this.PERMISSION_MEASUREMENTS)
+                notifyMissingPermissions("L'applicazione ha bisogno dei permessi del microfono per eseguire una misura.")
             }
         } else {
             Log.d("MEASUREPERMISSIONS", "Ho tutti i permessi per le misure")
@@ -562,12 +566,13 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * Crea e mostra la notifica che allerta l'utente che mancano i permessi di posizione e lo indirizza alle impostazioni dell'applicazione per fornirli
+     * Crea e mostra la notifica che allerta l'utente che mancano i permessi e lo indirizza alle impostazioni dell'applicazione per fornirli
+     * @param str Testo del dialog
      * */
-    private fun notifyMissingInitPermissions() {
+    private fun notifyMissingPermissions(str: String) {
         val dialogBuilder = AlertDialog.Builder(this, R.style.DialogTheme)
         dialogBuilder.setTitle("Permessi di posizione mancanti")
-        dialogBuilder.setMessage("L'applicazione ha bisogno dei permessi di posizione. \nPer favore autorizzane l'utilizzo per proseguire.")
+        dialogBuilder.setMessage("$str \nPer favore autorizzane l'utilizzo per proseguire.")
         dialogBuilder.setNegativeButton("Prosegui") { _, _ -> }
         dialogBuilder.setOnDismissListener {
 
@@ -576,6 +581,7 @@ class MainActivity : AppCompatActivity() {
             intent.data = uri
             startActivity(intent)
 
+            finish()
         }
         dialogBuilder.create().show()
     }
