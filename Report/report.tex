@@ -69,16 +69,14 @@
     \end{center}
 \end{titlepage}
 \pagebreak
+\pagenumbering{gobble} 
 \tableofcontents
 \pagebreak
+\pagenumbering{arabic} 
 
 \section{Introduzione}
 L'applicazione \texttt{MapConnectivity} è un software sviluppato in Kotlin che permette di registrare e visualizzare su una mappa le misurazioni della potenza del segnale LTE, Wi-Fi e il rumore misurato in dB nella zona circostante.
 \subsection{Main Activity}
-% La schermata principale dell'applicazione. \\
-% All'avvio, una volta concessi i permessi richiesti, viene mostrata la mappa con la griglia. Inoltre è presente un indicatore che mostra la modalità attuale di visualizzazione, ovvero se i colori mostrati sulla griglia si riferiscono a misure relative a LTE, Wi-Fi o dB. \\
-% Il bottone \texttt{Misura} effettua una misura calcolando l'intensità del valore LTE, Wi-Fi e dB localizzandoli nella posizione attuale dell'utente. \\
-% Sotto la mappa sono presenti, inoltre, due bottoni che portano alle altre schermate dell'applicazione: Impostazioni (Capitolo \ref{sec:settingsActivity}) e Scambio dati (Capitolo \ref{sec:swapActivity}).
 \begin{minipage}[t]{0.55\textwidth}
 La schermata principale dell'applicazione. \\
 All'avvio, una volta concessi i permessi richiesti, viene mostrata la mappa con la griglia. Inoltre è presente un indicatore che mostra la modalità attuale di visualizzazione, ovvero se i colori mostrati sulla griglia si riferiscono a misure relative a LTE, Wi-Fi o dB. \\
@@ -183,18 +181,68 @@ Ci sono quindi 4 opzioni:
 \end{figure}
 \section{Dettagli implementativi}
 \subsection{Mappa}
-Per la visualizzazione della mappa, sono utilizzate le \texttt{API} di \texttt{Google Maps} ed è implementata nella Main Activity tramite un fragment di classe \texttt{SupportMapFragment}. Viene inizializzata, tramite la funzione \texttt{loadMap}, dopo che l'utente ha fornito i permessi di posizione.
+Per la visualizzazione della mappa, sono utilizzate le \texttt{API} di \texttt{Google Maps} ed è implementata nella Main Activity tramite un fragment di classe \texttt{SupportMapFragment}. Viene inizializzata, tramite la funzione \texttt{loadMap}, dopo che l'utente ha fornito i permessi di posizione. \\
+Per localizzare l'utente sulla mappa viene utilizzato un \texttt{LocationListener} che viene aggiornato ogni due secondi e il cui ciclo di vita è legato a quello di \texttt{resume} e \texttt{stop} della Main Activity
 \subsubsection{Griglia}
+La griglia è generata dalla funzione \texttt{drawGridOnMap} della classe \texttt{Map}.\\
+Per avere una griglia fissata alla mappa e non allo schermo in modo da avere la griglia indipendente dal movimento della mappa, si è considerata una coordinata canonica di partenza dalla quale si calcolano le posizioni di tutti i riquadri della griglia. \\
+Quindi per calcolare la posizione di un riquadro in cui è compresa una determinata coordinata (\texttt{lat}, \texttt{lon}), viene calcolata la coordinata del vertice in alto a sinistra tramite la funzione \texttt{generateTopLeftPoint}, e da li viene disegnato il resto del riquadro. Tale funzione genera il punto tramite le seguenti formule:
+\begin{equation*}
+    \texttt{lat}_{\texttt{tlPoint}} = \left \lceil \dfrac{\texttt{lat} - \texttt{lat}_{\texttt{start}}}{\texttt{offset}} \right \rceil \cdot \texttt{offset}
+\end{equation*}
+\begin{equation*}
+    \texttt{lon}_{\texttt{tlPoint}} = \left \lfloor \dfrac{\texttt{lon} - \texttt{lon}_{\texttt{start}}}{\texttt{offset}} \right \rfloor \cdot \texttt{offset}
+\end{equation*}
+Dove $\texttt{lat}_{\texttt{tlPoint}}$ e $\texttt{lon}_{\texttt{tlPoint}}$ sono le coordinate del punto in alto a sinistra del riquadro che si sta calcolando. \texttt{Offset} è la lunghezza di un lato di un riquadro ed è calcolato dal metodo \texttt{metersToOffset} che prende in input la grandezza di un riquadro in base allo zoom (\texttt{meters}) e la converte in gradi usando la proporzione $1^{\circ} \texttt{ lat}/\texttt{lon} = 111km$ circa. $\texttt{Lat}_{\texttt{start}}$ e $\texttt{lon}_{\texttt{start}}$ sono le coordinate della posizione canonica presa come punto di riferimento, ovvero il punto $(0,0)$. \\
+Una volta definite le funzioni ausiliarie, per rappresentare la griglia viene preso in considerazione il punto in alto a sinistra dello schermo del dispositivo e viene generato il riquadro in cui è compreso. Successivamente viene calcolata l'area dello schermo del dispositivo e si generato riquadri adiacenti finché lo schermo riesce a visualizzarli, prima orizzontalmente poi verticalmente. \\
+Per gestire la colorazione di un riquadro, viene utilizzata la funzione \texttt{getQuality}, che prendendo in input le medie dei tre tipi di misurazione in quel riquadro (limitando eventualmente il numero di misure da prendere in considerazione per la media in base al limite specificato dall'utente), li confronta con le soglie pessime e ottimali (di default o impostate dall'utente) e associa ad ogni tipo di misurazione il colore rosso se la media si trova sotto la soglia pessima, verde se si trova sopra la soglia ottimale e giallo se si trova in mezzo. \\ \\
+Interagire con la griglia.
+\subsection{Notifica}
+\label{sec:notifica}
+La funzionalità di inviare una notifica se si entra in un riquadro senza misure recenti viene gestita nel metodo \texttt{listenerHandler} con parametro \texttt{isInFetchingMode} a \texttt{false}. \\
+Per rilevare quando l'utente entra in un nuovo riquadro, viene confrontata la sua posizione presa dal \texttt{LocationListener} con l'ultima registrata e se le due posizioni si trovano in riquadri diversi. In caso affermativo viene chiamato il database per controllare se l'ultima misura in quel riquadro risale al giorno odierno e in caso negativo viene inviata una notifica per segnalare la mancanza.
 \subsection{Sensori}
 La gestione dei sensori avviene nella classe \texttt{Sensor} che implementa i metodi di misurazione per ciascuno dei tre componenti. \\
 Le misurazioni LTE e Wi-Fi vengono effettuate instantaneamente, mentre per il calcolo del dB si campionano due misure del microfono nell'arco di tre secondi ignorando il primo perché non viene captato nulla. Una volta effettuato il campionamento, essendo calcolato in ampiezza, viene convertito in dB.
-\subsection{Scambio di dati}
-\subsubsection{Bluetooth}
-\subsubsection{Da file}
 \subsection{Metodi di misurazione} % Come effettua una misura, db ecc...
+All'interno dell'applicazione è implementato un database locale con \texttt{Room} che immagazzina le misure registrate. Nel database una misura è memorizzata come oggetto della classe \texttt{Measure}, formata dai seguenti campi:
+\begin{table}[H]
+    \begin{tabular}{l|l}
+        \textbf{Campo} & \textbf{Descrizione} \\
+        \texttt{id} & ID della misura, autogenerato e univoco \\
+        \texttt{timestamp} & Data e ora della misura \\
+        \texttt{lat} & Latitudine della posizione \\
+        \texttt{lon} & Longitudine della posizione \\
+        \texttt{lte} & Valore LTE calcolato \\
+        \texttt{wifi} & Valore Wi-Fi calcolato \\
+        \texttt{db} & Valore dB calcolato \\
+        \texttt{user\_id} & UUID univoco per ogni utente \\
+        \texttt{imported} & True se la misura è importata, false se è stata effettuata dall'utente
+    \end{tabular}
+\end{table}
+\noindent La creazione di una misura avviene nella funzione \texttt{addMeasurement} che crea un oggetto \texttt{Measure} e lo popola con l'orario e la posizione attuale, le misure registrate tramite la classe \texttt{Sensor}, l'UUID univoco dell'utente e impostando il flag \texttt{imported} a \texttt{false}. Successivamente lo importa nel database. Infine, in base al flag \texttt{isOutside} passato come parametro, che indica se la misura è stata effettuata al di fuori dell'area dello schermo, aggiorna o no la griglia.
 \subsubsection{Periodic}
+La funzionalità di scansione periodica è gestita nel metodo \texttt{periodicFetch} che, finché è attivo lo switch \texttt{periodic\_fetch} nelle impostazioni, effettua misure con un intervallo scelto dall'utente.
 \subsubsection{Periodic in background}
+La funzionalità viene gestita tramite il servizio \texttt{PeriodicFetchService}, la cui attivazione e disattivazione sono gestite dentro alla Main Activity in base allo switch \texttt{background\_periodic\_fetch} nelle impostazioni. \\
+Il servizio, che permette all'applicazione di agire in background, invia una notifica fissa nella Status Bar che segnala che il servizio è in esecuzione e quante misure ha effettuato dall'avvio, successivamente effettua misure con un intervallo scelto dall'utente. \\
+Durante il ciclo di vita del servizio, la mappa nel Main Activity viene oscurata.
 \subsubsection{Automatic}
+La funzionalità viene gestita nel metodo \texttt{listenerHandler} con parametro \texttt{isInFetchingMode} a \texttt{true}. Per rilevare quando l'utente entra in un nuovo riquadro, utilizza lo stesso metodo utilizzato per la notifica (Capitolo \ref{sec:notifica}).
+\subsection{Scambio di dati}
+Lo scambio delle misure viene gestito nell'activity \texttt{SwapActivity}. \\
+Il compito principale dell'activity è manipolare oggetti JSON per importare ed esportare misure nel database locale.
+\subsubsection{Da file}
+L'importazione è gestita lanciando un intent \texttt{ACTION\_OPEN\_DOCUMENT} per permettere all'utente di selezionare il file. Dopo la selezione, vengono ricavate le misure dal file JSON e importate nel database tramite la funzione \texttt{importData}. Per evitare di importare più volte la stessa misura, viene prima controllato che non siano già presenti nel database misure con lo stesso ID utente, orario e posizione. \\
+L'esportazione è gestita dalla funzione \texttt{exportData} che prende tutte le misure, escludendo quelle importate, dal database e le inserisce in un file JSON con estensione \texttt{.mapc}. Successivamente lancia un intent \texttt{ACTION\_SEND} per permettere all'utente di condividere il file.
+\subsubsection{Bluetooth}
+Lo scambio dati tramite Bluetooth è implementato tramite un'architettura Client/Server dove chi esporta funge da Server e chi importa funge da Client. \\
+Prima di tutto vengono controllati i permessi relativi al Bluetooth e, in caso non sia attivo, viene chiesto di attivare il Bluetooth. \\
+L'importazione è gestita a partire dalla funzione \texttt{btReceiveHandler} che inizia la scansione dei dispositivi nelle vicinanze che hanno l'esportazione attiva e, grazie ad un oggetto \texttt{BroadcastReceiver} che quando riceve l'intent \texttt{ACTION\_FOUND} relativo a un dispositivo rilevato, lo mostra all'utente aggiungendolo ad una lista di dispositivi rilevati, che viene aggiornata ad ogni ciclo di scansione rimuovendo i dispositivi non più rilevabili. Quando l'utente preme su un dispositivo, viene inizializzata la connessione istanziando un oggetto di classe \texttt{ConnectThread} che ferma la scansione dei dispositivi e crea un socket per la connessione utilizzando un UUID per identificare l'app. \\
+Una volta ricevute le misure, in una stringa formato JSON, vengono importate tramite la funzione \texttt{importData}. \\
+L'esportazione è gestita a partire dalla funzione \texttt{btDiscoverHandler} che, tramite un intent \texttt{ACTION\_REQUEST\_DISCOVERABLE}, richiede all'utente di attivare la discoverabilità per una durata impostata. Se l'utente accetta viene inizializzato il server istanziando un oggetto della classe \texttt{AcceptThread}, crea un server socket per ricevere connessioni e rimane in ascolto finché un dispositivo si connette o scade il tempo. Una volta accettata la connessione con un client, si connette al suo socket e chiude il server socket creato precedentemente. \\
+Successivamente viene creata e trasmessa al client una stringa formato JSON che contiene tutte le misure, eccetto quelle importate, aggiungendo in coda una stringa \texttt{-- END --} per segnalare al client quando la trasmissione della stringa è terminata.
+
 \section{Capitolo 3 ex test effettuati}
 
 
