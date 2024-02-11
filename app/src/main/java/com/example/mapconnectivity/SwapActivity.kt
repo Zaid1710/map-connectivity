@@ -532,35 +532,19 @@ class SwapActivity : AppCompatActivity() {
      * */
     @RequiresApi(Build.VERSION_CODES.S)
     private fun btInit(isReceiver: Boolean) {
-        val permissionsToRequest = mutableListOf<String>()
-        if (!checkPermission(Manifest.permission.ACCESS_FINE_LOCATION)) {
-            permissionsToRequest.add(Manifest.permission.ACCESS_FINE_LOCATION)
-        }
-        if (!checkPermission(Manifest.permission.ACCESS_COARSE_LOCATION)) {
-            permissionsToRequest.add(Manifest.permission.ACCESS_COARSE_LOCATION)
-        }
-        if (!checkPermission(Manifest.permission.BLUETOOTH_SCAN)) {
-            permissionsToRequest.add(Manifest.permission.BLUETOOTH_SCAN)
-        }
-        if (!checkPermission(Manifest.permission.BLUETOOTH)) {
-            permissionsToRequest.add(Manifest.permission.BLUETOOTH)
-        }
-        if (!checkPermission(Manifest.permission.BLUETOOTH_CONNECT)) {
-            permissionsToRequest.add(Manifest.permission.BLUETOOTH_CONNECT)
-        }
+        val permissionsToRequest = generatePermissionRequest(mutableListOf(
+            Manifest.permission.ACCESS_FINE_LOCATION,
+            Manifest.permission.BLUETOOTH_SCAN,
+            Manifest.permission.BLUETOOTH,
+            Manifest.permission.BLUETOOTH_CONNECT))
 
         if (permissionsToRequest.isNotEmpty()) {
-//            if (!isPermissionRequested) {
-//                isPermissionRequested = true
                 Log.d("PERMISSIONS", "BT PERMISSIONS MISSING")
                 if (isReceiver) {
                     requestPermissions(permissionsToRequest.toTypedArray(), PERMISSION_BT_RECEIVER)
                 } else {
                     requestPermissions(permissionsToRequest.toTypedArray(), PERMISSION_BT_DISCOVER)
                 }
-//            }  else {
-//                notifyMissingPermissions("L'applicazione ha bisogno dei permessi dei dispositivi nelle vicinanze per importare ed esportare tramite Bluetooth.")
-//            }
 
         } else {
             // Tutti i permessi sono stati già concessi
@@ -940,18 +924,32 @@ class SwapActivity : AppCompatActivity() {
      * */
     private fun notifyMissingPermissions(str: String) {
         val dialogBuilder = AlertDialog.Builder(this, R.style.DialogTheme)
-        dialogBuilder.setTitle("Permessi di posizione mancanti")
+        dialogBuilder.setTitle("Permessi mancanti")
         dialogBuilder.setMessage("$str \nPer favore autorizzane l'utilizzo per proseguire.")
         dialogBuilder.setNegativeButton("Prosegui") { _, _ ->
             val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
             val uri = Uri.fromParts("package", packageName, null)
             intent.data = uri
             startActivity(intent)
-
-            finish()
         }
         dialogBuilder.setNeutralButton("Chiudi") { _, _ -> }
         dialogBuilder.create().show()
+    }
+
+    /**
+     * Data una lista di permessi, filtra quelli già presenti e restituisce una lista con quelli mancanti
+     * @param requests Lista di permessi
+     * @return Lista di permessi da richiedere
+     * */
+    private fun generatePermissionRequest(requests: MutableList<String>) : MutableList<String> {
+        val permissionsToRequest = mutableListOf<String>()
+        for (request in requests) {
+            if (!checkPermission(request)) {
+                permissionsToRequest.add(request)
+            }
+        }
+
+        return permissionsToRequest
     }
 }
 

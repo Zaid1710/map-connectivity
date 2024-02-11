@@ -256,11 +256,6 @@ class MainActivity : AppCompatActivity() {
 
         mode = prefs.getString("mode_preference", 0.toString())!!.toInt()
         selectedModeValue.text = MODES[mode]
-        val permissionsToRequest = generatePermissionRequest(mutableListOf(Manifest.permission.ACCESS_FINE_LOCATION))
-
-        if (permissionsToRequest.isEmpty()) {
-            initMap(mode)
-        }
 
         Log.d("PREFERENCES", mode.toString())
 
@@ -272,7 +267,6 @@ class MainActivity : AppCompatActivity() {
                 // Qualche permesso non è stato dato
                 Log.d("PERMISSIONS", "SOMETHING'S MISSING WITH NOTIFY PERMISSIONS")
                 requestPermissions(permissionsToRequest.toTypedArray(), PERMISSION_NOTIFY)
-
             } else {
                 // Tutti i permessi sono stati già concessi
                 Log.d("PERMISSIONS", "ALL NOTIFY PERMISSIONS GRANTED")
@@ -284,11 +278,36 @@ class MainActivity : AppCompatActivity() {
                 mapView.getMapAsync { googleMap ->
                     map.listenerHandler(googleMap, false)
                 }
+
             }
+        }
+
+        val permissionsToRequest = generatePermissionRequest(mutableListOf(Manifest.permission.POST_NOTIFICATIONS))
+        if (permissionsToRequest.isNotEmpty()) {
+            val preferences: SharedPreferences =
+                PreferenceManager.getDefaultSharedPreferences(this)
+            val editor: SharedPreferences.Editor = preferences.edit()
+            editor.putBoolean("notifyAbsentMeasure", false)
+            editor.apply()
         }
 
         lastNotifySwitch = notifySwitch
 
+    }
+
+    /**
+     * Viene chiamata quando si ritorna all'activity e controlla i permessi di posizione
+     * */
+    @RequiresApi(Build.VERSION_CODES.S)
+    override fun onRestart() {
+        super.onRestart()
+        val permissionsToRequest = generatePermissionRequest(mutableListOf(Manifest.permission.ACCESS_FINE_LOCATION))
+
+        if (permissionsToRequest.isEmpty()) {
+            initMap(mode)
+        } else {
+            notifyMissingPermissions("L'applicazione ha bisogno dei permessi di posizione.", true)
+        }
     }
 
     /**
@@ -361,7 +380,7 @@ class MainActivity : AppCompatActivity() {
 
         } else {
             if (requestCode == PERMISSION_INIT) {
-                notifyMissingPermissions("L'applicazione ha bisogno dei permessi di posizione.")
+                notifyMissingPermissions("L'applicazione ha bisogno dei permessi di posizione.", true)
             }
 
             if (requestCode == PERMISSION_BACKGROUND_PERIODIC_FETCH) {
@@ -370,6 +389,16 @@ class MainActivity : AppCompatActivity() {
                 val editor: SharedPreferences.Editor = preferences.edit()
                 editor.putBoolean("background_periodic_fetch", false)
                 editor.apply()
+            }
+
+            if (requestCode == PERMISSION_NOTIFY) {
+                val preferences: SharedPreferences =
+                    PreferenceManager.getDefaultSharedPreferences(this)
+                val editor: SharedPreferences.Editor = preferences.edit()
+                editor.putBoolean("notifyAbsentMeasure", false)
+                editor.apply()
+
+                notifyMissingPermissions("Le notifiche sono state disattivate perché l'applicazione ha bisogno dei permessi relativi.", false)
             }
 
             // Almeno uno dei permessi è stato negato
@@ -478,7 +507,7 @@ class MainActivity : AppCompatActivity() {
                     )
                 }
             } else {
-                notifyMissingPermissions("L'applicazione ha bisogno dei permessi del microfono per eseguire una misura.")
+                notifyMissingPermissions("L'applicazione ha bisogno dei permessi del microfono per eseguire una misura.", false)
             }
         } else {
             Log.d("MEASUREPERMISSIONS", "Ho tutti i permessi per le misure")
@@ -568,20 +597,27 @@ class MainActivity : AppCompatActivity() {
     /**
      * Crea e mostra la notifica che allerta l'utente che mancano i permessi e lo indirizza alle impostazioni dell'applicazione per fornirli
      * @param str Testo del dialog
+     * @param isInit True se si stanno notificando i permessi iniziali di posizione, false altrimenti
      * */
-    private fun notifyMissingPermissions(str: String) {
+    private fun notifyMissingPermissions(str: String, isInit: Boolean) {
         val dialogBuilder = AlertDialog.Builder(this, R.style.DialogTheme)
-        dialogBuilder.setTitle("Permessi di posizione mancanti")
+        dialogBuilder.setTitle("Permessi mancanti")
         dialogBuilder.setMessage("$str \nPer favore autorizzane l'utilizzo per proseguire.")
-        dialogBuilder.setNegativeButton("Prosegui") { _, _ -> }
-        dialogBuilder.setOnDismissListener {
-
+        dialogBuilder.setNegativeButton("Prosegui") { _, _ ->
             val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
             val uri = Uri.fromParts("package", packageName, null)
             intent.data = uri
             startActivity(intent)
-
-            finish()
+        }
+        if (isInit) {
+            dialogBuilder.setOnDismissListener {
+                val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+                val uri = Uri.fromParts("package", packageName, null)
+                intent.data = uri
+                startActivity(intent)
+            }
+        } else {
+            dialogBuilder.setNeutralButton("Chiudi") { _, _ -> }
         }
         dialogBuilder.create().show()
     }
