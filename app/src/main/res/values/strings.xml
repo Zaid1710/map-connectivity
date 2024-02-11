@@ -1,3 +1,22 @@
 <resources>
     <string name="app_name">MapConnectivity</string>
+    <!-- Stringhe relative al main -->
+    <string name="modeText">Modalità attuale:</string>
+
+    <!-- Stringhe relative alle impostazioni -->
+    <string name="title_activity_settings">SettingsActivity</string>
+    <string name="settingsTitle">Impostazioni</string>
+    <string name="viewImportedSummary">Se attiva, verranno prese in considerazione anche le misure importate</string>
+    <string name="automaticFetchSummary">Effettua una scansione ogni volta che si entra in un nuovo riquadro</string>
+    <string name="periodicFetchSummary">Effettua una scansione periodicamente</string>
+    <string name="bgPeriodicFetchSummary">Oscura la mappa e effettua delle scansioni periodicamente. Funziona anche quando l\'applicazione è in background</string>
+    <string name="limitSummary">Se spento verranno mostrate tutte le misure, altrimenti scegli quante misure più recenti prendere in considerazione.</string>
+    <string name="boundsSummary">Se attiva, verranno prese in considerazione le soglie impostate sotto per la valutazione dei colori dei riquadri</string>
+
+    <!-- Stringhe relative allo swap -->
+    <string name="swapTitle">Importa/Esporta misure</string>
+    <string name="importDescription">Seleziona un file .mapc per importare tutte le misure presenti al suo interno</string>
+    <string name="exportDescription">Genera un file .mapc da condividere</string>
+    <string name="importBtDescription">Cerca i dispositivi che hanno la funzionalità Esporta Bluetooth attiva e importa tutte le misure di quel dispositivo</string>
+    <string name="exportBtDescription">Rende il dispositivo discoverabile da altri e, quando viene selezionato da qualche dispositivo, gli invia una copia delle misure</string>
 </resources>
