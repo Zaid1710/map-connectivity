@@ -842,7 +842,7 @@ class SwapActivity : AppCompatActivity() {
                     CoroutineScope(Dispatchers.Main).launch {
                         val toast = Toast.makeText(
                             applicationContext,
-                            "Qualcosa è andato storto! Prova a richiedere l'esportazione",
+                            "Qualcosa è andato storto! Prova a chiedere di nuovo l'esportazione",
                             Toast.LENGTH_LONG
                         )
                         toast.show()

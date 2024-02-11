@@ -252,6 +252,7 @@ class Map (mapView: SupportMapFragment?, activity: MainActivity) {
 
     /**
      * Converte un offset da metri a gradi di latitudine/longitudine (1° lat/lon = 111km circa)
+     * @param meters Grandezza di un riquadro in base allo zoom
      * @return Offset in gradi lat/lon
      * */
     private fun metersToOffset(meters: Double) : Double {
@@ -394,7 +395,7 @@ class Map (mapView: SupportMapFragment?, activity: MainActivity) {
         } else {
             prefs.getBoolean("notifyAbsentMeasure", true)
         }
-        Log.d("LOCLISTENER", "Sono entrato in automaticFetch")
+        Log.d("LOCLISTENER", "Sono entrato in listenerHandler")
         semaphore.acquire()
         var lastLocation = locationFromListener
         semaphore.release()

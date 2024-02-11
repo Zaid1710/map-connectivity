@@ -63,7 +63,7 @@ class Sensor(private var context: Context) {
      * */
     @RequiresApi(Build.VERSION_CODES.S)
     fun fetchMicrophone(): Double {
-        val SECONDS_TO_FETCH = 1
+        val SECONDS_TO_FETCH = 2
         var avgAmplitude = 0.0
         var amplitudes = arrayOf<Double>()
         val recorder = MediaRecorder(context)
