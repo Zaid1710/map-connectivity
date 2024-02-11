@@ -41,7 +41,7 @@
             \begin{center}
                 {\large{\bf Cheikh Ibrahim $\cdot$ Zaid}}\\
                 {\large Matricola: \texttt{0000974909}} \\
-                {\large{\texttt{zaid.cheikhibrahim@studio.unibo.it}}}
+                {\large{\href{mailto:zaid.cheikhibrahim@studio.unibo.it}{\texttt{zaid.cheikhibrahim@studio.unibo.it}}}}
             \end{center}
     
             \end{minipage}
@@ -50,7 +50,7 @@
             \begin{center}
                 {\large{\bf Paris $\cdot$ Manuel}}\\
                 {\large Matricola: \texttt{0000997526}}
-                {\large{\texttt{manuel.paris@studio.unibo.it}}}
+                {\large{\href{mailto:manuel.paris@studio.unibo.it}{\texttt{manuel.paris@studio.unibo.it}}}}
             \end{center}
         \end{minipage}
             
@@ -165,9 +165,9 @@ L'utente può scegliere di scambiare i dati con un altro dispositivo o tramite l
 Ci sono quindi 4 opzioni:
 \begin{itemize}
     \item Importazione da file: verrà chiesto di selezionare il file \texttt{.mapc} dall'archivio del dispositivo.
-    \item Esportazione da file: verrà creato un file \texttt{export\_data-ora.mapc} contenente tutte le misure presenti nel database e verrà chiesto all'utente il modo di inviare tale file.
+    \item Esportazione da file: verrà creato un file \texttt{export\_data-ora.mapc} contenente tutte le misure presenti nel database, tranne quelle importate, e verrà chiesto all'utente il modo di inviare tale file.
     \item Importazione da Bluetooth: verranno visualizzati i dispositivi nelle vicinanze discoverabili tramite Bluetooth e selezionandone uno verrà inizializzata la connessione per importare le misure automaticamente (Figura \ref{fig:importBluetooth}).
-    \item Esportazione da Bluetooth: in base alla durata di discoverabilità presente nelle impostazioni, il dispositivo diventerà discoverabile dagli altri per quella durata e alla richiesta di importazione da parte di un dispositivo, gli invierà tutte le misure presenti nel database (Figura \ref{fig:exportBluetooth}).
+    \item Esportazione da Bluetooth: in base alla durata di discoverabilità presente nelle impostazioni, il dispositivo diventerà discoverabile dagli altri per quella durata e alla richiesta di importazione da parte di un dispositivo, gli invierà tutte le misure presenti nel database, tranne quelle importate (Figura \ref{fig:exportBluetooth}).
 \end{itemize}
 \begin{figure}[H] 
     \centering
@@ -191,7 +191,7 @@ Ci sono quindi 4 opzioni:
 \section{Dettagli implementativi}
 \subsection{Permessi}
 \label{sec:permessi}
-Da Android 11 le richieste dei permessi sono cambiate\footnote{\href{https://developer.android.com/about/versions/11/privacy/permissions?hl=en\#dialog-visibility}{Permissions updates in Android 11 - Android Developers}}. Per aggirare questo problema si è deciso di mostrare un dialog che, in caso l'utente vieti i permessi oltre il nuovo limite imposto, gli notifichi dell'assenza dei permessi lo indirizza alle impostazioni dell'applicazione per autorizzarli manualmente. \\
+Da Android 11 le richieste dei permessi sono cambiate\footnote{\href{https://developer.android.com/about/versions/11/privacy/permissions?hl=en\#dialog-visibility}{Permissions updates in Android 11 - Android Developers}}. Per aggirare questo problema si è deciso di mostrare un dialog che, in caso l'utente vieti i permessi oltre il nuovo limite imposto, gli notifica l'assenza dei permessi e lo indirizza alle impostazioni dell'applicazione per autorizzarli manualmente. \\
 Tale procedura è stata applicata per le richieste dei permessi di posizione, notifica, bluetooth e microfono. Per i permessi iniziali di posizione, dato che sono fondamentali per il funzionamento minimale dell'applicazione, l'utente è forzato a fornire i permessi nelle impostazioni per proseguire con l'utilizzo dell'applicazione.
 \subsection{Mappa}
 Per la visualizzazione della mappa, sono utilizzate le \texttt{API} di \texttt{Google Maps} ed è implementata nella Main Activity tramite un fragment di classe \texttt{SupportMapFragment}. Viene inizializzata, tramite la funzione \texttt{loadMap}, dopo che l'utente ha fornito i permessi di posizione. \\
@@ -199,7 +199,7 @@ Per localizzare l'utente sulla mappa viene utilizzato un \texttt{LocationListene
 \subsubsection{Griglia}
 La griglia è implementata tramite oggetti della classe \texttt{Polygon} di Google Maps che vanno a formare i singoli riquadri. È generata dalla funzione \texttt{drawGridOnMap} della classe \texttt{Map}.\\
 Per avere una griglia fissata alla mappa e non allo schermo in modo da avere la griglia indipendente dal movimento della mappa, si è considerata una coordinata canonica di partenza dalla quale si calcolano le posizioni di tutti i riquadri della griglia. \\
-Quindi per calcolare la posizione di un riquadro in cui è compresa una determinata coordinata (\texttt{lat}, \texttt{lon}), viene calcolata la coordinata del vertice in alto a sinistra tramite la funzione \texttt{generateTopLeftPoint}, e da li viene disegnato il resto del riquadro. Tale funzione genera il punto tramite le seguenti formule:
+Quindi per calcolare la posizione di un riquadro in cui è compresa una determinata coordinata (\texttt{lat}, \texttt{lon}), viene calcolata la coordinata del vertice in alto a sinistra tramite la funzione \texttt{generateTopLeftPoint}, e da lì viene disegnato il resto del riquadro. Tale funzione genera il punto tramite le seguenti formule:
 \begin{equation*}
     \texttt{lat}_{\texttt{tlPoint}} = \left \lceil \dfrac{\texttt{lat} - \texttt{lat}_{\texttt{start}}}{\texttt{offset}} \right \rceil \cdot \texttt{offset}
 \end{equation*}
@@ -207,17 +207,17 @@ Quindi per calcolare la posizione di un riquadro in cui è compresa una determin
     \texttt{lon}_{\texttt{tlPoint}} = \left \lfloor \dfrac{\texttt{lon} - \texttt{lon}_{\texttt{start}}}{\texttt{offset}} \right \rfloor \cdot \texttt{offset}
 \end{equation*}
 Dove $\texttt{lat}_{\texttt{tlPoint}}$ e $\texttt{lon}_{\texttt{tlPoint}}$ sono le coordinate del punto in alto a sinistra del riquadro che si sta calcolando. \texttt{Offset} è la lunghezza di un lato di un riquadro ed è calcolato dal metodo \texttt{metersToOffset} che prende in input la grandezza di un riquadro in base allo zoom (\texttt{meters}) e la converte in gradi usando la proporzione $1^{\circ} \texttt{ lat}/\texttt{lon} = 111km$ circa. $\texttt{Lat}_{\texttt{start}}$ e $\texttt{lon}_{\texttt{start}}$ sono le coordinate della posizione canonica presa come punto di riferimento, ovvero il punto $(0,0)$. \\
-Una volta definite le funzioni ausiliarie, per rappresentare la griglia viene preso in considerazione il punto in alto a sinistra dello schermo del dispositivo e viene generato il riquadro in cui è compreso. Successivamente viene calcolata l'area dello schermo del dispositivo e si generato riquadri adiacenti finché lo schermo riesce a visualizzarli, prima orizzontalmente poi verticalmente. Ogni riquadro viene aggiunto ad una lista dei poligoni in modo da poter essere richiamato successivamente.\\
+Una volta definite le funzioni ausiliarie, per rappresentare la griglia viene preso in considerazione il punto in alto a sinistra dello schermo del dispositivo e viene generato il riquadro in cui è compreso. Successivamente viene calcolata l'area dello schermo del dispositivo e si generano riquadri adiacenti finché lo schermo riesce a visualizzarli, prima orizzontalmente poi verticalmente. Ogni riquadro viene aggiunto ad una lista dei poligoni in modo da poter essere richiamato successivamente.\\
 Per gestire la colorazione di un riquadro, viene utilizzata la funzione \texttt{getQuality}, che prendendo in input le medie dei tre tipi di misurazione in quel riquadro (limitando eventualmente il numero di misure da prendere in considerazione per la media in base al limite specificato dall'utente), li confronta con le soglie pessime e ottimali (di default o impostate dall'utente) e associa ad ogni tipo di misurazione il colore rosso se la media si trova sotto la soglia pessima, verde se si trova sopra la soglia ottimale e giallo se si trova in mezzo. \\ \\
-L'interazione con i riquadri è implementata tramite un listener della mappa, che ad ogni tocco restituisce la posizione in cui si è premuto e questa viene usata per ottenere il poligono in cui si è toccato. Successivamente prende le misure in quel riquadro e fornisce le informazioni all'utente tramite dei dialog. \\
-Inizialmente viene mostrata un dialog con informazioni generali sulle misure presenti nel riquadro. Premendo su "\texttt{Mostra di più}" viene creato un ulteriore dialog che mostra la lista di misure. Selezionando una misura si viene portati in un ultimo dialog che mostra nello specifico tutte le informazioni della misura selezionata con la possibilità di cancellarla. La cancellazione avviene invocando il \texttt{DAO} del database e fornendo l'id della misura alla query di cancellazione.
+L'interazione con i riquadri è implementata tramite un listener della mappa, che ad ogni tocco restituisce la posizione in cui si è premuto e questa viene usata per ottenere il poligono relativo. Successivamente prende le misure in quel riquadro e fornisce le informazioni all'utente tramite dei dialog. \\
+Inizialmente viene mostrato un dialog con informazioni generali sulle misure presenti nel riquadro. Premendo su "\texttt{Mostra di più}" viene creato un ulteriore dialog che mostra la lista di misure. Selezionando una misura si viene portati in un ultimo dialog che mostra nello specifico tutte le informazioni della misura selezionata con la possibilità di cancellarla. La cancellazione avviene invocando il \texttt{DAO} del database e fornendo l'id della misura alla query di cancellazione.
 \subsection{Notifica}
 \label{sec:notifica}
 La funzionalità di inviare una notifica se si entra in un riquadro senza misure recenti viene gestita nel metodo \texttt{listenerHandler} con parametro \texttt{isInFetchingMode} a \texttt{false}. \\
-Per rilevare quando l'utente entra in un nuovo riquadro, viene confrontata la sua posizione presa dal \texttt{LocationListener} con l'ultima registrata e se le due posizioni si trovano in riquadri diversi. In caso affermativo viene chiamato il database per controllare se l'ultima misura in quel riquadro risale al giorno odierno e in caso negativo viene inviata una notifica per segnalare la mancanza.
+Per rilevare quando l'utente entra in un nuovo riquadro, viene confrontata la sua posizione presa dal \texttt{LocationListener} con l'ultima registrata controllando se le due posizioni si trovano in riquadri diversi. In caso affermativo viene chiamato il database per controllare se l'ultima misura in quel riquadro risale al giorno odierno e in caso negativo viene inviata una notifica per segnalare la mancanza.
 \subsection{Sensori}
 La gestione dei sensori avviene nella classe \texttt{Sensor} che implementa i metodi di misurazione per ciascuno dei tre componenti. \\
-Le misurazioni LTE e Wi-Fi vengono effettuate instantaneamente, mentre per il calcolo del dB si campionano due misure del microfono nell'arco di tre secondi ignorando il primo perché non viene captato nulla. Una volta effettuato il campionamento, essendo calcolato in ampiezza, viene convertito in dB.
+Le misurazioni LTE e Wi-Fi vengono effettuate instantaneamente, mentre per il calcolo del dB si campionano due misure del microfono nell'arco di tre secondi ignorando il primo perché non viene captato nulla. I valori registrati, essendo calcolati in ampiezza, vengono convertiti in dB con la funzione \texttt{fetchAmplitude}.
 \pagebreak
 \subsection{Metodi di misurazione} % Come effettua una misura, db ecc...
 All'interno dell'applicazione è implementato un database locale con \texttt{Room} che immagazzina le misure registrate. Nel database una misura è memorizzata come oggetto della classe \texttt{Measure}, formata dai seguenti campi:
@@ -243,7 +243,7 @@ La funzionalità viene gestita tramite il servizio \texttt{PeriodicFetchService}
 Il servizio, che permette all'applicazione di agire in background, invia una notifica fissa nella Status Bar che segnala che il servizio è in esecuzione e quante misure ha effettuato dall'avvio, successivamente effettua misure con un intervallo scelto dall'utente. \\
 Durante il ciclo di vita del servizio, la mappa nel Main Activity viene oscurata.
 \subsubsection{Automatic}
-La funzionalità viene gestita nel metodo \texttt{listenerHandler} con parametro \texttt{isInFetchingMode} a \texttt{true}. Per rilevare quando l'utente entra in un nuovo riquadro, utilizza lo stesso metodo utilizzato per la notifica (Capitolo \ref{sec:notifica}).
+La funzionalità viene gestita nel metodo \texttt{listenerHandler} con parametro \texttt{isInFetchingMode} a \texttt{true}. Per rilevare quando l'utente entra in un nuovo riquadro, viene utilizzato lo stesso metodo utilizzato per la notifica (Capitolo \ref{sec:notifica}).
 \subsection{Scambio di dati}
 Lo scambio delle misure viene gestito nell'activity \texttt{SwapActivity}. \\
 Il compito principale dell'activity è manipolare oggetti JSON per importare ed esportare misure nel database locale.
@@ -251,17 +251,17 @@ Il compito principale dell'activity è manipolare oggetti JSON per importare ed 
 L'importazione è gestita lanciando un intent \texttt{ACTION\_OPEN\_DOCUMENT} per permettere all'utente di selezionare il file. Dopo la selezione, vengono ricavate le misure dal file JSON e importate nel database tramite la funzione \texttt{importData}. Per evitare di importare più volte la stessa misura, viene prima controllato che non siano già presenti nel database misure con lo stesso ID utente, orario e posizione. \\
 L'esportazione è gestita dalla funzione \texttt{exportData} che prende tutte le misure, escludendo quelle importate, dal database e le inserisce in un file JSON con estensione \texttt{.mapc}. Successivamente lancia un intent \texttt{ACTION\_SEND} per permettere all'utente di condividere il file.
 \subsubsection{Bluetooth}
-Lo scambio dati tramite Bluetooth è implementato tramite un'architettura Client/Server dove chi esporta funge da Server e chi importa funge da Client. \\
-Prima di tutto vengono controllati i permessi relativi al Bluetooth e, in caso non sia attivo, viene chiesto di attivare il Bluetooth. \\
+Lo scambio dati con Bluetooth è implementato tramite un'architettura Client/Server dove chi esporta funge da Server e chi importa funge da Client. \\
+Prima di tutto vengono controllati i permessi relativi al Bluetooth e, in caso non sia attivo, viene chiesto di attivarlo. \\
 L'importazione è gestita a partire dalla funzione \texttt{btReceiveHandler} che inizia la scansione dei dispositivi nelle vicinanze che hanno l'esportazione attiva e, grazie ad un oggetto \texttt{BroadcastReceiver} che quando riceve l'intent \texttt{ACTION\_FOUND} relativo a un dispositivo rilevato, lo mostra all'utente aggiungendolo ad una lista di dispositivi rilevati, che viene aggiornata ad ogni ciclo di scansione rimuovendo i dispositivi non più rilevabili. Quando l'utente preme su un dispositivo, viene inizializzata la connessione istanziando un oggetto di classe \texttt{ConnectThread} che ferma la scansione dei dispositivi e crea un socket per la connessione utilizzando un UUID per identificare l'app. \\
 Una volta ricevute le misure, in una stringa formato JSON, vengono importate tramite la funzione \texttt{importData}. \\
-L'esportazione è gestita a partire dalla funzione \texttt{btDiscoverHandler} che, tramite un intent \texttt{ACTION\_REQUEST\_DISCOVERABLE}, richiede all'utente di attivare la discoverabilità per una durata impostata. Se l'utente accetta viene inizializzato il server istanziando un oggetto della classe \texttt{AcceptThread}, crea un server socket per ricevere connessioni e rimane in ascolto finché un dispositivo si connette o scade il tempo. Una volta accettata la connessione con un client, si connette al suo socket e chiude il server socket creato precedentemente. Successivamente viene creata e trasmessa al client una stringa formato JSON che contiene tutte le misure, eccetto quelle importate, aggiungendo in coda una stringa \texttt{-- END --} per segnalare al client quando la trasmissione della stringa è terminata. \\
+L'esportazione è gestita a partire dalla funzione \texttt{btDiscoverHandler} che, tramite un intent \texttt{ACTION\_REQUEST\_DISCOVERABLE}, richiede all'utente di attivare la discoverabilità per una durata impostata. Se l'utente accetta viene inizializzato il server istanziando un oggetto della classe \texttt{AcceptThread}, che crea un server socket con lo stesso UUID del lato client per ricevere connessioni e rimane in ascolto finché un dispositivo si connette o scade il tempo. Una volta accettata la connessione con un client, si connette al suo socket e chiude il server socket creato precedentemente. Successivamente viene creata e trasmessa al client una stringa formato JSON che contiene tutte le misure, eccetto quelle importate, aggiungendo in coda una stringa \texttt{-- END --} per segnalare al client quando la trasmissione della stringa è terminata. \\
 Mentre l'esportazione è in corso, viene mostrato un fragment che implementa un countdown sincronizzato con la durata della discoverabilità decisa nelle impostazioni e un bottone per terminare l'esportazione instantaneamente. Al termine del countdown o alla chiusura manuale dell'esportazione la discoverabilità viene disattivata e il fragment viene nascosto.
 \pagebreak
 \section{Bug noti}
-Di seguito vengono elencati, in ordine di gravità, i maggiori bug riscontrati durante lo sviluppo dell'applicazione e non risolti o aggirati.
+Di seguito vengono elencati, in ordine di gravità, i maggiori bug riscontrati durante lo sviluppo dell'applicazione, non risolti o aggirati.
 \begin{enumerate}
-    \item In base al dispositivo usato, si sono notati comportamenti diversi dati dalla diversa gestione dell'ottimizzazione dei processi e di Android.
+    \item In base al dispositivo usato, si sono notati comportamenti diversi dati dalla diversa gestione di Android e dell'ottimizzazione dei processi.
     \begin{enumerate}
         \item Su dispositivo fisico OnePlus, il programma va in crash all'avvio perché l'applicazione va direttamente alla callback \texttt{onRequestPermissionResult} prima che l'utente possa fornire o rifiutare i permessi. Per ovviare a questo problema bisogna concederli manualmente dalle impostazioni.
     \end{enumerate}
