@@ -1,0 +1,8 @@
+<resources>
+    <string name="opt_db_defaultValue">60</string>
+    <string name="bad_db_defaultValue">80</string>
+    <string name="opt_lte_defaultValue">-80</string>
+    <string name="bad_lte_defaultValue">-95</string>
+    <string name="opt_wifi_defaultValue">-55</string>
+    <string name="bad_wifi_defaultValue">-75</string>
+</resources>

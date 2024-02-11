@@ -1,0 +1,145 @@
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <PreferenceCategory android:title="Tema">
+        <ListPreference
+            android:defaultValue="2"
+            android:entries="@array/theme"
+            android:entryValues="@array/theme_value"
+            android:key="theme_preference"
+            android:title="Tema scelto"
+            app:useSimpleSummaryProvider="true" />
+    </PreferenceCategory>
+    <PreferenceCategory android:title="Modalità">
+
+        <ListPreference
+            android:defaultValue="0"
+            android:entries="@array/modes"
+            android:entryValues="@array/modes_number"
+            android:key="mode_preference"
+            android:title="Parametro di visualizzazione"
+            app:useSimpleSummaryProvider="true" />
+        <SwitchPreference
+            android:defaultValue="true"
+            android:key="view_imported"
+            android:summary="@string/viewImportedSummary"
+            android:title="Visualizza misure importate" />
+        <SwitchPreference
+            android:defaultValue="false"
+            android:key="automatic_fetch"
+            android:summary="@string/automaticFetchSummary"
+            android:title="Scansione automatica" />
+        <SwitchPreference
+            android:defaultValue="false"
+            android:key="periodic_fetch"
+            android:summary="@string/periodicFetchSummary"
+            android:title="Scansione periodica" />
+        <SwitchPreference
+            android:defaultValue="false"
+            android:key="background_periodic_fetch"
+            android:summary="@string/bgPeriodicFetchSummary"
+            android:title="Scansione periodica in background" />
+        <ListPreference
+            android:defaultValue="10"
+            android:entries="@array/time"
+            android:entryValues="@array/time_value"
+            android:key="periodic_fetch_interval"
+            android:title="Intervallo di scansione"
+            app:useSimpleSummaryProvider="true" />
+        <ListPreference
+            android:defaultValue="60"
+            android:entries="@array/discovery_time"
+            android:entryValues="@array/discovery_time_value"
+            android:key="discovery_time"
+            android:title="Durata discoverabilità"
+            app:useSimpleSummaryProvider="true" />
+
+    </PreferenceCategory>
+    <PreferenceCategory
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:title="Soglie">
+        <SwitchPreference
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:defaultValue="false"
+            android:key="switch_preference_limit"
+            android:title="Limita il numero di misure da visualizzare"
+            android:summary="@string/limitSummary" />
+        <EditTextPreference
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:dependency="switch_preference_limit"
+            android:key="limit"
+            android:title="Seleziona numero di misure"
+            app:defaultValue="5"
+            app:useSimpleSummaryProvider="true" />
+        <SwitchPreference
+            android:defaultValue="false"
+            android:key="switch_preference_bounds"
+            android:summary="@string/boundsSummary"
+            android:title="Imposta le soglie manualmente" />
+        <EditTextPreference
+            android:dependency="switch_preference_bounds"
+            android:key="opt_db"
+            android:title="Valore ottimale audio (dB)"
+            app:defaultValue="@string/opt_db_defaultValue"
+            app:useSimpleSummaryProvider="true" />
+        <EditTextPreference
+            android:dependency="switch_preference_bounds"
+            android:key="bad_db"
+            android:title="Valore pessimo audio (dB)"
+            app:defaultValue="@string/bad_db_defaultValue"
+            app:useSimpleSummaryProvider="true" />
+        <EditTextPreference
+            android:dependency="switch_preference_bounds"
+            android:key="opt_lte"
+            android:title="Valore ottimale LTE"
+            app:defaultValue="@string/opt_lte_defaultValue"
+            app:useSimpleSummaryProvider="true" />
+        <EditTextPreference
+            android:dependency="switch_preference_bounds"
+            android:key="bad_lte"
+            android:title="Valore pessimo LTE"
+            app:defaultValue="@string/bad_lte_defaultValue"
+            app:useSimpleSummaryProvider="true" />
+        <EditTextPreference
+            android:dependency="switch_preference_bounds"
+            android:key="opt_wifi"
+            android:title="Valore ottimale Wi-Fi"
+            app:defaultValue="@string/opt_wifi_defaultValue"
+            app:useSimpleSummaryProvider="true" />
+        <EditTextPreference
+            android:dependency="switch_preference_bounds"
+            android:key="bad_wifi"
+            android:title="Valore pessimo Wi-Fi"
+            app:defaultValue="@string/bad_wifi_defaultValue"
+            app:useSimpleSummaryProvider="true" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:title="Altro">
+
+        <EditTextPreference
+            android:key="user_id"
+            android:selectAllOnFocus="true"
+            android:singleLine="true"
+            android:title="User ID"
+            app:enabled="false"
+            app:useSimpleSummaryProvider="true" />
+
+        <SwitchPreference
+            android:defaultValue="false"
+            android:key="notifyAbsentMeasure"
+            android:summary="Se attivo, verrà inviata una notifica quando si entra in un riquadro senza misure o con misure non aggiornate a oggi."
+            android:title="Notifica per misure assenti o obsolete" />
+
+        <Preference
+            app:title="Elimina tutte le misure"
+            app:key="deleteMeasures"
+            app:summary="Questa azione è irriversibile!" />
+    </PreferenceCategory>
+
+</PreferenceScreen>
