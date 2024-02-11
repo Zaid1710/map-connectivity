@@ -14,4 +14,11 @@
 .cxx
 local.properties
 /app/src/main/java/com/example/mapconnectivity/.env
+Report/report.synctex.gz
+Report/report.out
+Report/report.log
+Report/report.fls
+Report/report.fdb_latexmk
+Report/report.aux
+Report/report.toc
 /gradle.properties
